@@ -19,6 +19,8 @@ func _initialize() -> void:
 	suites.append(TurnFlowTests.run())
 	suites.append(SummonTests.run())
 	suites.append(SpellTrapTests.run())
+	suites.append(BattleTests.run())
+	suites.append(DamageStepTests.run())
 
 	var total_passed := 0
 	var total_failed := 0

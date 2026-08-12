@@ -166,23 +166,33 @@ func begin_replay() -> void:
 		"attacker_id": attacker.id if attacker != null else -1,
 		"player": state.turn_player_id,
 	})
-	_clear_battle()
+	clear_battle()
 
 
-## The attacker left the field or stopped being able to battle before damage
-## calculation: the attack simply does not happen.
-func attack_still_valid() -> bool:
+## The ATTACKER left the field or stopped being face-up before damage calculation: the
+## attack simply does not happen.
+##
+## This is deliberately about the attacker only. If the TARGET leaves the field the
+## attack is not cancelled — the set of monsters the opponent controls changed, which is
+## a Replay [S1 p.39], and the attacking player gets to choose again. Checking the target
+## here would silently swallow that Replay, which is exactly the defect BattleTests
+## "removing the attack target causes a Replay" caught.
+func attacker_still_valid() -> bool:
 	var a = state.current_attacker
-	if a == null or a.zone != Enums.Zone.MONSTER_ZONE or not a.is_face_up():
-		return false
-	if not state.attack_is_direct:
-		var d = state.current_attack_target
-		if d == null or d.zone != Enums.Zone.MONSTER_ZONE:
-			return false
-	return true
+	return a != null and a.zone == Enums.Zone.MONSTER_ZONE and a.is_face_up()
 
 
-func _clear_battle() -> void:
+## The declared target is still a monster on the field. A false result always coincides
+## with `replay_required()`, since the opponent's monsters must have changed for the
+## target to have gone.
+func target_still_valid() -> bool:
+	if state.attack_is_direct:
+		return true
+	var d = state.current_attack_target
+	return d != null and d.zone == Enums.Zone.MONSTER_ZONE
+
+
+func clear_battle() -> void:
 	state.current_attacker = null
 	state.current_attack_target = null
 	state.attack_is_direct = false
@@ -338,7 +348,7 @@ func step_end_of_damage_step() -> void:
 
 ## Leave the Damage Step and return to the Battle Step.
 func finish_damage_step() -> void:
-	_clear_battle()
+	clear_battle()
 	state.emit(GameEvent.Kind.BATTLE_STEP_CHANGED, {"step": Enums.BattleStep.BATTLE})
 
 
@@ -350,6 +360,6 @@ func end_battle_phase() -> void:
 		if previous != null:
 			previous.has_attacked_this_turn = true
 		replay_attacker_id = -1
-	_clear_battle()
+	clear_battle()
 	state.battle_step = Enums.BattleStep.END
 	state.emit(GameEvent.Kind.BATTLE_STEP_CHANGED, {"step": Enums.BattleStep.END})

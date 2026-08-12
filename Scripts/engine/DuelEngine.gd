@@ -971,14 +971,25 @@ func _advance_battle() -> void:
 
 	match battle.stage:
 		BattleRules.Stage.AFTER_DECLARATION:
-			if not battle.attack_still_valid():
-				# The attacker or its target left the field: the attack does not happen.
-				battle._clear_battle()
+			if not battle.attacker_still_valid():
+				# The ATTACKER left the field: the attack does not happen at all.
+				# The target leaving is a different case and is handled by the Replay
+				# check below, which must therefore come second. [S1 p.39]
+				battle.clear_battle()
 				_pending_events = _events_since(mark)
 				timing = Timing.TRIGGER_CHECK
 				return
 			if battle.replay_required():
 				battle.begin_replay()
+				_pending_events = _events_since(mark)
+				timing = Timing.TRIGGER_CHECK
+				return
+			if not battle.target_still_valid():
+				# Unreachable in principle: a target that left the field means the
+				# opponent's monsters changed, which replay_required() already reported.
+				# Cancelling is still safer than calculating damage against a card that
+				# is not on the field.
+				battle.clear_battle()
 				_pending_events = _events_since(mark)
 				timing = Timing.TRIGGER_CHECK
 				return

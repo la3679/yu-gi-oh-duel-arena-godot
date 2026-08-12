@@ -232,12 +232,48 @@ static func end_turn(engine: DuelEngine, limit: int = 24) -> bool:
 		if engine.timing != DuelEngine.Timing.OPEN:
 			pass_until_open(engine)
 			continue
-		var a = find_action(engine.get_legal_actions(engine.state.turn_player_id),
-			Enums.ActionKind.END_PHASE)
+		var actions := engine.get_legal_actions(engine.state.turn_player_id)
+		# The Battle Phase offers END_BATTLE_PHASE instead of END_PHASE, so a turn that
+		# reached it cannot be finished with END_PHASE alone.
+		var a = find_action(actions, Enums.ActionKind.END_PHASE)
+		if a == null:
+			a = find_action(actions, Enums.ActionKind.END_BATTLE_PHASE)
 		if a == null:
 			return false
 		engine.submit_action(a)
 	return engine.state.turn_number != start_turn
+
+
+## A duel sitting in the Battle Step of turn 2, with player 0 as the turn player.
+##
+## Player 1 is given the first turn on purpose: "the player who goes first cannot conduct
+## a Battle Phase on their first turn" [S1 p.37], so making player 0 the SECOND player
+## lets the battle suite use player 0 as the attacker from turn 2 onward.
+static func battle_duel(seed_value: int = 1234) -> Dictionary:
+	var d := new_duel(seed_value, 1)
+	end_turn(d["engine"])
+	advance_to_phase(d["engine"], Enums.Phase.BATTLE)
+	return d
+
+
+## Every event of `kind`, in order.
+static func events_of(engine: DuelEngine, kind: GameEvent.Kind, from: int = 0) -> Array:
+	var out: Array = []
+	for i in range(from, engine.state.events.size()):
+		if engine.state.events[i].kind == kind:
+			out.append(engine.state.events[i])
+	return out
+
+
+## Declare an attack through the public API. `target` is null for a direct attack.
+## Returns whether the engine accepted the declaration.
+static func attack(engine: DuelEngine, attacker: CardInstance, target) -> bool:
+	var a = find_action(engine.get_legal_actions(attacker.controller_id),
+		Enums.ActionKind.DECLARE_ATTACK, attacker.id)
+	if a == null:
+		return false
+	a.attack_target_id = -1 if target == null else target.id
+	return engine.submit_action(a)
 
 
 ## Index of the first event of `kind` in the state's event list, or -1.
