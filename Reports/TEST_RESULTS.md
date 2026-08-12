@@ -33,10 +33,13 @@ The raw command still works and produces the same numbers:
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
 | Core rules tests | 13 | 630 | **630** | 0 |
-| Per-card tests | 0 | 0 | 0 | 0 |
+| Per-card tests | 1 | 43 | **43** | 0 |
 | Interaction tests | 0 | 0 | 0 | 0 |
 | Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **13** | **630** | **630** | **0** |
+| **TOTAL** | **14** | **673** | **673** | **0** |
+
+Card library: **1 / 77 implemented, 1 / 77 tested** — computed by `Tools/build_matrix.py`
+from `Scripts/cards/registry/*.gd` and `Tests/cards/*.gd`, never by hand.
 
 `RESULT: PASS`, exit code 0.
 
@@ -347,9 +350,25 @@ shape, equip mechanics (the `MoveReason.RULE` unequip path runs but nothing asse
 and simultaneous-LP-zero draws. Special Summon execution, piercing battle damage and the
 duel log / replay payload were the other three and are now covered.
 
-**B. Per-card** — 0 of 77 cards have tests. No card in `Data/cards/cards.json` has an
-`EffectDef` yet; the engine has been exercised only against synthetic cards built by
-`Tests/support/TestFixtures.gd`. That is intentional for Phase 4.
+**B. Per-card** — **1 of 77** cards implemented and tested (`Shining Angel`). The other 76
+are honestly reported as `NOT_IMPLEMENTED` / `NOT_TESTED` in
+`Reports/CARD_IMPLEMENTATION_MATRIX.csv`.
+
+### ShiningAngelTests — 43/43
+`Tests/cards/ShiningAngelTests.gd`. The first per-card suite, and the shape every later
+one follows: the clause is exercised **positively and negatively**, and the negatives are
+where the value is.
+
+| Test | Asserts | What it proves |
+|---|---:|---|
+| the registry loads cleanly | 5 | all 77 definitions load, the registry reports no errors, one `EffectDef` per official clause, and the card name is stamped onto the effect |
+| the clause shape | 9 | optional Trigger Effect, Spell Speed 1, Damage Step window as a *timing* permission, activates from the GY, and **does not target** — the official text has no "target", so the monster is chosen at resolution |
+| destroyed by battle | 12 | a LIGHT monster with ≤1500 ATK arrives from the Deck in Attack Position by Special Summon; the controller is asked exactly once; **every candidate offered passes the clause's own filter** while the too-strong LIGHT copies in the same Deck are excluded |
+| declining | 6 | asked, said no, nothing Summoned, Deck untouched |
+| destroyed by a card effect | 3 | not destroyed *by battle*, so nobody is asked [S1 p.52–53] |
+| Tributed | 3 | a Tribute **is** "sent to the GY" and the trigger event does fire, but the clause still does not — destruction by battle is what it requires |
+| no legal monster in the Deck | 3 | the controller is not asked a question with no possible answer |
+| a full Monster Zone | 4 | the zone the Angel itself vacated is available, so the recruit legitimately fills it |
 
 **C. Interaction** — none yet.
 
@@ -373,4 +392,5 @@ duel log / replay payload were the other three and are now covered.
   `Rider of the Storm Winds` grants piercing. Both branches are now tested.
 
 Coverage is reported honestly here and in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`
-(0 / 77 implemented, 0 / 77 tested). No test result in this file is estimated or projected.
+(**1 / 77 implemented, 1 / 77 tested**). No test result in this file is estimated or
+projected.

@@ -28,6 +28,9 @@ func _initialize() -> void:
 	suites.append(RulesQuestionTests.run())
 	suites.append(ReplayTests.run())
 
+	# --- Per-card suites (Phase 5). One per implemented card. ---
+	suites.append(ShiningAngelTests.run())
+
 	var total_passed := 0
 	var total_failed := 0
 	var empty_suites: Array[String] = []

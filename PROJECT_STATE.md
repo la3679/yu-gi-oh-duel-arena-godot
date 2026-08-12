@@ -9,11 +9,13 @@ complete and tested. **Phase 4c is now complete: the generic-engine gate (Gate B
 MET.** Special Summon execution, the DuelLog replay payload, piercing damage, the
 player-level continuous restriction path and both open rules questions are all resolved
 and tested.
-**Overall status:** IN PROGRESS — **not** acceptance-complete. **Phase 5 (the 77 cards)
-may now begin.**
-**HEAD at checkpoint:** `9b12742` (the Phase 4c commit follows it)
-**Measured suite at checkpoint:** **630 passed / 0 failed** across **13 suites**;
-SmokeCheck **PASS**.
+**Phase 5 has STARTED:** the card registry, the first reusable effect primitives and the
+first card (`Shining Angel`) are implemented and tested — **1 / 77 implemented,
+1 / 77 tested**.
+**Overall status:** IN PROGRESS — **not** acceptance-complete.
+**HEAD at checkpoint:** `1a8cce6` (the Phase 5 kickoff commit follows it)
+**Measured suite at checkpoint:** **673 passed / 0 failed** across **14 suites**
+(630 core rules + 43 per-card); SmokeCheck **PASS**.
 
 ---
 
@@ -289,7 +291,7 @@ Two things it handles that cost real time to discover:
 | 2 | Per-card official text + rulings research (77 cards) | **COMPLETE** |
 | 3 | Architecture / scaffolding + Graphify index | **COMPLETE** |
 | 4 | Core rules engine | **COMPLETE** — 4b-1/4b-2/4b-3/4c done+tested |
-| 5 | Card effect library (77 cards) | NOT STARTED — **unblocked** |
+| 5 | Card effect library (77 cards) | **IN PROGRESS** — registry + primitives built; **1 / 77** implemented and tested |
 | 6 | Automated tests | NOT STARTED |
 | 7 | Basic playable UI | NOT STARTED |
 | 8 | Arena / presentation | NOT STARTED |
@@ -346,6 +348,13 @@ DuelArenaGame/
 │   │   ├── ScriptedController.gd      deterministic controller for the test suite
 │   │   ├── DuelLog.gd                 action / decision / event log + replay payload
 │   │   └── DuelEngine.gd              Fast Effect Timing machine + legal-action API
+│   ├── cards/
+│   │   ├── EffectDef.gd               one official effect clause, declaratively
+│   │   ├── EffectContext.gd           everything an effect callable can reach
+│   │   ├── CardRegistry.gd            scans registry/, validates, attaches to CardDefs
+│   │   ├── EffectPrimitives.gd        reusable mechanics shared by the card library
+│   │   └── registry/
+│   │       └── ShiningAngel.gd        1 of 77 — the template for every other card
 │   ├── rules/
 │   │   ├── ChainLink.gd               one chain link
 │   │   ├── ChainManager.gd            chain build / negate / reverse resolve
@@ -375,6 +384,8 @@ DuelArenaGame/
 │       ├── SpecialSummonTests.gd  54 assertions
 │       ├── RulesQuestionTests.gd  37 assertions
 │       └── ReplayTests.gd         33 assertions
+├── Tests/cards/
+│   └── ShiningAngelTests.gd       43 assertions (declares CARD_UNDER_TEST)
 ├── Tools/                             Python research + data pipeline (dev only)
 │   ├── run_tests.ps1                  headless test runner (parse-check + no pipe stall)
 │   ├── enumerate_cards.py             deck CSVs -> card_pool.json
@@ -525,11 +536,10 @@ Everything previously listed here is now done and tested; see §6a and
 * **Piercing** → the earlier claim that no V1 card requires it was wrong. `Rider of the
   Storm Winds` grants it; both branches are tested.
 
-### Genuinely still open (carried into Phase 5, not hidden)
+### Genuinely still open (carried through Phase 5, not hidden)
 
-* **No card in `Data/cards/cards.json` has an `EffectDef` yet.** The engine has been
-  exercised only against synthetic cards from `Tests/support/TestFixtures.gd`. That was
-  intentional for Phase 4 and is exactly what Phase 5 changes.
+* **76 of 77 cards have no `EffectDef` yet.** `Shining Angel` is implemented and tested;
+  the rest are honestly `NOT_IMPLEMENTED` in the matrix.
 * **Equip mechanics have no assertions.** `GameState._unequip_all()` runs but nothing
   tests it. `Rider of the Storm Winds` and `Castle of Dragon Souls` will force this.
 * **Simultaneous-LP-zero (a draw) is unexercised.**
@@ -555,33 +565,54 @@ across 13 suites, 0 failures**, SmokeCheck PASS. Read §6a for per-subsystem sta
 **thirteen** design decisions that must not be reversed, and §7 for what is genuinely still
 open. Do **not** re-read the whole repository, re-run research, or re-derive rules.
 
-### Immediately next — Phase 5, the 77 card implementations
+### Phase 5 — how the card library is built (the pattern is now established)
 
-There is no remaining generic-engine prerequisite. Cards go in
-`Scripts/cards/registry/<CardName>.gd`, one file per card, each declaring
-`const CARD_NAME := "..."` and one `EffectDef.new(...)` per official effect clause —
-`Tools/build_matrix.py` reads those two markers, so
-`Reports/CARD_IMPLEMENTATION_MATRIX.csv` can never over-report. A per-card test suite goes
-alongside, and the matrix is updated only **after** a card passes its own tests.
+**Read `Scripts/cards/registry/ShiningAngel.gd` and `Tests/cards/ShiningAngelTests.gd`
+first. They are the template; copy their shape.**
 
-Group the work by reusable mechanic rather than alphabetically, and build the shared
-primitives before the cards that need them. From the pool scan (22 of 77 cards Special
-Summon; 1 grants piercing):
+The machinery already exists and does not need to be re-invented:
 
-1. **Primitives first** — search-and-Special-Summon from Deck/GY/hand; targeted
-   destruction; ATK/DEF modification with a stated duration; banish; return-to-hand;
-   draw; discard as cost; the equip mechanic (untested — `Rider of the Storm Winds`,
-   `Castle of Dragon Souls`).
-2. `Shining Angel` — in **both** decks, and the optional destroyed-by-battle
-   Special Summon the engine is now proven to support end to end.
-3. The 9 Normal Monsters (no effects; they validate the loader and the matrix).
-4. The Special-Summon family, then the Spells/Traps by kind.
-5. The counter cards (`Apprentice Magician`, `Wonder Balloons`).
-6. The negation cards (`Champion's Vigilance`) last — they exercise the most machinery.
+| Piece | File | What it does |
+|---|---|---|
+| Registry loader | `Scripts/cards/CardRegistry.gd` | **Scans** `Scripts/cards/registry/` (never a hand-written list, so it cannot drift from the matrix), validates each file, attaches effects to the canonical `CardDef`s. `load_library()` returns `{"cards": name -> CardDef, "errors": Array}`. |
+| Reusable mechanics | `Scripts/cards/EffectPrimitives.gd` | `own_cards_in()`, `monster_filter()`, `choose_one()` (resolution-time choice for non-targeting clauses), `special_summon_one()`, `destroyed_by_battle_condition()`. |
 
-Maintain computed **X/77 implemented** and **X/77 tested** counts from the matrix, never by
-hand. No placeholders, and never silently drop an effect clause: `ChainManager` deliberately
-fails loudly on a missing `resolve()` (`ChainTests` proves it).
+Per card, in order:
+
+1. Write `Scripts/cards/registry/<CardName>.gd` — `extends RefCounted`, no `class_name`
+   (77 of them would pollute the global class list; the loader loads by path).
+   Declare `const CARD_NAME := "..."` and `func effects() -> Array`, with **one
+   `EffectDef.new(...)` per official effect clause**, quoting the verified official text.
+2. Write `Tests/cards/<CardName>Tests.gd` with `const CARD_UNDER_TEST := "..."`, a
+   `class_name`, and a `static func run() -> TestCase`. Cover every clause **positively
+   and negatively** — the negatives are where the value is.
+3. Register the suite in `Scripts/tests/RunTests.gd` under the per-card section.
+4. Re-run `--import` (a new `class_name` is not visible until the class cache is
+   rebuilt — see the reminders below), then the suite.
+5. Only once it passes: `python Tools/build_matrix.py`. The counts are computed, never
+   written by hand.
+
+Suggested remaining order, grouped by **mechanic** rather than alphabetically
+(from the pool scan: 22 of 77 cards Special Summon, 1 grants piercing):
+
+1. The 9 **Normal Monsters** — no effects at all; they are cheap and they prove
+   `CardDef.is_vanilla()` is treated as "implemented", not "missing".
+2. The rest of the **Special Summon family** (`Kaibaman`, `Monster Reborn`,
+   `Birthright`, `Call of the Haunted`, `Silver's Cry`, `Dragonic Tactics`,
+   `One for One`, `Damage Condenser`, `Apprentice Magician`…) — they reuse
+   `special_summon_one()` directly.
+3. The **summoning-procedure** monsters (`Hieratic Dragon of Tefnuit`, `Inari Fire`,
+   `Ranryu`, `Nefarious Archfiend Eater of Nefariousness`) — these use the
+   `SPECIAL_SUMMON_PROCEDURE` path, not the resolution-time one.
+4. **Equip** cards (`Rider of the Storm Winds`, `Gagagashield`, `Castle of Dragon Souls`)
+   — this needs the equip mechanic, which is implemented but **has no assertions yet**.
+   Write those tests as part of the first equip card.
+5. The remaining **Spells/Traps** by kind, then the **counter** cards
+   (`Apprentice Magician`, `Wonder Balloons`), then the **negation** cards
+   (`Champion's Vigilance`) last — they exercise the most machinery.
+
+No placeholders, and never silently drop a clause: `ChainManager` fails loudly on a
+missing `resolve()` and `CardRegistry` rejects a chain-starting effect that has none.
 
 **Do not start presentation work** (3D arena, holographic monsters, summon/attack
 animations, particles, audio, cinematic camera, UI polish). Those are Phases 7–10.
@@ -589,7 +620,13 @@ animations, particles, audio, cinematic camera, UI polish). Those are Phases 7�
 ### Reminders that cost time — read before writing a test
 
 * **Use `Tools/run_tests.ps1`**, not the raw Godot command. See §4 for the two reasons.
-* Run `--import` after adding any `class_name` script, or Godot will not register it.
+* Run `--import` after adding any `class_name` script, or Godot will not register it —
+  and run it as its **own command, before** the test run. Chaining `--import` and the test
+  run in one shell invocation is not enough: the parse check still sees the stale
+  `.godot/global_script_class_cache.cfg` and fails with
+  `Identifier "<YourNewClass>" not declared in the current scope`, which looks like a
+  syntax error in a file that is actually fine. Confirm with:
+  `Select-String .godot\global_script_class_cache.cfg -Pattern YourNewClass`.
 * Never use `:=` where the right-hand side is a `Variant` (an untyped `Array` element such
   as `some_def.effects[0]`, or a function declared `-> Variant` such as
   `TestFixtures.find_action()`). It is a hard compile error, and a failed compile takes
