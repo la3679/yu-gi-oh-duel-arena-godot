@@ -1,0 +1,39 @@
+# Graphify exclusions — master prompt section 2A.
+# Keeps the code graph focused on engine/rules/card/UI source.
+
+.git/
+.godot/
+build/
+graphify-out/
+
+# Generated + cached data (not source; large)
+Data/generated/
+Data/card_art/
+Data/provenance/
+Assets/cards/
+Assets/audio/
+Assets/fonts/
+
+# Godot import sidecars and binaries
+*.import
+*.exe
+*.pck
+*.zip
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.ogg
+*.wav
+*.ttf
+*.pdf
+
+# Cached research evidence (HTML/PDF/images from official sources)
+Research/sources/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# NOTE: the original 251-photo collection lives OUTSIDE this project root
+# (C:\Users\lovea\Pictures\Yu Gi Oh\...) and is therefore never in scope for indexing.

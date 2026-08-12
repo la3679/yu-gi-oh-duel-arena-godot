@@ -1,0 +1,24 @@
+# Godot
+.godot/
+*.import
+export_presets.cfg
+
+# Build output
+build/
+*.exe
+*.pck
+*.zip
+
+# Graphify (development-time index; never a runtime dependency)
+graphify-out/
+
+# Python tooling
+__pycache__/
+*.pyc
+
+# Cached raw research evidence is large; keep the parsed JSON instead.
+Data/generated/konami_raw/
+
+# OS
+Thumbs.db
+desktop.ini

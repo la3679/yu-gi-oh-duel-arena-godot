@@ -1,0 +1,163 @@
+{
+  "deck_name": "Fairy-Tail Tribute Guard",
+  "main_deck": [
+    {
+      "name": "Apprentice Magician",
+      "quantity": 1
+    },
+    {
+      "name": "Aussa the Earth Charmer",
+      "quantity": 1
+    },
+    {
+      "name": "Crystal Seer",
+      "quantity": 1
+    },
+    {
+      "name": "Eria the Water Charmer",
+      "quantity": 1
+    },
+    {
+      "name": "Fairy Tail - Luna",
+      "quantity": 1
+    },
+    {
+      "name": "Fairy Tail - Rella",
+      "quantity": 1
+    },
+    {
+      "name": "Fairy Tail - Sleeper",
+      "quantity": 1
+    },
+    {
+      "name": "Gladiator Beast Andal",
+      "quantity": 1
+    },
+    {
+      "name": "Honest",
+      "quantity": 1
+    },
+    {
+      "name": "Inari Fire",
+      "quantity": 1
+    },
+    {
+      "name": "Kaiser Sea Horse",
+      "quantity": 1
+    },
+    {
+      "name": "Metaphys Armed Dragon",
+      "quantity": 2
+    },
+    {
+      "name": "Nefarious Archfiend Eater of Nefariousness",
+      "quantity": 1
+    },
+    {
+      "name": "Ranryu",
+      "quantity": 1
+    },
+    {
+      "name": "Sabersaurus",
+      "quantity": 1
+    },
+    {
+      "name": "Shining Angel",
+      "quantity": 1
+    },
+    {
+      "name": "Witchcrafter Golem Aruru",
+      "quantity": 1
+    },
+    {
+      "name": "Wynn the Wind Charmer",
+      "quantity": 1
+    },
+    {
+      "name": "Zure, Knight of Dark World",
+      "quantity": 1
+    },
+    {
+      "name": "Enemy Controller",
+      "quantity": 1
+    },
+    {
+      "name": "Hidden Springs of the Far East",
+      "quantity": 1
+    },
+    {
+      "name": "Monster Reborn",
+      "quantity": 1
+    },
+    {
+      "name": "Runick Flashing Fire",
+      "quantity": 1
+    },
+    {
+      "name": "Soul Exchange",
+      "quantity": 1
+    },
+    {
+      "name": "Swords of Revealing Light",
+      "quantity": 1
+    },
+    {
+      "name": "White Elephant's Gift",
+      "quantity": 1
+    },
+    {
+      "name": "Wonder Balloons",
+      "quantity": 1
+    },
+    {
+      "name": "A Hero Emerges",
+      "quantity": 1
+    },
+    {
+      "name": "Birthright",
+      "quantity": 1
+    },
+    {
+      "name": "Chain Detonation",
+      "quantity": 1
+    },
+    {
+      "name": "Champion's Vigilance",
+      "quantity": 1
+    },
+    {
+      "name": "Gagagashield",
+      "quantity": 1
+    },
+    {
+      "name": "Phoenix Wing Wind Blast",
+      "quantity": 1
+    },
+    {
+      "name": "Sealing Ceremony of Suiton",
+      "quantity": 1
+    },
+    {
+      "name": "Spiritual Fire Art - Kurenai",
+      "quantity": 1
+    },
+    {
+      "name": "Spiritual Water Art - Aoi",
+      "quantity": 1
+    },
+    {
+      "name": "Spiritual Wind Art - Miyabi",
+      "quantity": 1
+    },
+    {
+      "name": "The Monarchs Awaken",
+      "quantity": 1
+    },
+    {
+      "name": "The Phantom Knights of Shadow Veil",
+      "quantity": 1
+    }
+  ],
+  "main_deck_count": 40,
+  "extra_deck": []
+}

@@ -1,0 +1,1961 @@
+{
+  "decks": {
+    "deck1": {
+      "deck_name": "Blue-Eyes Dragon Guard",
+      "unique_names": 39,
+      "main_deck_slots": 40,
+      "cards": [
+        {
+          "name": "Alexandrite Dragon",
+          "quantity": 1
+        },
+        {
+          "name": "Blue-Eyes White Dragon",
+          "quantity": 1
+        },
+        {
+          "name": "Chiron the Mage",
+          "quantity": 1
+        },
+        {
+          "name": "Divine Dragon Apocralyph",
+          "quantity": 1
+        },
+        {
+          "name": "Flamvell Guard",
+          "quantity": 1
+        },
+        {
+          "name": "Herald of Creation",
+          "quantity": 1
+        },
+        {
+          "name": "Hieratic Dragon of Tefnuit",
+          "quantity": 1
+        },
+        {
+          "name": "Judge of the Ice Barrier",
+          "quantity": 1
+        },
+        {
+          "name": "Junk Blader",
+          "quantity": 1
+        },
+        {
+          "name": "Kaibaman",
+          "quantity": 1
+        },
+        {
+          "name": "Kaiser Glider",
+          "quantity": 1
+        },
+        {
+          "name": "Luster Dragon",
+          "quantity": 1
+        },
+        {
+          "name": "Maiden with Eyes of Blue",
+          "quantity": 1
+        },
+        {
+          "name": "Mirage Dragon",
+          "quantity": 2
+        },
+        {
+          "name": "Rabidragon",
+          "quantity": 1
+        },
+        {
+          "name": "Rider of the Storm Winds",
+          "quantity": 1
+        },
+        {
+          "name": "Shining Angel",
+          "quantity": 1
+        },
+        {
+          "name": "The White Stone of Legend",
+          "quantity": 1
+        },
+        {
+          "name": "Vampiric Koala",
+          "quantity": 1
+        },
+        {
+          "name": "A Wingbeat of Giant Dragon",
+          "quantity": 1
+        },
+        {
+          "name": "Back-Up Rider",
+          "quantity": 1
+        },
+        {
+          "name": "Burst Stream of Destruction",
+          "quantity": 1
+        },
+        {
+          "name": "Cards of Consonance",
+          "quantity": 1
+        },
+        {
+          "name": "Dragon Shrine",
+          "quantity": 1
+        },
+        {
+          "name": "Dragonic Tactics",
+          "quantity": 1
+        },
+        {
+          "name": "One for One",
+          "quantity": 1
+        },
+        {
+          "name": "Silver's Cry",
+          "quantity": 1
+        },
+        {
+          "name": "Stamping Destruction",
+          "quantity": 1
+        },
+        {
+          "name": "Trade-In",
+          "quantity": 1
+        },
+        {
+          "name": "Call of the Haunted",
+          "quantity": 1
+        },
+        {
+          "name": "Castle of Dragon Souls",
+          "quantity": 1
+        },
+        {
+          "name": "Chain Healing",
+          "quantity": 1
+        },
+        {
+          "name": "Compulsory Evacuation Device",
+          "quantity": 1
+        },
+        {
+          "name": "Damage Condenser",
+          "quantity": 1
+        },
+        {
+          "name": "Fiendish Chain",
+          "quantity": 1
+        },
+        {
+          "name": "Five Brothers Explosion",
+          "quantity": 1
+        },
+        {
+          "name": "Interdimensional Matter Transporter",
+          "quantity": 1
+        },
+        {
+          "name": "Kunai with Chain",
+          "quantity": 1
+        },
+        {
+          "name": "Straight Flush",
+          "quantity": 1
+        }
+      ]
+    },
+    "deck2": {
+      "deck_name": "Fairy-Tail Tribute Guard",
+      "unique_names": 39,
+      "main_deck_slots": 40,
+      "cards": [
+        {
+          "name": "Apprentice Magician",
+          "quantity": 1
+        },
+        {
+          "name": "Aussa the Earth Charmer",
+          "quantity": 1
+        },
+        {
+          "name": "Crystal Seer",
+          "quantity": 1
+        },
+        {
+          "name": "Eria the Water Charmer",
+          "quantity": 1
+        },
+        {
+          "name": "Fairy Tail - Luna",
+          "quantity": 1
+        },
+        {
+          "name": "Fairy Tail - Rella",
+          "quantity": 1
+        },
+        {
+          "name": "Fairy Tail - Sleeper",
+          "quantity": 1
+        },
+        {
+          "name": "Gladiator Beast Andal",
+          "quantity": 1
+        },
+        {
+          "name": "Honest",
+          "quantity": 1
+        },
+        {
+          "name": "Inari Fire",
+          "quantity": 1
+        },
+        {
+          "name": "Kaiser Sea Horse",
+          "quantity": 1
+        },
+        {
+          "name": "Metaphys Armed Dragon",
+          "quantity": 2
+        },
+        {
+          "name": "Nefarious Archfiend Eater of Nefariousness",
+          "quantity": 1
+        },
+        {
+          "name": "Ranryu",
+          "quantity": 1
+        },
+        {
+          "name": "Sabersaurus",
+          "quantity": 1
+        },
+        {
+          "name": "Shining Angel",
+          "quantity": 1
+        },
+        {
+          "name": "Witchcrafter Golem Aruru",
+          "quantity": 1
+        },
+        {
+          "name": "Wynn the Wind Charmer",
+          "quantity": 1
+        },
+        {
+          "name": "Zure, Knight of Dark World",
+          "quantity": 1
+        },
+        {
+          "name": "Enemy Controller",
+          "quantity": 1
+        },
+        {
+          "name": "Hidden Springs of the Far East",
+          "quantity": 1
+        },
+        {
+          "name": "Monster Reborn",
+          "quantity": 1
+        },
+        {
+          "name": "Runick Flashing Fire",
+          "quantity": 1
+        },
+        {
+          "name": "Soul Exchange",
+          "quantity": 1
+        },
+        {
+          "name": "Swords of Revealing Light",
+          "quantity": 1
+        },
+        {
+          "name": "White Elephant's Gift",
+          "quantity": 1
+        },
+        {
+          "name": "Wonder Balloons",
+          "quantity": 1
+        },
+        {
+          "name": "A Hero Emerges",
+          "quantity": 1
+        },
+        {
+          "name": "Birthright",
+          "quantity": 1
+        },
+        {
+          "name": "Chain Detonation",
+          "quantity": 1
+        },
+        {
+          "name": "Champion's Vigilance",
+          "quantity": 1
+        },
+        {
+          "name": "Gagagashield",
+          "quantity": 1
+        },
+        {
+          "name": "Phoenix Wing Wind Blast",
+          "quantity": 1
+        },
+        {
+          "name": "Sealing Ceremony of Suiton",
+          "quantity": 1
+        },
+        {
+          "name": "Spiritual Fire Art - Kurenai",
+          "quantity": 1
+        },
+        {
+          "name": "Spiritual Water Art - Aoi",
+          "quantity": 1
+        },
+        {
+          "name": "Spiritual Wind Art - Miyabi",
+          "quantity": 1
+        },
+        {
+          "name": "The Monarchs Awaken",
+          "quantity": 1
+        },
+        {
+          "name": "The Phantom Knights of Shadow Veil",
+          "quantity": 1
+        }
+      ]
+    }
+  },
+  "total_playable_slots": 80,
+  "unique_playable_cards": 77,
+  "shared_between_decks": [
+    "Shining Angel"
+  ],
+  "problems": [
+    "Blue-Eyes Dragon Guard: 'Vampiric Koala' missing from official_card_data.json"
+  ],
+  "unique_cards": [
+    {
+      "name": "A Hero Emerges",
+      "passcode": 21597117,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Trap",
+      "csv_card_type": "Trap Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Trap Card",
+      "saved_human_type": "Normal Trap",
+      "saved_desc": "When an opponent's monster declares an attack: Your opponent chooses 1 random card from your hand, then if it is a monster that can be Special Summoned, Special Summon it. Otherwise, send it to the Graveyard.",
+      "source_images": [
+        "20260811_170541.jpg"
+      ]
+    },
+    {
+      "name": "A Wingbeat of Giant Dragon",
+      "passcode": 28596933,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Spell",
+      "csv_card_type": "Spell Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Spell Card",
+      "saved_human_type": "Normal Spell",
+      "saved_desc": "Return 1 Level 5 or higher Dragon-Type monster you control to the hand, and if you do, destroy all Spell and Trap Cards on the field.",
+      "source_images": [
+        "20260811_171521.jpg"
+      ]
+    },
+    {
+      "name": "Alexandrite Dragon",
+      "passcode": 43096270,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Normal Monster",
+      "csv_race": "Dragon",
+      "csv_attribute": "LIGHT",
+      "csv_level": "4",
+      "csv_atk": "2000",
+      "csv_def": "100",
+      "saved_type": "Normal Monster",
+      "saved_human_type": "Normal Monster",
+      "saved_desc": "Many of the czars' lost jewels can be found in the scales of this priceless dragon. Its creator remains a mystery, along with how they acquired the imperial treasures. But whosoever finds this dragon has hit the jackpot... whether they know it or not.",
+      "source_images": [
+        "20260811_171358.jpg"
+      ]
+    },
+    {
+      "name": "Apprentice Magician",
+      "passcode": 9156135,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Effect Monster",
+      "csv_race": "Spellcaster",
+      "csv_attribute": "DARK",
+      "csv_level": "2",
+      "csv_atk": "400",
+      "csv_def": "800",
+      "saved_type": "Effect Monster",
+      "saved_human_type": "Effect Monster",
+      "saved_desc": "If this card is Summoned: Target 1 face-up card on the field that you can place a Spell Counter on; place 1 Spell Counter on that target. If this card is destroyed by battle: You can Special Summon 1 Level 2 or lower Spellcaster monster from your Deck in face-down Defense Position.",
+      "source_images": [
+        "20260811_172544.jpg"
+      ]
+    },
+    {
+      "name": "Aussa the Earth Charmer",
+      "passcode": 37970940,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Flip Effect Monster",
+      "csv_race": "Spellcaster",
+      "csv_attribute": "EARTH",
+      "csv_level": "3",
+      "csv_atk": "500",
+      "csv_def": "1500",
+      "saved_type": "Flip Effect Monster",
+      "saved_human_type": "Flip Effect Monster",
+      "saved_desc": "FLIP: While this card is face-up on the field, take control of 1 EARTH monster your opponent controls.",
+      "source_images": [
+        "20260811_172221.jpg"
+      ]
+    },
+    {
+      "name": "Back-Up Rider",
+      "passcode": 68833958,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Spell",
+      "csv_card_type": "Spell Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Spell Card",
+      "saved_human_type": "Normal Spell",
+      "saved_desc": "Target 1 face-up monster on the field; it gains 1500 ATK until the end of this turn.",
+      "source_images": [
+        "20260811_170906.jpg"
+      ]
+    },
+    {
+      "name": "Birthright",
+      "passcode": 35539880,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Trap",
+      "csv_card_type": "Trap Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Trap Card",
+      "saved_human_type": "Continuous Trap",
+      "saved_desc": "Activate this card by targeting 1 Normal Monster in your Graveyard; Special Summon that target in face-up Attack Position. When this card leaves the field, destroy that monster. When that monster leaves the field, destroy this card.",
+      "source_images": [
+        "20260811_170654.jpg"
+      ]
+    },
+    {
+      "name": "Blue-Eyes White Dragon",
+      "passcode": 89631139,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Normal Monster",
+      "csv_race": "Dragon",
+      "csv_attribute": "LIGHT",
+      "csv_level": "8",
+      "csv_atk": "3000",
+      "csv_def": "2500",
+      "saved_type": "Normal Monster",
+      "saved_human_type": "Normal Monster",
+      "saved_desc": "This legendary dragon is a powerful engine of destruction. Virtually invincible, very few have faced this awesome creature and lived to tell the tale.",
+      "source_images": [
+        "20260811_171325.jpg"
+      ]
+    },
+    {
+      "name": "Burst Stream of Destruction",
+      "passcode": 17655904,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Spell",
+      "csv_card_type": "Spell Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Spell Card",
+      "saved_human_type": "Normal Spell",
+      "saved_desc": "If you control \"Blue-Eyes White Dragon\": Destroy all monsters your opponent controls. \"Blue-Eyes White Dragon\" you control cannot attack the turn you activate this card.",
+      "source_images": [
+        "20260811_171509.jpg"
+      ]
+    },
+    {
+      "name": "Call of the Haunted",
+      "passcode": 97077563,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Trap",
+      "csv_card_type": "Trap Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Trap Card",
+      "saved_human_type": "Continuous Trap",
+      "saved_desc": "Activate this card by targeting 1 monster in your GY; Special Summon that target in Attack Position. When this card leaves the field, destroy that monster. When that monster is destroyed, destroy this card.",
+      "source_images": [
+        "20260811_171630.jpg"
+      ]
+    },
+    {
+      "name": "Cards of Consonance",
+      "passcode": 39701395,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Spell",
+      "csv_card_type": "Spell Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Spell Card",
+      "saved_human_type": "Normal Spell",
+      "saved_desc": "Discard 1 Dragon Tuner with 1000 or less ATK; draw 2 cards.",
+      "source_images": [
+        "20260811_171532.jpg"
+      ]
+    },
+    {
+      "name": "Castle of Dragon Souls",
+      "passcode": 13513663,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Trap",
+      "csv_card_type": "Trap Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Trap Card",
+      "saved_human_type": "Continuous Trap",
+      "saved_desc": "Once per turn: You can banish 1 Dragon monster from your GY, then target 1 monster you control; it gains 700 ATK until the end of this turn (even if this card leaves the field). When this face-up card on the field is sent to the GY: You can target 1 of your banished Dragon monsters; Special Summon that target. You can only control 1 \"Castle of Dragon Souls\".",
+      "source_images": [
+        "20260811_171714.jpg"
+      ]
+    },
+    {
+      "name": "Chain Detonation",
+      "passcode": 51449743,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Trap",
+      "csv_card_type": "Trap Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Trap Card",
+      "saved_human_type": "Normal Trap",
+      "saved_desc": "Inflict 500 damage to your opponent. If this card was activated as Chain Link 2 or 3, add this card to the Deck and shuffle it. If this card was activated as Chain Link 4 or higher, return this card to the hand.",
+      "source_images": [
+        "20260811_170628.jpg"
+      ]
+    },
+    {
+      "name": "Chain Healing",
+      "passcode": 25050038,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Trap",
+      "csv_card_type": "Trap Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Trap Card",
+      "saved_human_type": "Normal Trap",
+      "saved_desc": "Gain 500 Life Points. If this card was activated as Chain Link 2 or 3, add this card to the Deck and shuffle it. If this card was activated as Chain Link 4 or higher, return this card to the hand.",
+      "source_images": [
+        "20260811_170305.jpg"
+      ]
+    },
+    {
+      "name": "Champion's Vigilance",
+      "passcode": 82382815,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Trap",
+      "csv_card_type": "Trap Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Trap Card",
+      "saved_human_type": "Counter Trap",
+      "saved_desc": "If you control a Level 7 or higher Normal Monster, when a monster would be Summoned OR a Spell/Trap Card is activated: Negate the Summon or activation, and if you do, destroy that card.",
+      "source_images": [
+        "20260811_171643.jpg"
+      ]
+    },
+    {
+      "name": "Chiron the Mage",
+      "passcode": 16956455,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Effect Monster",
+      "csv_race": "Beast-Warrior",
+      "csv_attribute": "EARTH",
+      "csv_level": "4",
+      "csv_atk": "1800",
+      "csv_def": "1000",
+      "saved_type": "Effect Monster",
+      "saved_human_type": "Effect Monster",
+      "saved_desc": "Once per turn: You can discard 1 Spell Card, then target 1 Spell/Trap Card your opponent controls; destroy that target.",
+      "source_images": [
+        "20260811_172555.jpg"
+      ]
+    },
+    {
+      "name": "Compulsory Evacuation Device",
+      "passcode": 94192409,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Trap",
+      "csv_card_type": "Trap Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Trap Card",
+      "saved_human_type": "Normal Trap",
+      "saved_desc": "Target 1 monster on the field; return that target to the hand.",
+      "source_images": [
+        "20260811_171636.jpg"
+      ]
+    },
+    {
+      "name": "Crystal Seer",
+      "passcode": 82099401,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Flip Effect Monster",
+      "csv_race": "Spellcaster",
+      "csv_attribute": "WATER",
+      "csv_level": "1",
+      "csv_atk": "100",
+      "csv_def": "100",
+      "saved_type": "Flip Effect Monster",
+      "saved_human_type": "Flip Effect Monster",
+      "saved_desc": "FLIP: Excavate the top 2 cards of your Deck, then add 1 of them to your hand, then place the other on the bottom of your Deck.",
+      "source_images": [
+        "20260811_172539.jpg"
+      ]
+    },
+    {
+      "name": "Damage Condenser",
+      "passcode": 28378427,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Trap",
+      "csv_card_type": "Trap Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Trap Card",
+      "saved_human_type": "Normal Trap",
+      "saved_desc": "When you take battle damage: Discard 1 card; Special Summon 1 monster from your Deck with ATK less than or equal to the battle damage you took, in face-up Attack Position.",
+      "source_images": [
+        "20260811_171625.jpg"
+      ]
+    },
+    {
+      "name": "Divine Dragon Apocralyph",
+      "passcode": 20277376,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Effect Monster",
+      "csv_race": "Dragon",
+      "csv_attribute": "DARK",
+      "csv_level": "4",
+      "csv_atk": "1000",
+      "csv_def": "1500",
+      "saved_type": "Effect Monster",
+      "saved_human_type": "Effect Monster",
+      "saved_desc": "Once per turn: You can discard 1 card, then target 1 Dragon-Type monster in your Graveyard; add that target to your hand.",
+      "source_images": [
+        "20260811_171427.jpg"
+      ]
+    },
+    {
+      "name": "Dragon Shrine",
+      "passcode": 41620959,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Spell",
+      "csv_card_type": "Spell Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Spell Card",
+      "saved_human_type": "Normal Spell",
+      "saved_desc": "Send 1 Dragon monster from your Deck to the GY, then, if that monster in your GY is a Dragon Normal Monster, you can send 1 more Dragon monster from your Deck to the GY. You can only activate 1 \"Dragon Shrine\" per turn.",
+      "source_images": [
+        "20260811_171344.jpg"
+      ]
+    },
+    {
+      "name": "Dragonic Tactics",
+      "passcode": 72549351,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Spell",
+      "csv_card_type": "Spell Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Spell Card",
+      "saved_human_type": "Normal Spell",
+      "saved_desc": "Tribute 2 Dragon monsters; Special Summon 1 Level 8 Dragon monster from your Deck.",
+      "source_images": [
+        "20260811_171555.jpg"
+      ]
+    },
+    {
+      "name": "Enemy Controller",
+      "passcode": 98045062,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Spell",
+      "csv_card_type": "Spell Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Spell Card",
+      "saved_human_type": "Quick-Play Spell",
+      "saved_desc": "Activate 1 of these effects.\n● Target 1 face-up monster your opponent controls; change that target's battle position.\n● Tribute 1 monster, then target 1 face-up monster your opponent controls; take control of that target until the End Phase.",
+      "source_images": [
+        "20260811_171607.jpg"
+      ]
+    },
+    {
+      "name": "Eria the Water Charmer",
+      "passcode": 74364659,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Flip Effect Monster",
+      "csv_race": "Spellcaster",
+      "csv_attribute": "WATER",
+      "csv_level": "3",
+      "csv_atk": "500",
+      "csv_def": "1500",
+      "saved_type": "Flip Effect Monster",
+      "saved_human_type": "Flip Effect Monster",
+      "saved_desc": "FLIP: Target 1 face-up WATER monster your opponent controls; take control of that target while this card is face-up on the field.",
+      "source_images": [
+        "20260811_172239.jpg"
+      ]
+    },
+    {
+      "name": "Fairy Tail - Luna",
+      "passcode": 86937530,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Effect Monster",
+      "csv_race": "Spellcaster",
+      "csv_attribute": "LIGHT",
+      "csv_level": "4",
+      "csv_atk": "1850",
+      "csv_def": "1000",
+      "saved_type": "Effect Monster",
+      "saved_human_type": "Effect Monster",
+      "saved_desc": "When this card is Normal Summoned: You can add 1 Spellcaster monster with 1850 ATK from your Deck to your hand. Once per turn (Quick Effect): You can target 1 face-up monster your opponent controls; your opponent can send 1 card with that monster's name from their Deck or Extra Deck to the GY to negate this effect, otherwise return both this card and that monster to the hand.",
+      "source_images": [
+        "20260811_172346.jpg"
+      ]
+    },
+    {
+      "name": "Fairy Tail - Rella",
+      "passcode": 52022648,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Effect Monster",
+      "csv_race": "Spellcaster",
+      "csv_attribute": "LIGHT",
+      "csv_level": "4",
+      "csv_atk": "1850",
+      "csv_def": "1000",
+      "saved_type": "Effect Monster",
+      "saved_human_type": "Effect Monster",
+      "saved_desc": "Neither player can target monsters on the field with Spell Cards or effects, except this one. Once per turn: You can discard 1 Spell; equip 1 Equip Spell from your hand, Deck, or GY to this card, but return that Equip Spell to the hand during the End Phase.",
+      "source_images": [
+        "20260811_171846.jpg"
+      ]
+    },
+    {
+      "name": "Fairy Tail - Sleeper",
+      "passcode": 42921475,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Flip Effect Monster",
+      "csv_race": "Spellcaster",
+      "csv_attribute": "LIGHT",
+      "csv_level": "4",
+      "csv_atk": "1850",
+      "csv_def": "1000",
+      "saved_type": "Flip Effect Monster",
+      "saved_human_type": "Flip Effect Monster",
+      "saved_desc": "FLIP: You can Special Summon 1 monster from your hand.\r\nWhen your opponent activates a Normal Spell/Trap Card (Quick Effect): You can Tribute 1 other monster; the activated effect becomes \"Change 1 face-up monster your opponent controls to face-down Defense Position\". You can only use this effect of \"Fairy Tail - Sleeper\" once per turn.",
+      "source_images": [
+        "20260811_172341.jpg"
+      ]
+    },
+    {
+      "name": "Fiendish Chain",
+      "passcode": 50078509,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Trap",
+      "csv_card_type": "Trap Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Trap Card",
+      "saved_human_type": "Continuous Trap",
+      "saved_desc": "Activate this card by targeting 1 Effect Monster on the field; negate the effects of that face-up monster while it is on the field, also that face-up monster cannot attack. When it is destroyed, destroy this card.",
+      "source_images": [
+        "20260811_171613.jpg"
+      ]
+    },
+    {
+      "name": "Five Brothers Explosion",
+      "passcode": 70946699,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Trap",
+      "csv_card_type": "Trap Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Trap Card",
+      "saved_human_type": "Continuous Trap",
+      "saved_desc": "When this card is activated: Gain 500 LP for each Continuous Spell/Trap Card you control. If this face-up card you control is sent to your Graveyard by your opponent's card effect: Inflict 500 damage to your opponent for each Continuous Spell/Trap Card in your Graveyard.",
+      "source_images": [
+        "20260811_170602.jpg"
+      ]
+    },
+    {
+      "name": "Flamvell Guard",
+      "passcode": 21615956,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Normal Tuner Monster",
+      "csv_race": "Dragon",
+      "csv_attribute": "FIRE",
+      "csv_level": "1",
+      "csv_atk": "100",
+      "csv_def": "2000",
+      "saved_type": "Normal Tuner Monster",
+      "saved_human_type": "Tuner Normal Monster",
+      "saved_desc": "A Flamvell guardian who commands fire with his will. His magma-hot barrier protects his troops from intruders.",
+      "source_images": [
+        "20260811_171411.jpg"
+      ]
+    },
+    {
+      "name": "Gagagashield",
+      "passcode": 18446701,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Trap",
+      "csv_card_type": "Trap Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Trap Card",
+      "saved_human_type": "Normal Trap",
+      "saved_desc": "Target 1 Spellcaster monster you control; equip this card to that target. Twice per turn, it cannot be destroyed by battle or card effects.",
+      "source_images": [
+        "20260811_170719.jpg"
+      ]
+    },
+    {
+      "name": "Gladiator Beast Andal",
+      "passcode": 90582719,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Normal Monster",
+      "csv_race": "Beast-Warrior",
+      "csv_attribute": "EARTH",
+      "csv_level": "4",
+      "csv_atk": "1900",
+      "csv_def": "1500",
+      "saved_type": "Normal Monster",
+      "saved_human_type": "Normal Monster",
+      "saved_desc": "This one-eyed warrior bear is an aggressive hunter that strikes down its prey with the powerful swipes of its claws. No one can bear the brunt of his tremendously fast and heavy blows.",
+      "source_images": [
+        "20260811_172815.jpg"
+      ]
+    },
+    {
+      "name": "Herald of Creation",
+      "passcode": 66337215,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Effect Monster",
+      "csv_race": "Spellcaster",
+      "csv_attribute": "LIGHT",
+      "csv_level": "4",
+      "csv_atk": "1800",
+      "csv_def": "600",
+      "saved_type": "Effect Monster",
+      "saved_human_type": "Effect Monster",
+      "saved_desc": "Once per turn: You can discard 1 card, then target 1 Level 7 or higher monster in your Graveyard; add that target to your hand.",
+      "source_images": [
+        "20260811_171443.jpg"
+      ]
+    },
+    {
+      "name": "Hidden Springs of the Far East",
+      "passcode": 94317736,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Spell",
+      "csv_card_type": "Spell Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Spell Card",
+      "saved_human_type": "Field Spell",
+      "saved_desc": "Once per turn, during the Main Phase 2: The turn player can activate this effect; they gain 500 LP, and until the end of this turn apply these effects.\r\n● The Normal and Special Summons of their monsters cannot be negated.\r\n● If they activate a Spell/Trap Card, or monster effect, that includes an effect that Special Summons a monster, that activation cannot be negated.\r\n● Their opponent cannot target Set Spells/Traps they control with card effects, also they cannot be destroyed by their opponent's card effects.\r\nYou can only activate 1 \"Hidden Springs of the Far East\" per turn.",
+      "source_images": [
+        "20260811_170801.jpg"
+      ]
+    },
+    {
+      "name": "Hieratic Dragon of Tefnuit",
+      "passcode": 77901552,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Effect Monster",
+      "csv_race": "Dragon",
+      "csv_attribute": "LIGHT",
+      "csv_level": "6",
+      "csv_atk": "2100",
+      "csv_def": "1400",
+      "saved_type": "Effect Monster",
+      "saved_human_type": "Effect Monster",
+      "saved_desc": "If only your opponent controls a monster, you can Special Summon this card (from your hand). This card cannot attack during the turn it is Special Summoned this way. When this card is Tributed: Special Summon 1 Dragon Normal Monster from your hand, Deck, or GY, but make its ATK/DEF 0.",
+      "source_images": [
+        "20260811_171658.jpg"
+      ]
+    },
+    {
+      "name": "Honest",
+      "passcode": 37742478,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Effect Monster",
+      "csv_race": "Fairy",
+      "csv_attribute": "LIGHT",
+      "csv_level": "4",
+      "csv_atk": "1100",
+      "csv_def": "1900",
+      "saved_type": "Effect Monster",
+      "saved_human_type": "Effect Monster",
+      "saved_desc": "During your Main Phase: You can return this face-up card from the field to the hand. During the Damage Step, when a LIGHT monster you control battles (Quick Effect): You can send this card from your hand to the GY; that monster gains ATK equal to the ATK of the opponent's monster it is battling, until the end of this turn.",
+      "source_images": [
+        "20260811_171454.jpg"
+      ]
+    },
+    {
+      "name": "Inari Fire",
+      "passcode": 62953041,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Effect Monster",
+      "csv_race": "Pyro",
+      "csv_attribute": "FIRE",
+      "csv_level": "4",
+      "csv_atk": "1500",
+      "csv_def": "200",
+      "saved_type": "Effect Monster",
+      "saved_human_type": "Effect Monster",
+      "saved_desc": "You can only control 1 \"Inari Fire\". If you control a Spellcaster-Type monster, you can Special Summon this card (from your hand). Once per turn, during your next Standby Phase after this face-up card on the field was destroyed by a card effect and sent to the Graveyard: Special Summon it from your Graveyard.",
+      "source_images": [
+        "20260811_172306.jpg"
+      ]
+    },
+    {
+      "name": "Interdimensional Matter Transporter",
+      "passcode": 36261276,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Trap",
+      "csv_card_type": "Trap Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Trap Card",
+      "saved_human_type": "Normal Trap",
+      "saved_desc": "Target 1 face-up monster you control; banish that target until the End Phase.",
+      "source_images": [
+        "20260811_170546.jpg"
+      ]
+    },
+    {
+      "name": "Judge of the Ice Barrier",
+      "passcode": 53535814,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Effect Monster",
+      "csv_race": "Warrior",
+      "csv_attribute": "WATER",
+      "csv_level": "4",
+      "csv_atk": "1800",
+      "csv_def": "900",
+      "saved_type": "Effect Monster",
+      "saved_human_type": "Effect Monster",
+      "saved_desc": "While you control another \"Ice Barrier\" monster, each time your opponent activates a card or effect by paying LP, they lose 500 LP. You can only use each of the following effects of \"Judge of the Ice Barrier\" once per turn. You can target 1 or 2 \"Ice Barrier\" monsters in your GY and 1 or 2 cards in your opponent's GY; shuffle them into the Deck. If you control an \"Ice Barrier\" monster: You can banish this card from your GY, then target 1 Attack Position monster on the field; change it to Defense Position.",
+      "source_images": [
+        "20260811_171232.jpg"
+      ]
+    },
+    {
+      "name": "Junk Blader",
+      "passcode": 51855378,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Effect Monster",
+      "csv_race": "Warrior",
+      "csv_attribute": "EARTH",
+      "csv_level": "4",
+      "csv_atk": "1800",
+      "csv_def": "1000",
+      "saved_type": "Effect Monster",
+      "saved_human_type": "Effect Monster",
+      "saved_desc": "You can banish 1 \"Junk\" monster from your Graveyard; this card gains 400 ATK until the end of this turn.",
+      "source_images": [
+        "20260811_171919.jpg"
+      ]
+    },
+    {
+      "name": "Kaibaman",
+      "passcode": 34627841,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Effect Monster",
+      "csv_race": "Warrior",
+      "csv_attribute": "LIGHT",
+      "csv_level": "3",
+      "csv_atk": "200",
+      "csv_def": "700",
+      "saved_type": "Effect Monster",
+      "saved_human_type": "Effect Monster",
+      "saved_desc": "You can Tribute this card; Special Summon 1 \"Blue-Eyes White Dragon\" from your hand.",
+      "source_images": [
+        "20260811_171437.jpg"
+      ]
+    },
+    {
+      "name": "Kaiser Glider",
+      "passcode": 52824910,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Effect Monster",
+      "csv_race": "Dragon",
+      "csv_attribute": "LIGHT",
+      "csv_level": "6",
+      "csv_atk": "2400",
+      "csv_def": "2200",
+      "saved_type": "Effect Monster",
+      "saved_human_type": "Effect Monster",
+      "saved_desc": "Cannot be destroyed by battle with a monster that has the same ATK. If this card is destroyed and sent to the Graveyard: Target 1 monster on the field; return that target to the hand.",
+      "source_images": [
+        "20260811_171653.jpg"
+      ]
+    },
+    {
+      "name": "Kaiser Sea Horse",
+      "passcode": 17444133,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Effect Monster",
+      "csv_race": "Sea Serpent",
+      "csv_attribute": "LIGHT",
+      "csv_level": "4",
+      "csv_atk": "1700",
+      "csv_def": "1650",
+      "saved_type": "Effect Monster",
+      "saved_human_type": "Effect Monster",
+      "saved_desc": "This card can be treated as 2 Tributes for the Tribute Summon of a LIGHT monster.",
+      "source_images": [
+        "20260811_171448.jpg"
+      ]
+    },
+    {
+      "name": "Kunai with Chain",
+      "passcode": 37390589,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Trap",
+      "csv_card_type": "Trap Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Trap Card",
+      "saved_human_type": "Normal Trap",
+      "saved_desc": "Activate 1 or both of these effects (simultaneously).\n● When an opponent's monster declares an attack: Target the attacking monster; change that target to Defense Position.\n● Target 1 face-up monster you control; equip this card to that target. It gains 500 ATK.",
+      "source_images": [
+        "20260811_171619.jpg"
+      ]
+    },
+    {
+      "name": "Luster Dragon",
+      "passcode": 11091375,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Normal Monster",
+      "csv_race": "Dragon",
+      "csv_attribute": "WIND",
+      "csv_level": "4",
+      "csv_atk": "1900",
+      "csv_def": "1600",
+      "saved_type": "Normal Monster",
+      "saved_human_type": "Normal Monster",
+      "saved_desc": "A very beautiful dragon covered with sapphire. It does not like fights, but has incredibly high attack power.",
+      "source_images": [
+        "20260811_171404.jpg"
+      ]
+    },
+    {
+      "name": "Maiden with Eyes of Blue",
+      "passcode": 88241506,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Tuner Monster",
+      "csv_race": "Spellcaster",
+      "csv_attribute": "LIGHT",
+      "csv_level": "1",
+      "csv_atk": "0",
+      "csv_def": "0",
+      "saved_type": "Tuner Monster",
+      "saved_human_type": "Tuner Effect Monster",
+      "saved_desc": "When a card or effect is activated that targets this card (Quick Effect): You can Special Summon 1 \"Blue-Eyes White Dragon\" from your hand, Deck, or GY. When this card is targeted for an attack: You can negate the attack, and if you do, change the battle position of this card, then you can Special Summon 1 \"Blue-Eyes White Dragon\" from your hand, Deck, or GY. You can only use 1 \"Maiden with Eyes of Blue\" effect per turn, and only once that turn.",
+      "source_images": [
+        "20260811_171339.jpg"
+      ]
+    },
+    {
+      "name": "Metaphys Armed Dragon",
+      "passcode": 89189982,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 2,
+      "csv_category": "Monster",
+      "csv_card_type": "Normal Monster",
+      "csv_race": "Wyrm",
+      "csv_attribute": "LIGHT",
+      "csv_level": "7",
+      "csv_atk": "2800",
+      "csv_def": "1000",
+      "saved_type": "Normal Monster",
+      "saved_human_type": "Normal Monster",
+      "saved_desc": "Usually visible despite its phantom existence.",
+      "source_images": [
+        "20260811_171309.jpg",
+        "20260811_171747.jpg"
+      ]
+    },
+    {
+      "name": "Mirage Dragon",
+      "passcode": 15960641,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 2,
+      "csv_category": "Monster",
+      "csv_card_type": "Effect Monster",
+      "csv_race": "Dragon",
+      "csv_attribute": "LIGHT",
+      "csv_level": "4",
+      "csv_atk": "1600",
+      "csv_def": "600",
+      "saved_type": "Effect Monster",
+      "saved_human_type": "Effect Monster",
+      "saved_desc": "Your opponent cannot activate Trap Cards during the Battle Phase.",
+      "source_images": [
+        "20260811_171421.jpg",
+        "20260811_172918.jpg"
+      ]
+    },
+    {
+      "name": "Monster Reborn",
+      "passcode": 83764719,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Spell",
+      "csv_card_type": "Spell Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Spell Card",
+      "saved_human_type": "Normal Spell",
+      "saved_desc": "Target 1 monster in either GY; Special Summon it.",
+      "source_images": [
+        "20260811_171548.jpg"
+      ]
+    },
+    {
+      "name": "Nefarious Archfiend Eater of Nefariousness",
+      "passcode": 60666820,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Effect Monster",
+      "csv_race": "Beast",
+      "csv_attribute": "EARTH",
+      "csv_level": "4",
+      "csv_atk": "1500",
+      "csv_def": "200",
+      "saved_type": "Effect Monster",
+      "saved_human_type": "Effect Monster",
+      "saved_desc": "You can only control 1 \"Nefarious Archfiend Eater of Nefariousness\". If you control a Spellcaster-Type monster, you can Special Summon this card (from your hand). Once per turn, during your opponent's End Phase, if this card is in your Graveyard: You can target 1 face-up monster you control; destroy it, and if you do, Special Summon this card.",
+      "source_images": [
+        "20260811_172259.jpg"
+      ]
+    },
+    {
+      "name": "One for One",
+      "passcode": 2295440,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Spell",
+      "csv_card_type": "Spell Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Spell Card",
+      "saved_human_type": "Normal Spell",
+      "saved_desc": "Send 1 monster from your hand to the GY; Special Summon 1 Level 1 monster from your hand or Deck.",
+      "source_images": [
+        "20260811_171543.jpg"
+      ]
+    },
+    {
+      "name": "Phoenix Wing Wind Blast",
+      "passcode": 63356631,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Trap",
+      "csv_card_type": "Trap Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Trap Card",
+      "saved_human_type": "Normal Trap",
+      "saved_desc": "Discard 1 card, then target 1 card your opponent controls; place that target on the top of the Deck.",
+      "source_images": [
+        "20260811_170341.jpg"
+      ]
+    },
+    {
+      "name": "Rabidragon",
+      "passcode": 95788410,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Normal Monster",
+      "csv_race": "Dragon",
+      "csv_attribute": "LIGHT",
+      "csv_level": "8",
+      "csv_atk": "2950",
+      "csv_def": "2900",
+      "saved_type": "Normal Monster",
+      "saved_human_type": "Normal Monster",
+      "saved_desc": "It's a snowfield-dwelling, giant-ear-sporting, super-acoustic, snowball-shaped mutant dragon! There's no way anybody can escape.",
+      "source_images": [
+        "20260811_171350.jpg"
+      ]
+    },
+    {
+      "name": "Ranryu",
+      "passcode": 44680819,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Effect Monster",
+      "csv_race": "Dragon",
+      "csv_attribute": "WIND",
+      "csv_level": "4",
+      "csv_atk": "1500",
+      "csv_def": "200",
+      "saved_type": "Effect Monster",
+      "saved_human_type": "Effect Monster",
+      "saved_desc": "You can only control 1 \"Ranryu\". If you control a Spellcaster monster, you can Special Summon this card (from your hand). If this card is destroyed by battle or card effect and sent to the GY: You can target 1 monster with 1500 ATK/200 DEF in your GY, except \"Ranryu\"; Special Summon it.",
+      "source_images": [
+        "20260811_172315.jpg"
+      ]
+    },
+    {
+      "name": "Rider of the Storm Winds",
+      "passcode": 14235211,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Tuner Monster",
+      "csv_race": "Dragon",
+      "csv_attribute": "LIGHT",
+      "csv_level": "1",
+      "csv_atk": "500",
+      "csv_def": "200",
+      "saved_type": "Tuner Monster",
+      "saved_human_type": "Tuner Effect Monster",
+      "saved_desc": "You can target 1 Dragon Normal Monster you control; equip this monster from your hand or field to that target. If a monster equipped with this card attacks a Defense Position monster, inflict piercing battle damage to your opponent. If a monster equipped with this card would be destroyed, destroy this card instead.",
+      "source_images": [
+        "20260811_171648.jpg"
+      ]
+    },
+    {
+      "name": "Runick Flashing Fire",
+      "passcode": 68957034,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Spell",
+      "csv_card_type": "Spell Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Spell Card",
+      "saved_human_type": "Quick-Play Spell",
+      "saved_desc": "Activate 1 of these effects, but skip your next Battle Phase after activation;\r\n● Target 1 Special Summoned monster your opponent controls; destroy it, then banish the top 2 cards of your opponent's Deck.\r\n● Special Summon 1 \"Runick\" monster from your Extra Deck to the Extra Monster Zone.\r\nYou can only activate 1 \"Runick Flashing Fire\" per turn.",
+      "source_images": [
+        "20260811_170413.jpg"
+      ]
+    },
+    {
+      "name": "Sabersaurus",
+      "passcode": 37265642,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Normal Monster",
+      "csv_race": "Dinosaur",
+      "csv_attribute": "EARTH",
+      "csv_level": "4",
+      "csv_atk": "1900",
+      "csv_def": "500",
+      "saved_type": "Normal Monster",
+      "saved_human_type": "Normal Monster",
+      "saved_desc": "This normally gentle dinosaur enjoys relaxing in its nest in the prairies. If it becomes angered, it turns terribly ferocious.",
+      "source_images": [
+        "20260811_172839.jpg"
+      ]
+    },
+    {
+      "name": "Sealing Ceremony of Suiton",
+      "passcode": 81443745,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Trap",
+      "csv_card_type": "Trap Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Trap Card",
+      "saved_human_type": "Continuous Trap",
+      "saved_desc": "Once per turn: You can send 1 WATER monster from your hand to the GY, then target 1 card in your opponent's GY; banish that target.",
+      "source_images": [
+        "20260811_170647.jpg"
+      ]
+    },
+    {
+      "name": "Shining Angel",
+      "passcode": 95956346,
+      "decks": [
+        "Blue-Eyes Dragon Guard",
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 2,
+      "csv_category": "Monster",
+      "csv_card_type": "Effect Monster",
+      "csv_race": "Fairy",
+      "csv_attribute": "LIGHT",
+      "csv_level": "4",
+      "csv_atk": "1400",
+      "csv_def": "800",
+      "saved_type": "Effect Monster",
+      "saved_human_type": "Effect Monster",
+      "saved_desc": "When this card is destroyed by battle and sent to the Graveyard: You can Special Summon 1 LIGHT monster with 1500 or less ATK from your Deck, in face-up Attack Position.",
+      "source_images": [
+        "20260811_171459.jpg",
+        "20260811_171504.jpg"
+      ]
+    },
+    {
+      "name": "Silver's Cry",
+      "passcode": 87025064,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Spell",
+      "csv_card_type": "Spell Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Spell Card",
+      "saved_human_type": "Quick-Play Spell",
+      "saved_desc": "Target 1 Dragon Normal Monster in your GY; Special Summon that target. You can only activate 1 \"Silver's Cry\" per turn.",
+      "source_images": [
+        "20260811_171704.jpg"
+      ]
+    },
+    {
+      "name": "Soul Exchange",
+      "passcode": 68005187,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Spell",
+      "csv_card_type": "Spell Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Spell Card",
+      "saved_human_type": "Normal Spell",
+      "saved_desc": "Target 1 monster your opponent controls; this turn, if you Tribute a monster, you must Tribute that target, as if you controlled it. You cannot conduct your Battle Phase the turn you activate this card.",
+      "source_images": [
+        "20260811_171600.jpg"
+      ]
+    },
+    {
+      "name": "Spiritual Fire Art - Kurenai",
+      "passcode": 42945701,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Trap",
+      "csv_card_type": "Trap Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Trap Card",
+      "saved_human_type": "Normal Trap",
+      "saved_desc": "Tribute 1 FIRE monster; inflict damage to your opponent equal to that monster's original ATK.",
+      "source_images": [
+        "20260811_170616.jpg"
+      ]
+    },
+    {
+      "name": "Spiritual Water Art - Aoi",
+      "passcode": 6540606,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Trap",
+      "csv_card_type": "Trap Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Trap Card",
+      "saved_human_type": "Normal Trap",
+      "saved_desc": "Tribute 1 WATER monster; look at your opponent's hand, then send 1 card from their hand to the Graveyard.",
+      "source_images": [
+        "20260811_170503.jpg"
+      ]
+    },
+    {
+      "name": "Spiritual Wind Art - Miyabi",
+      "passcode": 79333300,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Trap",
+      "csv_card_type": "Trap Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Trap Card",
+      "saved_human_type": "Normal Trap",
+      "saved_desc": "Tribute 1 WIND monster, then target 1 card your opponent controls; place that card on the bottom of the Deck.",
+      "source_images": [
+        "20260811_170451.jpg"
+      ]
+    },
+    {
+      "name": "Stamping Destruction",
+      "passcode": 81385346,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Spell",
+      "csv_card_type": "Spell Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Spell Card",
+      "saved_human_type": "Normal Spell",
+      "saved_desc": "If you control a Dragon monster: Target 1 Spell/Trap on the field; destroy that target, and if you do, inflict 500 damage to its controller.",
+      "source_images": [
+        "20260811_171514.jpg"
+      ]
+    },
+    {
+      "name": "Straight Flush",
+      "passcode": 25173686,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Trap",
+      "csv_card_type": "Trap Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Trap Card",
+      "saved_human_type": "Normal Trap",
+      "saved_desc": "Activate only when all of your opponent's Spell & Trap Card Zones are occupied. Destroy all cards in your opponent's Spell & Trap Card Zones.",
+      "source_images": [
+        "20260811_170259.jpg"
+      ]
+    },
+    {
+      "name": "Swords of Revealing Light",
+      "passcode": 72302403,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Spell",
+      "csv_card_type": "Spell Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Spell Card",
+      "saved_human_type": "Normal Spell",
+      "saved_desc": "After this card's activation, it remains on the field, but you must destroy it during the End Phase of your opponent's 3rd turn. When this card is activated: If your opponent controls a face-down monster, flip all monsters they control face-up. While this card is face-up on the field, your opponent's monsters cannot declare an attack.",
+      "source_images": [
+        "20260811_171709.jpg"
+      ]
+    },
+    {
+      "name": "The Monarchs Awaken",
+      "passcode": 26822796,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Trap",
+      "csv_card_type": "Trap Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Trap Card",
+      "saved_human_type": "Normal Trap",
+      "saved_desc": "If you have no cards in your Extra Deck: Target 1 face-up Tribute Summoned monster you control; its effects are negated, also it is unaffected by the effects of cards other than this card.",
+      "source_images": [
+        "20260811_170635.jpg"
+      ]
+    },
+    {
+      "name": "The Phantom Knights of Shadow Veil",
+      "passcode": 77462146,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Trap",
+      "csv_card_type": "Trap Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Trap Card",
+      "saved_human_type": "Normal Trap",
+      "saved_desc": "Target 1 face-up monster you control; it gains 300 ATK/DEF. When an opponent's monster declares a direct attack while this card is in your GY: Special Summon this card in Defense Position as a Normal Monster (Warrior/DARK/Level 4/ATK 0/DEF 300). (This card is NOT treated as a Trap.) If Summoned this way, banish this card when it leaves the field.",
+      "source_images": [
+        "20260811_170610.jpg"
+      ]
+    },
+    {
+      "name": "The White Stone of Legend",
+      "passcode": 79814787,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Tuner Monster",
+      "csv_race": "Dragon",
+      "csv_attribute": "LIGHT",
+      "csv_level": "1",
+      "csv_atk": "300",
+      "csv_def": "250",
+      "saved_type": "Tuner Monster",
+      "saved_human_type": "Tuner Effect Monster",
+      "saved_desc": "If this card is sent to the GY: Add 1 \"Blue-Eyes White Dragon\" from your Deck to your hand.",
+      "source_images": [
+        "20260811_171431.jpg"
+      ]
+    },
+    {
+      "name": "Trade-In",
+      "passcode": 38120068,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Spell",
+      "csv_card_type": "Spell Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Spell Card",
+      "saved_human_type": "Normal Spell",
+      "saved_desc": "Discard 1 Level 8 monster; draw 2 cards.",
+      "source_images": [
+        "20260811_171526.jpg"
+      ]
+    },
+    {
+      "name": "Vampiric Koala",
+      "passcode": null,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Effect Monster",
+      "csv_race": "Beast",
+      "csv_attribute": "EARTH",
+      "csv_level": "4",
+      "csv_atk": "1800",
+      "csv_def": "1500",
+      "saved_type": null,
+      "saved_human_type": null,
+      "saved_desc": null,
+      "source_images": [
+        "20260811_172329.jpg"
+      ]
+    },
+    {
+      "name": "White Elephant's Gift",
+      "passcode": 18756904,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Spell",
+      "csv_card_type": "Spell Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Spell Card",
+      "saved_human_type": "Normal Spell",
+      "saved_desc": "Send 1 face-up non-Effect Monster you control to the GY; draw 2 cards.",
+      "source_images": [
+        "20260811_171537.jpg"
+      ]
+    },
+    {
+      "name": "Witchcrafter Golem Aruru",
+      "passcode": 71074418,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Effect Monster",
+      "csv_race": "Spellcaster",
+      "csv_attribute": "LIGHT",
+      "csv_level": "8",
+      "csv_atk": "2800",
+      "csv_def": "0",
+      "saved_type": "Effect Monster",
+      "saved_human_type": "Effect Monster",
+      "saved_desc": "When your opponent activates a card or effect that targets a Spellcaster monster(s) you control, or targets it for an attack (Quick Effect): You can target 1 card your opponent controls, or 1 \"Witchcrafter\" Spell in your GY; Special Summon this card from your hand, and if you do, return that targeted card to the hand. You can only use this effect of \"Witchcrafter Golem Aruru\" once per turn. Once per turn, during your opponent's Standby Phase: Return this card to the hand.",
+      "source_images": [
+        "20260811_172601.jpg"
+      ]
+    },
+    {
+      "name": "Wonder Balloons",
+      "passcode": 78574395,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Spell",
+      "csv_card_type": "Spell Card",
+      "csv_race": "",
+      "csv_attribute": "",
+      "csv_level": "",
+      "csv_atk": "",
+      "csv_def": "",
+      "saved_type": "Spell Card",
+      "saved_human_type": "Continuous Spell",
+      "saved_desc": "Once per turn: You can send any number of cards from your hand to the GY; place 1 Balloon Counter on this card for each card sent to the GY. All monsters your opponent controls lose 300 ATK for each Balloon Counter on this card.",
+      "source_images": [
+        "20260811_170830.jpg"
+      ]
+    },
+    {
+      "name": "Wynn the Wind Charmer",
+      "passcode": 37744402,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Flip Effect Monster",
+      "csv_race": "Spellcaster",
+      "csv_attribute": "WIND",
+      "csv_level": "3",
+      "csv_atk": "500",
+      "csv_def": "1500",
+      "saved_type": "Flip Effect Monster",
+      "saved_human_type": "Flip Effect Monster",
+      "saved_desc": "FLIP: While this card is face-up on the field, take control of 1 WIND monster your opponent controls.",
+      "source_images": [
+        "20260811_172252.jpg"
+      ]
+    },
+    {
+      "name": "Zure, Knight of Dark World",
+      "passcode": 7459013,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "csv_category": "Monster",
+      "csv_card_type": "Normal Monster",
+      "csv_race": "Fiend",
+      "csv_attribute": "DARK",
+      "csv_level": "4",
+      "csv_atk": "1800",
+      "csv_def": "1500",
+      "saved_type": "Normal Monster",
+      "saved_human_type": "Normal Monster",
+      "saved_desc": "The name of this illustrious knight is known by all residents of Dark World. He never oppresses the commoners.",
+      "source_images": [
+        "20260811_170317.jpg"
+      ]
+    }
+  ]
+}

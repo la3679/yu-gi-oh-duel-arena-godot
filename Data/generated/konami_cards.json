@@ -1,0 +1,1574 @@
+{
+  "cards": [
+    {
+      "official_name": "A Hero Emerges",
+      "icon": "Normal Trap",
+      "texts": {
+        "Card Text": "When an opponent's monster declares an attack: Your opponent chooses 1 random card from your hand, then if it is a monster that can be Special Summoned, Special Summon it. Otherwise, send it to the GY."
+      },
+      "card_text": "When an opponent's monster declares an attack: Your opponent chooses 1 random card from your hand, then if it is a monster that can be Special Summoned, Special Summon it. Otherwise, send it to the GY.",
+      "csv_name": "A Hero Emerges",
+      "cid": "5915",
+      "passcode": 21597117,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "When an opponent's monster declares an attack: Your opponent chooses 1 random card from your hand, then if it is a monster that can be Special Summoned, Special Summon it. Otherwise, send it to the Graveyard.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=5915&request_locale=en"
+    },
+    {
+      "official_name": "A Wingbeat of Giant Dragon",
+      "icon": "Normal Spell",
+      "texts": {
+        "Card Text": "Return 1 Level 5 or higher Dragon-Type monster you control to the hand, and if you do, destroy all Spell and Trap Cards on the field."
+      },
+      "card_text": "Return 1 Level 5 or higher Dragon-Type monster you control to the hand, and if you do, destroy all Spell and Trap Cards on the field.",
+      "csv_name": "A Wingbeat of Giant Dragon",
+      "cid": "5343",
+      "passcode": 28596933,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Return 1 Level 5 or higher Dragon-Type monster you control to the hand, and if you do, destroy all Spell and Trap Cards on the field.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=5343&request_locale=en"
+    },
+    {
+      "official_name": "Alexandrite Dragon",
+      "attribute": "LIGHT",
+      "level": 4,
+      "atk": "2000",
+      "def": "100",
+      "species": [
+        "Dragon",
+        "Normal"
+      ],
+      "texts": {
+        "Card Text": "Many of the czars' lost jewels can be found in the scales of this priceless dragon. Its creator remains a mystery, along with how they acquired the imperial treasures. But whosoever finds this dragon has hit the jackpot... whether they know it or not."
+      },
+      "card_text": "Many of the czars' lost jewels can be found in the scales of this priceless dragon. Its creator remains a mystery, along with how they acquired the imperial treasures. But whosoever finds this dragon has hit the jackpot... whether they know it or not.",
+      "csv_name": "Alexandrite Dragon",
+      "cid": "9863",
+      "passcode": 43096270,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Many of the czars' lost jewels can be found in the scales of this priceless dragon. Its creator remains a mystery, along with how they acquired the imperial treasures. But whosoever finds this dragon has hit the jackpot... whether they know it or not.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=9863&request_locale=en"
+    },
+    {
+      "official_name": "Apprentice Magician",
+      "attribute": "DARK",
+      "level": 2,
+      "atk": "400",
+      "def": "800",
+      "species": [
+        "Spellcaster",
+        "Effect"
+      ],
+      "texts": {
+        "Card Text": "If this card is Summoned: Target 1 face-up card on the field that you can place a Spell Counter on; place 1 Spell Counter on that target. When this card is destroyed by battle: You can Special Summon 1 Level 2 or lower Spellcaster monster from your Deck in face-down Defense Position."
+      },
+      "card_text": "If this card is Summoned: Target 1 face-up card on the field that you can place a Spell Counter on; place 1 Spell Counter on that target. When this card is destroyed by battle: You can Special Summon 1 Level 2 or lower Spellcaster monster from your Deck in face-down Defense Position.",
+      "csv_name": "Apprentice Magician",
+      "cid": "5650",
+      "passcode": 9156135,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "If this card is Summoned: Target 1 face-up card on the field that you can place a Spell Counter on; place 1 Spell Counter on that target. If this card is destroyed by battle: You can Special Summon 1 Level 2 or lower Spellcaster monster from your Deck in face-down Defense Position.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=5650&request_locale=en"
+    },
+    {
+      "official_name": "Aussa the Earth Charmer",
+      "attribute": "EARTH",
+      "level": 3,
+      "atk": "500",
+      "def": "1500",
+      "species": [
+        "Spellcaster",
+        "Flip／Effect"
+      ],
+      "texts": {
+        "Card Text": "FLIP: Target 1 EARTH monster your opponent controls; take control of that monster while this card is face-up on the field."
+      },
+      "card_text": "FLIP: Target 1 EARTH monster your opponent controls; take control of that monster while this card is face-up on the field.",
+      "csv_name": "Aussa the Earth Charmer",
+      "cid": "6335",
+      "passcode": 37970940,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "FLIP: While this card is face-up on the field, take control of 1 EARTH monster your opponent controls.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=6335&request_locale=en"
+    },
+    {
+      "official_name": "Back-Up Rider",
+      "icon": "Normal Spell",
+      "texts": {
+        "Card Text": "Target 1 face-up monster on the field; it gains 1500 ATK until the end of this turn."
+      },
+      "card_text": "Target 1 face-up monster on the field; it gains 1500 ATK until the end of this turn.",
+      "csv_name": "Back-Up Rider",
+      "cid": "11848",
+      "passcode": 68833958,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Target 1 face-up monster on the field; it gains 1500 ATK until the end of this turn.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=11848&request_locale=en"
+    },
+    {
+      "official_name": "Birthright",
+      "icon": "Continuous Trap",
+      "texts": {
+        "Card Text": "Activate this card by targeting 1 Normal Monster in your GY; Special Summon that target in Attack Position. When this card leaves the field, destroy that monster. When that monster leaves the field, destroy this card."
+      },
+      "card_text": "Activate this card by targeting 1 Normal Monster in your GY; Special Summon that target in Attack Position. When this card leaves the field, destroy that monster. When that monster leaves the field, destroy this card.",
+      "csv_name": "Birthright",
+      "cid": "7013",
+      "passcode": 35539880,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Activate this card by targeting 1 Normal Monster in your Graveyard; Special Summon that target in face-up Attack Position. When this card leaves the field, destroy that monster. When that monster leaves the field, destroy this card.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=7013&request_locale=en"
+    },
+    {
+      "official_name": "Blue-Eyes White Dragon",
+      "attribute": "LIGHT",
+      "level": 8,
+      "atk": "3000",
+      "def": "2500",
+      "species": [
+        "Dragon",
+        "Normal"
+      ],
+      "texts": {
+        "Card Text": "This legendary dragon is a powerful engine of destruction. Virtually invincible, very few have faced this awesome creature and lived to tell the tale."
+      },
+      "card_text": "This legendary dragon is a powerful engine of destruction. Virtually invincible, very few have faced this awesome creature and lived to tell the tale.",
+      "csv_name": "Blue-Eyes White Dragon",
+      "cid": "4007",
+      "passcode": 89631139,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "This legendary dragon is a powerful engine of destruction. Virtually invincible, very few have faced this awesome creature and lived to tell the tale.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=4007&request_locale=en"
+    },
+    {
+      "official_name": "Burst Stream of Destruction",
+      "icon": "Normal Spell",
+      "texts": {
+        "Card Text": "If you control \"Blue-Eyes White Dragon\": Destroy all monsters your opponent controls. \"Blue-Eyes White Dragon\" you control cannot attack the turn you activate this card."
+      },
+      "card_text": "If you control \"Blue-Eyes White Dragon\": Destroy all monsters your opponent controls. \"Blue-Eyes White Dragon\" you control cannot attack the turn you activate this card.",
+      "csv_name": "Burst Stream of Destruction",
+      "cid": "5979",
+      "passcode": 17655904,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "If you control \"Blue-Eyes White Dragon\": Destroy all monsters your opponent controls. \"Blue-Eyes White Dragon\" you control cannot attack the turn you activate this card.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=5979&request_locale=en"
+    },
+    {
+      "official_name": "Call of the Haunted",
+      "icon": "Continuous Trap",
+      "texts": {
+        "Card Text": "Activate this card by targeting 1 monster in your GY; Special Summon that target in Attack Position. When this card leaves the field, destroy that monster. When that monster is destroyed, destroy this card."
+      },
+      "card_text": "Activate this card by targeting 1 monster in your GY; Special Summon that target in Attack Position. When this card leaves the field, destroy that monster. When that monster is destroyed, destroy this card.",
+      "csv_name": "Call of the Haunted",
+      "cid": "4989",
+      "passcode": 97077563,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Activate this card by targeting 1 monster in your GY; Special Summon that target in Attack Position. When this card leaves the field, destroy that monster. When that monster is destroyed, destroy this card.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=4989&request_locale=en"
+    },
+    {
+      "official_name": "Cards of Consonance",
+      "icon": "Normal Spell",
+      "texts": {
+        "Card Text": "Discard 1 Dragon Tuner with 1000 or less ATK; draw 2 cards."
+      },
+      "card_text": "Discard 1 Dragon Tuner with 1000 or less ATK; draw 2 cards.",
+      "csv_name": "Cards of Consonance",
+      "cid": "8656",
+      "passcode": 39701395,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Discard 1 Dragon Tuner with 1000 or less ATK; draw 2 cards.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=8656&request_locale=en"
+    },
+    {
+      "official_name": "Castle of Dragon Souls",
+      "icon": "Continuous Trap",
+      "texts": {
+        "Card Text": "Once per turn: You can banish 1 Dragon monster from your GY, then target 1 monster you control; it gains 700 ATK until the end of this turn (even if this card leaves the field). When this face-up card on the field is sent to the GY: You can target 1 of your banished Dragon monsters; Special Summon that target. You can only control 1 \"Castle of Dragon Souls\"."
+      },
+      "card_text": "Once per turn: You can banish 1 Dragon monster from your GY, then target 1 monster you control; it gains 700 ATK until the end of this turn (even if this card leaves the field). When this face-up card on the field is sent to the GY: You can target 1 of your banished Dragon monsters; Special Summon that target. You can only control 1 \"Castle of Dragon Souls\".",
+      "csv_name": "Castle of Dragon Souls",
+      "cid": "10592",
+      "passcode": 13513663,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Once per turn: You can banish 1 Dragon monster from your GY, then target 1 monster you control; it gains 700 ATK until the end of this turn (even if this card leaves the field). When this face-up card on the field is sent to the GY: You can target 1 of your banished Dragon monsters; Special Summon that target. You can only control 1 \"Castle of Dragon Souls\".",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=10592&request_locale=en"
+    },
+    {
+      "official_name": "Chain Detonation",
+      "icon": "Normal Trap",
+      "texts": {
+        "Card Text": "Inflict 500 damage to your opponent. If this card was activated as Chain Link 2 or 3, add this card to the Deck and shuffle it. If this card was activated as Chain Link 4 or higher, return this card to the hand."
+      },
+      "card_text": "Inflict 500 damage to your opponent. If this card was activated as Chain Link 2 or 3, add this card to the Deck and shuffle it. If this card was activated as Chain Link 4 or higher, return this card to the hand.",
+      "csv_name": "Chain Detonation",
+      "cid": "6915",
+      "passcode": 51449743,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Inflict 500 damage to your opponent. If this card was activated as Chain Link 2 or 3, add this card to the Deck and shuffle it. If this card was activated as Chain Link 4 or higher, return this card to the hand.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=6915&request_locale=en"
+    },
+    {
+      "official_name": "Chain Healing",
+      "icon": "Normal Trap",
+      "texts": {
+        "Card Text": "Gain 500 Life Points. If this card was activated as Chain Link 2 or 3, add this card to the Deck and shuffle it. If this card was activated as Chain Link 4 or higher, return this card to the hand."
+      },
+      "card_text": "Gain 500 Life Points. If this card was activated as Chain Link 2 or 3, add this card to the Deck and shuffle it. If this card was activated as Chain Link 4 or higher, return this card to the hand.",
+      "csv_name": "Chain Healing",
+      "cid": "6914",
+      "passcode": 25050038,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Gain 500 Life Points. If this card was activated as Chain Link 2 or 3, add this card to the Deck and shuffle it. If this card was activated as Chain Link 4 or higher, return this card to the hand.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=6914&request_locale=en"
+    },
+    {
+      "official_name": "Champion's Vigilance",
+      "icon": "Counter Trap",
+      "texts": {
+        "Card Text": "If you control a Level 7 or higher Normal Monster, when a monster(s) would be Summoned OR a Spell/Trap Card is activated: Negate the Summon or activation, and if you do, destroy that card."
+      },
+      "card_text": "If you control a Level 7 or higher Normal Monster, when a monster(s) would be Summoned OR a Spell/Trap Card is activated: Negate the Summon or activation, and if you do, destroy that card.",
+      "csv_name": "Champion's Vigilance",
+      "cid": "9792",
+      "passcode": 82382815,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "If you control a Level 7 or higher Normal Monster, when a monster would be Summoned OR a Spell/Trap Card is activated: Negate the Summon or activation, and if you do, destroy that card.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=9792&request_locale=en"
+    },
+    {
+      "official_name": "Chiron the Mage",
+      "attribute": "EARTH",
+      "level": 4,
+      "atk": "1800",
+      "def": "1000",
+      "species": [
+        "Beast-Warrior",
+        "Effect"
+      ],
+      "texts": {
+        "Card Text": "Once per turn: You can discard 1 Spell, then target 1 Spell/Trap your opponent controls; destroy that target."
+      },
+      "card_text": "Once per turn: You can discard 1 Spell, then target 1 Spell/Trap your opponent controls; destroy that target.",
+      "csv_name": "Chiron the Mage",
+      "cid": "5810",
+      "passcode": 16956455,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Once per turn: You can discard 1 Spell Card, then target 1 Spell/Trap Card your opponent controls; destroy that target.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=5810&request_locale=en"
+    },
+    {
+      "official_name": "Compulsory Evacuation Device",
+      "icon": "Normal Trap",
+      "texts": {
+        "Card Text": "Target 1 monster on the field; return that target to the hand."
+      },
+      "card_text": "Target 1 monster on the field; return that target to the hand.",
+      "csv_name": "Compulsory Evacuation Device",
+      "cid": "5914",
+      "passcode": 94192409,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Target 1 monster on the field; return that target to the hand.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=5914&request_locale=en"
+    },
+    {
+      "official_name": "Crystal Seer",
+      "attribute": "WATER",
+      "level": 1,
+      "atk": "100",
+      "def": "100",
+      "species": [
+        "Spellcaster",
+        "Flip／Effect"
+      ],
+      "texts": {
+        "Card Text": "FLIP: Excavate the top 2 cards of your Deck, then add 1 of them to your hand, then place the other on the bottom of your Deck."
+      },
+      "card_text": "FLIP: Excavate the top 2 cards of your Deck, then add 1 of them to your hand, then place the other on the bottom of your Deck.",
+      "csv_name": "Crystal Seer",
+      "cid": "7208",
+      "passcode": 82099401,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "FLIP: Excavate the top 2 cards of your Deck, then add 1 of them to your hand, then place the other on the bottom of your Deck.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=7208&request_locale=en"
+    },
+    {
+      "official_name": "Damage Condenser",
+      "icon": "Normal Trap",
+      "texts": {
+        "Card Text": "When you take battle damage: Discard 1 card; Special Summon 1 monster from your Deck with ATK less than or equal to the battle damage you took, in Attack Position."
+      },
+      "card_text": "When you take battle damage: Discard 1 card; Special Summon 1 monster from your Deck with ATK less than or equal to the battle damage you took, in Attack Position.",
+      "csv_name": "Damage Condenser",
+      "cid": "6582",
+      "passcode": 28378427,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "When you take battle damage: Discard 1 card; Special Summon 1 monster from your Deck with ATK less than or equal to the battle damage you took, in face-up Attack Position.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=6582&request_locale=en"
+    },
+    {
+      "official_name": "Divine Dragon Apocralyph",
+      "attribute": "DARK",
+      "level": 4,
+      "atk": "1000",
+      "def": "1500",
+      "species": [
+        "Dragon",
+        "Effect"
+      ],
+      "texts": {
+        "Card Text": "Once per turn: You can discard 1 card, then target 1 Dragon-Type monster in your Graveyard; add that target to your hand."
+      },
+      "card_text": "Once per turn: You can discard 1 card, then target 1 Dragon-Type monster in your Graveyard; add that target to your hand.",
+      "csv_name": "Divine Dragon Apocralyph",
+      "cid": "9910",
+      "passcode": 20277376,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Once per turn: You can discard 1 card, then target 1 Dragon-Type monster in your Graveyard; add that target to your hand.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=9910&request_locale=en"
+    },
+    {
+      "official_name": "Dragon Shrine",
+      "icon": "Normal Spell",
+      "texts": {
+        "Card Text": "Send 1 Dragon monster from your Deck to the GY, then, if that monster in your GY is a Dragon Normal Monster, you can send 1 more Dragon monster from your Deck to the GY. You can only activate 1 \"Dragon Shrine\" per turn."
+      },
+      "card_text": "Send 1 Dragon monster from your Deck to the GY, then, if that monster in your GY is a Dragon Normal Monster, you can send 1 more Dragon monster from your Deck to the GY. You can only activate 1 \"Dragon Shrine\" per turn.",
+      "csv_name": "Dragon Shrine",
+      "cid": "10590",
+      "passcode": 41620959,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Send 1 Dragon monster from your Deck to the GY, then, if that monster in your GY is a Dragon Normal Monster, you can send 1 more Dragon monster from your Deck to the GY. You can only activate 1 \"Dragon Shrine\" per turn.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=10590&request_locale=en"
+    },
+    {
+      "official_name": "Dragonic Tactics",
+      "icon": "Normal Spell",
+      "texts": {
+        "Card Text": "Tribute 2 Dragon monsters; Special Summon 1 Level 8 Dragon monster from your Deck."
+      },
+      "card_text": "Tribute 2 Dragon monsters; Special Summon 1 Level 8 Dragon monster from your Deck.",
+      "csv_name": "Dragonic Tactics",
+      "cid": "8422",
+      "passcode": 72549351,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Tribute 2 Dragon monsters; Special Summon 1 Level 8 Dragon monster from your Deck.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=8422&request_locale=en"
+    },
+    {
+      "official_name": "Enemy Controller",
+      "icon": "Quick-Play Spell",
+      "texts": {
+        "Card Text": "Activate 1 of these effects;●Target 1 face-up monster your opponent controls; change that target's battle position.●Tribute 1 monster, then target 1 face-up monster your opponent controls; take control of that target until the End Phase."
+      },
+      "card_text": "Activate 1 of these effects;●Target 1 face-up monster your opponent controls; change that target's battle position.●Tribute 1 monster, then target 1 face-up monster your opponent controls; take control of that target until the End Phase.",
+      "csv_name": "Enemy Controller",
+      "cid": "5505",
+      "passcode": 98045062,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Activate 1 of these effects.\n● Target 1 face-up monster your opponent controls; change that target's battle position.\n● Tribute 1 monster, then target 1 face-up monster your opponent controls; take control of that target until the End Phase.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=5505&request_locale=en"
+    },
+    {
+      "official_name": "Eria the Water Charmer",
+      "attribute": "WATER",
+      "level": 3,
+      "atk": "500",
+      "def": "1500",
+      "species": [
+        "Spellcaster",
+        "Flip／Effect"
+      ],
+      "texts": {
+        "Card Text": "FLIP: Target 1 WATER monster your opponent controls; take control of that monster while this card is face-up on the field."
+      },
+      "card_text": "FLIP: Target 1 WATER monster your opponent controls; take control of that monster while this card is face-up on the field.",
+      "csv_name": "Eria the Water Charmer",
+      "cid": "6336",
+      "passcode": 74364659,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "FLIP: Target 1 face-up WATER monster your opponent controls; take control of that target while this card is face-up on the field.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=6336&request_locale=en"
+    },
+    {
+      "official_name": "Fairy Tail - Luna",
+      "attribute": "LIGHT",
+      "level": 4,
+      "atk": "1850",
+      "def": "1000",
+      "species": [
+        "Spellcaster",
+        "Effect"
+      ],
+      "texts": {
+        "Card Text": "When this card is Normal Summoned: You can add 1 Spellcaster monster with 1850 ATK from your Deck to your hand. Once per turn (Quick Effect): You can target 1 face-up monster your opponent controls; your opponent can send 1 card with that monster's name from their Deck or Extra Deck to the GY to negate this effect, otherwise return both this card and that monster to the hand."
+      },
+      "card_text": "When this card is Normal Summoned: You can add 1 Spellcaster monster with 1850 ATK from your Deck to your hand. Once per turn (Quick Effect): You can target 1 face-up monster your opponent controls; your opponent can send 1 card with that monster's name from their Deck or Extra Deck to the GY to negate this effect, otherwise return both this card and that monster to the hand.",
+      "csv_name": "Fairy Tail - Luna",
+      "cid": "12952",
+      "passcode": 86937530,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "When this card is Normal Summoned: You can add 1 Spellcaster monster with 1850 ATK from your Deck to your hand. Once per turn (Quick Effect): You can target 1 face-up monster your opponent controls; your opponent can send 1 card with that monster's name from their Deck or Extra Deck to the GY to negate this effect, otherwise return both this card and that monster to the hand.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=12952&request_locale=en"
+    },
+    {
+      "official_name": "Fairy Tail - Rella",
+      "attribute": "LIGHT",
+      "level": 4,
+      "atk": "1850",
+      "def": "1000",
+      "species": [
+        "Spellcaster",
+        "Effect"
+      ],
+      "texts": {
+        "Card Text": "Neither player can target monsters on the field with Spell Cards or effects, except this one. Once per turn: You can discard 1 Spell; equip 1 Equip Spell from your hand, Deck, or GY to this card, but return that Equip Spell to the hand during the End Phase."
+      },
+      "card_text": "Neither player can target monsters on the field with Spell Cards or effects, except this one. Once per turn: You can discard 1 Spell; equip 1 Equip Spell from your hand, Deck, or GY to this card, but return that Equip Spell to the hand during the End Phase.",
+      "csv_name": "Fairy Tail - Rella",
+      "cid": "12770",
+      "passcode": 52022648,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Neither player can target monsters on the field with Spell Cards or effects, except this one. Once per turn: You can discard 1 Spell; equip 1 Equip Spell from your hand, Deck, or GY to this card, but return that Equip Spell to the hand during the End Phase.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=12770&request_locale=en"
+    },
+    {
+      "official_name": "Fairy Tail - Sleeper",
+      "attribute": "LIGHT",
+      "level": 4,
+      "atk": "1850",
+      "def": "1000",
+      "species": [
+        "Spellcaster",
+        "Flip／Effect"
+      ],
+      "texts": {
+        "Card Text": "FLIP: You can Special Summon 1 monster from your hand.When your opponent activates a Normal Spell/Trap Card (Quick Effect): You can Tribute 1 other monster; the activated effect becomes \"Change 1 face-up monster your opponent controls to face-down Defense Position\". You can only use this effect of \"Fairy Tail - Sleeper\" once per turn."
+      },
+      "card_text": "FLIP: You can Special Summon 1 monster from your hand.When your opponent activates a Normal Spell/Trap Card (Quick Effect): You can Tribute 1 other monster; the activated effect becomes \"Change 1 face-up monster your opponent controls to face-down Defense Position\". You can only use this effect of \"Fairy Tail - Sleeper\" once per turn.",
+      "csv_name": "Fairy Tail - Sleeper",
+      "cid": "12625",
+      "passcode": 42921475,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "FLIP: You can Special Summon 1 monster from your hand.\r\nWhen your opponent activates a Normal Spell/Trap Card (Quick Effect): You can Tribute 1 other monster; the activated effect becomes \"Change 1 face-up monster your opponent controls to face-down Defense Position\". You can only use this effect of \"Fairy Tail - Sleeper\" once per turn.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=12625&request_locale=en"
+    },
+    {
+      "official_name": "Fiendish Chain",
+      "icon": "Continuous Trap",
+      "texts": {
+        "Card Text": "Activate this card by targeting 1 Effect Monster on the field; negate the effects of that face-up monster while it is on the field, also that face-up monster cannot attack. When it is destroyed, destroy this card."
+      },
+      "card_text": "Activate this card by targeting 1 Effect Monster on the field; negate the effects of that face-up monster while it is on the field, also that face-up monster cannot attack. When it is destroyed, destroy this card.",
+      "csv_name": "Fiendish Chain",
+      "cid": "8675",
+      "passcode": 50078509,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Activate this card by targeting 1 Effect Monster on the field; negate the effects of that face-up monster while it is on the field, also that face-up monster cannot attack. When it is destroyed, destroy this card.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=8675&request_locale=en"
+    },
+    {
+      "official_name": "Five Brothers Explosion",
+      "icon": "Continuous Trap",
+      "texts": {
+        "Card Text": "When this card is activated: Gain 500 LP for each Continuous Spell/Trap Card you control. If this face-up card you control is sent to your Graveyard by your opponent's card effect: Inflict 500 damage to your opponent for each Continuous Spell/Trap Card in your Graveyard."
+      },
+      "card_text": "When this card is activated: Gain 500 LP for each Continuous Spell/Trap Card you control. If this face-up card you control is sent to your Graveyard by your opponent's card effect: Inflict 500 damage to your opponent for each Continuous Spell/Trap Card in your Graveyard.",
+      "csv_name": "Five Brothers Explosion",
+      "cid": "10603",
+      "passcode": 70946699,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "When this card is activated: Gain 500 LP for each Continuous Spell/Trap Card you control. If this face-up card you control is sent to your Graveyard by your opponent's card effect: Inflict 500 damage to your opponent for each Continuous Spell/Trap Card in your Graveyard.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=10603&request_locale=en"
+    },
+    {
+      "official_name": "Flamvell Guard",
+      "attribute": "FIRE",
+      "level": 1,
+      "atk": "100",
+      "def": "2000",
+      "species": [
+        "Dragon",
+        "Tuner／Normal"
+      ],
+      "texts": {
+        "Card Text": "A Flamvell guardian who commands fire with his will. His magma-hot barrier protects his troops from intruders."
+      },
+      "card_text": "A Flamvell guardian who commands fire with his will. His magma-hot barrier protects his troops from intruders.",
+      "csv_name": "Flamvell Guard",
+      "cid": "7535",
+      "passcode": 21615956,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "A Flamvell guardian who commands fire with his will. His magma-hot barrier protects his troops from intruders.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=7535&request_locale=en"
+    },
+    {
+      "official_name": "Gagagashield",
+      "icon": "Normal Trap",
+      "texts": {
+        "Card Text": "Target 1 Spellcaster monster you control; equip this card to that target. Twice per turn, it cannot be destroyed by battle or card effects."
+      },
+      "card_text": "Target 1 Spellcaster monster you control; equip this card to that target. Twice per turn, it cannot be destroyed by battle or card effects.",
+      "csv_name": "Gagagashield",
+      "cid": "9856",
+      "passcode": 18446701,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Target 1 Spellcaster monster you control; equip this card to that target. Twice per turn, it cannot be destroyed by battle or card effects.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=9856&request_locale=en"
+    },
+    {
+      "official_name": "Gladiator Beast Andal",
+      "attribute": "EARTH",
+      "level": 4,
+      "atk": "1900",
+      "def": "1500",
+      "species": [
+        "Beast-Warrior",
+        "Normal"
+      ],
+      "texts": {
+        "Card Text": "This one-eyed warrior bear is an aggressive hunter that strikes down its prey with the powerful swipes of its claws. No one can bear the brunt of his tremendously fast and heavy blows."
+      },
+      "card_text": "This one-eyed warrior bear is an aggressive hunter that strikes down its prey with the powerful swipes of its claws. No one can bear the brunt of his tremendously fast and heavy blows.",
+      "csv_name": "Gladiator Beast Andal",
+      "cid": "7365",
+      "passcode": 90582719,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "This one-eyed warrior bear is an aggressive hunter that strikes down its prey with the powerful swipes of its claws. No one can bear the brunt of his tremendously fast and heavy blows.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=7365&request_locale=en"
+    },
+    {
+      "official_name": "Herald of Creation",
+      "attribute": "LIGHT",
+      "level": 4,
+      "atk": "1800",
+      "def": "600",
+      "species": [
+        "Spellcaster",
+        "Effect"
+      ],
+      "texts": {
+        "Card Text": "Once per turn: You can discard 1 card, then target 1 Level 7 or higher monster in your Graveyard; add that target to your hand."
+      },
+      "card_text": "Once per turn: You can discard 1 card, then target 1 Level 7 or higher monster in your Graveyard; add that target to your hand.",
+      "csv_name": "Herald of Creation",
+      "cid": "7246",
+      "passcode": 66337215,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Once per turn: You can discard 1 card, then target 1 Level 7 or higher monster in your Graveyard; add that target to your hand.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=7246&request_locale=en"
+    },
+    {
+      "official_name": "Hidden Springs of the Far East",
+      "icon": "Field Spell",
+      "texts": {
+        "Card Text": "Once per turn, during the Main Phase 2: The turn player can activate this effect; they gain 500 LP, and until the end of this turn apply these effects.●The Normal and Special Summons of their monsters cannot be negated.●If they activate a Spell/Trap Card, or monster effect, that includes an effect that Special Summons a monster, that activation cannot be negated.●Their opponent cannot target Set Spells/Traps they control with card effects, also they cannot be destroyed by their opponent's card effects.You can only activate 1 \"Hidden Springs of the Far East\" per turn."
+      },
+      "card_text": "Once per turn, during the Main Phase 2: The turn player can activate this effect; they gain 500 LP, and until the end of this turn apply these effects.●The Normal and Special Summons of their monsters cannot be negated.●If they activate a Spell/Trap Card, or monster effect, that includes an effect that Special Summons a monster, that activation cannot be negated.●Their opponent cannot target Set Spells/Traps they control with card effects, also they cannot be destroyed by their opponent's card effects.You can only activate 1 \"Hidden Springs of the Far East\" per turn.",
+      "csv_name": "Hidden Springs of the Far East",
+      "cid": "16027",
+      "passcode": 94317736,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Once per turn, during the Main Phase 2: The turn player can activate this effect; they gain 500 LP, and until the end of this turn apply these effects.\r\n● The Normal and Special Summons of their monsters cannot be negated.\r\n● If they activate a Spell/Trap Card, or monster effect, that includes an effect that Special Summons a monster, that activation cannot be negated.\r\n● Their opponent cannot target Set Spells/Traps they control with card effects, also they cannot be destroyed by their opponent's card effects.\r\nYou can only activate 1 \"Hidden Springs of the Far East\" per turn.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=16027&request_locale=en"
+    },
+    {
+      "official_name": "Hieratic Dragon of Tefnuit",
+      "attribute": "LIGHT",
+      "level": 6,
+      "atk": "2100",
+      "def": "1400",
+      "species": [
+        "Dragon",
+        "Effect"
+      ],
+      "texts": {
+        "Card Text": "If only your opponent controls a monster, you can Special Summon this card (from your hand). Cannot attack during the turn it is Special Summoned this way. When this card is Tributed: Special Summon 1 Dragon Normal Monster from your hand, Deck, or GY, and make its ATK/DEF 0."
+      },
+      "card_text": "If only your opponent controls a monster, you can Special Summon this card (from your hand). Cannot attack during the turn it is Special Summoned this way. When this card is Tributed: Special Summon 1 Dragon Normal Monster from your hand, Deck, or GY, and make its ATK/DEF 0.",
+      "csv_name": "Hieratic Dragon of Tefnuit",
+      "cid": "10045",
+      "passcode": 77901552,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "If only your opponent controls a monster, you can Special Summon this card (from your hand). This card cannot attack during the turn it is Special Summoned this way. When this card is Tributed: Special Summon 1 Dragon Normal Monster from your hand, Deck, or GY, but make its ATK/DEF 0.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=10045&request_locale=en"
+    },
+    {
+      "official_name": "Honest",
+      "attribute": "LIGHT",
+      "level": 4,
+      "atk": "1100",
+      "def": "1900",
+      "species": [
+        "Fairy",
+        "Effect"
+      ],
+      "texts": {
+        "Card Text": "During your Main Phase: You can return this face-up card from the field to the hand. During the Damage Step, when a LIGHT monster you control battles (Quick Effect): You can send this card from your hand to the GY; that monster gains ATK equal to the ATK of the opponent's monster it is battling, until the end of this turn."
+      },
+      "card_text": "During your Main Phase: You can return this face-up card from the field to the hand. During the Damage Step, when a LIGHT monster you control battles (Quick Effect): You can send this card from your hand to the GY; that monster gains ATK equal to the ATK of the opponent's monster it is battling, until the end of this turn.",
+      "csv_name": "Honest",
+      "cid": "7574",
+      "passcode": 37742478,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "During your Main Phase: You can return this face-up card from the field to the hand. During the Damage Step, when a LIGHT monster you control battles (Quick Effect): You can send this card from your hand to the GY; that monster gains ATK equal to the ATK of the opponent's monster it is battling, until the end of this turn.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=7574&request_locale=en"
+    },
+    {
+      "official_name": "Inari Fire",
+      "attribute": "FIRE",
+      "level": 4,
+      "atk": "1500",
+      "def": "200",
+      "species": [
+        "Pyro",
+        "Effect"
+      ],
+      "texts": {
+        "Card Text": "You can only control 1 \"Inari Fire\". If you control a Spellcaster monster, you can Special Summon this card (from your hand). Once per turn, during your next Standby Phase after this face-up card on the field was destroyed by card effect and sent to the GY: Special Summon it from your GY."
+      },
+      "card_text": "You can only control 1 \"Inari Fire\". If you control a Spellcaster monster, you can Special Summon this card (from your hand). Once per turn, during your next Standby Phase after this face-up card on the field was destroyed by card effect and sent to the GY: Special Summon it from your GY.",
+      "csv_name": "Inari Fire",
+      "cid": "10397",
+      "passcode": 62953041,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "You can only control 1 \"Inari Fire\". If you control a Spellcaster-Type monster, you can Special Summon this card (from your hand). Once per turn, during your next Standby Phase after this face-up card on the field was destroyed by a card effect and sent to the Graveyard: Special Summon it from your Graveyard.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=10397&request_locale=en"
+    },
+    {
+      "official_name": "Interdimensional Matter Transporter",
+      "icon": "Normal Trap",
+      "texts": {
+        "Card Text": "Target 1 face-up monster you control; banish that target until the End Phase."
+      },
+      "card_text": "Target 1 face-up monster you control; banish that target until the End Phase.",
+      "csv_name": "Interdimensional Matter Transporter",
+      "cid": "5560",
+      "passcode": 36261276,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Target 1 face-up monster you control; banish that target until the End Phase.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=5560&request_locale=en"
+    },
+    {
+      "official_name": "Judge of the Ice Barrier",
+      "attribute": "WATER",
+      "level": 4,
+      "atk": "1800",
+      "def": "900",
+      "species": [
+        "Warrior",
+        "Effect"
+      ],
+      "texts": {
+        "Card Text": "While you control another \"Ice Barrier\" monster, each time your opponent activates a card or effect by paying LP, they lose 500 LP. You can only use each of the following effects of \"Judge of the Ice Barrier\" once per turn. You can target 1 or 2 \"Ice Barrier\" monsters in your GY and 1 or 2 cards in your opponent's GY; shuffle them into the Deck. If you control an \"Ice Barrier\" monster: You can banish this card from your GY, then target 1 Attack Position monster on the field; change it to Defense Position."
+      },
+      "card_text": "While you control another \"Ice Barrier\" monster, each time your opponent activates a card or effect by paying LP, they lose 500 LP. You can only use each of the following effects of \"Judge of the Ice Barrier\" once per turn. You can target 1 or 2 \"Ice Barrier\" monsters in your GY and 1 or 2 cards in your opponent's GY; shuffle them into the Deck. If you control an \"Ice Barrier\" monster: You can banish this card from your GY, then target 1 Attack Position monster on the field; change it to Defense Position.",
+      "csv_name": "Judge of the Ice Barrier",
+      "cid": "15981",
+      "passcode": 53535814,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "While you control another \"Ice Barrier\" monster, each time your opponent activates a card or effect by paying LP, they lose 500 LP. You can only use each of the following effects of \"Judge of the Ice Barrier\" once per turn. You can target 1 or 2 \"Ice Barrier\" monsters in your GY and 1 or 2 cards in your opponent's GY; shuffle them into the Deck. If you control an \"Ice Barrier\" monster: You can banish this card from your GY, then target 1 Attack Position monster on the field; change it to Defense Position.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=15981&request_locale=en"
+    },
+    {
+      "official_name": "Junk Blader",
+      "attribute": "EARTH",
+      "level": 4,
+      "atk": "1800",
+      "def": "1000",
+      "species": [
+        "Warrior",
+        "Effect"
+      ],
+      "texts": {
+        "Card Text": "You can banish 1 \"Junk\" monster from your Graveyard; this card gains 400 ATK until the end of this turn."
+      },
+      "card_text": "You can banish 1 \"Junk\" monster from your Graveyard; this card gains 400 ATK until the end of this turn.",
+      "csv_name": "Junk Blader",
+      "cid": "8735",
+      "passcode": 51855378,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "You can banish 1 \"Junk\" monster from your Graveyard; this card gains 400 ATK until the end of this turn.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=8735&request_locale=en"
+    },
+    {
+      "official_name": "Kaibaman",
+      "attribute": "LIGHT",
+      "level": 3,
+      "atk": "200",
+      "def": "700",
+      "species": [
+        "Warrior",
+        "Effect"
+      ],
+      "texts": {
+        "Card Text": "You can Tribute this card; Special Summon 1 \"Blue-Eyes White Dragon\" from your hand."
+      },
+      "card_text": "You can Tribute this card; Special Summon 1 \"Blue-Eyes White Dragon\" from your hand.",
+      "csv_name": "Kaibaman",
+      "cid": "6298",
+      "passcode": 34627841,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "You can Tribute this card; Special Summon 1 \"Blue-Eyes White Dragon\" from your hand.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=6298&request_locale=en"
+    },
+    {
+      "official_name": "Kaiser Glider",
+      "attribute": "LIGHT",
+      "level": 6,
+      "atk": "2400",
+      "def": "2200",
+      "species": [
+        "Dragon",
+        "Effect"
+      ],
+      "texts": {
+        "Card Text": "Cannot be destroyed by battle with a monster that has the same ATK. If this card is destroyed and sent to the GY: Target 1 monster on the field; return that target to the hand."
+      },
+      "card_text": "Cannot be destroyed by battle with a monster that has the same ATK. If this card is destroyed and sent to the GY: Target 1 monster on the field; return that target to the hand.",
+      "csv_name": "Kaiser Glider",
+      "cid": "5353",
+      "passcode": 52824910,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Cannot be destroyed by battle with a monster that has the same ATK. If this card is destroyed and sent to the Graveyard: Target 1 monster on the field; return that target to the hand.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=5353&request_locale=en"
+    },
+    {
+      "official_name": "Kaiser Sea Horse",
+      "attribute": "LIGHT",
+      "level": 4,
+      "atk": "1700",
+      "def": "1650",
+      "species": [
+        "Sea Serpent",
+        "Effect"
+      ],
+      "texts": {
+        "Card Text": "This card can be treated as 2 Tributes for the Tribute Summon of a LIGHT monster."
+      },
+      "card_text": "This card can be treated as 2 Tributes for the Tribute Summon of a LIGHT monster.",
+      "csv_name": "Kaiser Sea Horse",
+      "cid": "5409",
+      "passcode": 17444133,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "This card can be treated as 2 Tributes for the Tribute Summon of a LIGHT monster.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=5409&request_locale=en"
+    },
+    {
+      "official_name": "Kunai with Chain",
+      "icon": "Normal Trap",
+      "texts": {
+        "Card Text": "Activate 1 or both of these effects (simultaneously);●When an opponent's monster declares an attack: Target the attacking monster; change that target to Defense Position.●Target 1 face-up monster you control; equip this card to that target. It gains 500 ATK."
+      },
+      "card_text": "Activate 1 or both of these effects (simultaneously);●When an opponent's monster declares an attack: Target the attacking monster; change that target to Defense Position.●Target 1 face-up monster you control; equip this card to that target. It gains 500 ATK.",
+      "csv_name": "Kunai with Chain",
+      "cid": "4657",
+      "passcode": 37390589,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Activate 1 or both of these effects (simultaneously).\n● When an opponent's monster declares an attack: Target the attacking monster; change that target to Defense Position.\n● Target 1 face-up monster you control; equip this card to that target. It gains 500 ATK.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=4657&request_locale=en"
+    },
+    {
+      "official_name": "Luster Dragon",
+      "attribute": "WIND",
+      "level": 4,
+      "atk": "1900",
+      "def": "1600",
+      "species": [
+        "Dragon",
+        "Normal"
+      ],
+      "texts": {
+        "Card Text": "A very beautiful dragon covered with sapphire. It does not like fights, but has incredibly high attack power."
+      },
+      "card_text": "A very beautiful dragon covered with sapphire. It does not like fights, but has incredibly high attack power.",
+      "csv_name": "Luster Dragon",
+      "cid": "5644",
+      "passcode": 11091375,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "A very beautiful dragon covered with sapphire. It does not like fights, but has incredibly high attack power.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=5644&request_locale=en"
+    },
+    {
+      "official_name": "Maiden with Eyes of Blue",
+      "attribute": "LIGHT",
+      "level": 1,
+      "atk": "0",
+      "def": "0",
+      "species": [
+        "Spellcaster",
+        "Tuner／Effect"
+      ],
+      "texts": {
+        "Card Text": "When a card or effect is activated that targets this card (Quick Effect): You can Special Summon 1 \"Blue-Eyes White Dragon\" from your hand, Deck, or GY. When this card is targeted for an attack: You can negate the attack, and if you do, change the battle position of this card, then you can Special Summon 1 \"Blue-Eyes White Dragon\" from your hand, Deck, or GY. You can only use 1 \"Maiden with Eyes of Blue\" effect per turn, and only once that turn."
+      },
+      "card_text": "When a card or effect is activated that targets this card (Quick Effect): You can Special Summon 1 \"Blue-Eyes White Dragon\" from your hand, Deck, or GY. When this card is targeted for an attack: You can negate the attack, and if you do, change the battle position of this card, then you can Special Summon 1 \"Blue-Eyes White Dragon\" from your hand, Deck, or GY. You can only use 1 \"Maiden with Eyes of Blue\" effect per turn, and only once that turn.",
+      "csv_name": "Maiden with Eyes of Blue",
+      "cid": "10588",
+      "passcode": 88241506,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "When a card or effect is activated that targets this card (Quick Effect): You can Special Summon 1 \"Blue-Eyes White Dragon\" from your hand, Deck, or GY. When this card is targeted for an attack: You can negate the attack, and if you do, change the battle position of this card, then you can Special Summon 1 \"Blue-Eyes White Dragon\" from your hand, Deck, or GY. You can only use 1 \"Maiden with Eyes of Blue\" effect per turn, and only once that turn.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=10588&request_locale=en"
+    },
+    {
+      "official_name": "Metaphys Armed Dragon",
+      "attribute": "LIGHT",
+      "level": 7,
+      "atk": "2800",
+      "def": "1000",
+      "species": [
+        "Wyrm",
+        "Normal"
+      ],
+      "texts": {
+        "Card Text": "Usually visible despite its phantom existence."
+      },
+      "card_text": "Usually visible despite its phantom existence.",
+      "csv_name": "Metaphys Armed Dragon",
+      "cid": "11212",
+      "passcode": 89189982,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 2,
+      "saved_desc": "Usually visible despite its phantom existence.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=11212&request_locale=en"
+    },
+    {
+      "official_name": "Mirage Dragon",
+      "attribute": "LIGHT",
+      "level": 4,
+      "atk": "1600",
+      "def": "600",
+      "species": [
+        "Dragon",
+        "Effect"
+      ],
+      "texts": {
+        "Card Text": "Your opponent cannot activate Trap Cards during the Battle Phase."
+      },
+      "card_text": "Your opponent cannot activate Trap Cards during the Battle Phase.",
+      "csv_name": "Mirage Dragon",
+      "cid": "6196",
+      "passcode": 15960641,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 2,
+      "saved_desc": "Your opponent cannot activate Trap Cards during the Battle Phase.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=6196&request_locale=en"
+    },
+    {
+      "official_name": "Monster Reborn",
+      "icon": "Normal Spell",
+      "texts": {
+        "Card Text": "Target 1 monster in either GY; Special Summon it."
+      },
+      "card_text": "Target 1 monster in either GY; Special Summon it.",
+      "csv_name": "Monster Reborn",
+      "cid": "4842",
+      "passcode": 83764719,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Target 1 monster in either GY; Special Summon it.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=4842&request_locale=en"
+    },
+    {
+      "official_name": "Nefarious Archfiend Eater of Nefariousness",
+      "attribute": "EARTH",
+      "level": 4,
+      "atk": "1500",
+      "def": "200",
+      "species": [
+        "Beast",
+        "Effect"
+      ],
+      "texts": {
+        "Card Text": "You can only control 1 \"Nefarious Archfiend Eater of Nefariousness\". If you control a Spellcaster monster, you can Special Summon this card (from your hand). Once per turn, during your opponent's End Phase, if this card is in your GY: You can target 1 face-up monster you control; destroy it, and if you do, Special Summon this card."
+      },
+      "card_text": "You can only control 1 \"Nefarious Archfiend Eater of Nefariousness\". If you control a Spellcaster monster, you can Special Summon this card (from your hand). Once per turn, during your opponent's End Phase, if this card is in your GY: You can target 1 face-up monster you control; destroy it, and if you do, Special Summon this card.",
+      "csv_name": "Nefarious Archfiend Eater of Nefariousness",
+      "cid": "11244",
+      "passcode": 60666820,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "You can only control 1 \"Nefarious Archfiend Eater of Nefariousness\". If you control a Spellcaster-Type monster, you can Special Summon this card (from your hand). Once per turn, during your opponent's End Phase, if this card is in your Graveyard: You can target 1 face-up monster you control; destroy it, and if you do, Special Summon this card.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=11244&request_locale=en"
+    },
+    {
+      "official_name": "One for One",
+      "icon": "Normal Spell",
+      "texts": {
+        "Card Text": "Send 1 monster from your hand to the GY; Special Summon 1 Level 1 monster from your hand or Deck."
+      },
+      "card_text": "Send 1 monster from your hand to the GY; Special Summon 1 Level 1 monster from your hand or Deck.",
+      "csv_name": "One for One",
+      "cid": "8197",
+      "passcode": 2295440,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Send 1 monster from your hand to the GY; Special Summon 1 Level 1 monster from your hand or Deck.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=8197&request_locale=en"
+    },
+    {
+      "official_name": "Phoenix Wing Wind Blast",
+      "icon": "Normal Trap",
+      "texts": {
+        "Card Text": "Discard 1 card, then target 1 card your opponent controls; place that target on the top of the Deck."
+      },
+      "card_text": "Discard 1 card, then target 1 card your opponent controls; place that target on the top of the Deck.",
+      "csv_name": "Phoenix Wing Wind Blast",
+      "cid": "6279",
+      "passcode": 63356631,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Discard 1 card, then target 1 card your opponent controls; place that target on the top of the Deck.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=6279&request_locale=en"
+    },
+    {
+      "official_name": "Rabidragon",
+      "attribute": "LIGHT",
+      "level": 8,
+      "atk": "2950",
+      "def": "2900",
+      "species": [
+        "Dragon",
+        "Normal"
+      ],
+      "texts": {
+        "Card Text": "It's a snowfield-dwelling, giant-ear-sporting, super-acoustic, snowball-shaped mutant dragon! There's no way anybody can escape."
+      },
+      "card_text": "It's a snowfield-dwelling, giant-ear-sporting, super-acoustic, snowball-shaped mutant dragon! There's no way anybody can escape.",
+      "csv_name": "Rabidragon",
+      "cid": "9720",
+      "passcode": 95788410,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "It's a snowfield-dwelling, giant-ear-sporting, super-acoustic, snowball-shaped mutant dragon! There's no way anybody can escape.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=9720&request_locale=en"
+    },
+    {
+      "official_name": "Ranryu",
+      "attribute": "WIND",
+      "level": 4,
+      "atk": "1500",
+      "def": "200",
+      "species": [
+        "Dragon",
+        "Effect"
+      ],
+      "texts": {
+        "Card Text": "You can only control 1 \"Ranryu\". If you control a Spellcaster monster, you can Special Summon this card (from your hand). If this card is destroyed by battle or card effect and sent to the GY: You can target 1 monster with 1500 ATK/200 DEF in your GY, except \"Ranryu\"; Special Summon it."
+      },
+      "card_text": "You can only control 1 \"Ranryu\". If you control a Spellcaster monster, you can Special Summon this card (from your hand). If this card is destroyed by battle or card effect and sent to the GY: You can target 1 monster with 1500 ATK/200 DEF in your GY, except \"Ranryu\"; Special Summon it.",
+      "csv_name": "Ranryu",
+      "cid": "14482",
+      "passcode": 44680819,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "You can only control 1 \"Ranryu\". If you control a Spellcaster monster, you can Special Summon this card (from your hand). If this card is destroyed by battle or card effect and sent to the GY: You can target 1 monster with 1500 ATK/200 DEF in your GY, except \"Ranryu\"; Special Summon it.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=14482&request_locale=en"
+    },
+    {
+      "official_name": "Rider of the Storm Winds",
+      "attribute": "LIGHT",
+      "level": 1,
+      "atk": "500",
+      "def": "200",
+      "species": [
+        "Dragon",
+        "Tuner／Effect"
+      ],
+      "texts": {
+        "Card Text": "You can target 1 Dragon Normal Monster you control; equip this monster from your hand or field to that target. If a monster equipped with this card attacks a Defense Position monster, inflict piercing battle damage to your opponent. If a monster equipped with this card would be destroyed, destroy this card instead."
+      },
+      "card_text": "You can target 1 Dragon Normal Monster you control; equip this monster from your hand or field to that target. If a monster equipped with this card attacks a Defense Position monster, inflict piercing battle damage to your opponent. If a monster equipped with this card would be destroyed, destroy this card instead.",
+      "csv_name": "Rider of the Storm Winds",
+      "cid": "10589",
+      "passcode": 14235211,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "You can target 1 Dragon Normal Monster you control; equip this monster from your hand or field to that target. If a monster equipped with this card attacks a Defense Position monster, inflict piercing battle damage to your opponent. If a monster equipped with this card would be destroyed, destroy this card instead.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=10589&request_locale=en"
+    },
+    {
+      "official_name": "Runick Flashing Fire",
+      "icon": "Quick-Play Spell",
+      "texts": {
+        "Card Text": "Activate 1 of these effects, but skip your next Battle Phase after activation;●Target 1 Special Summoned monster your opponent controls; destroy it, then banish the top 2 cards of your opponent's Deck.●Special Summon 1 \"Runick\" monster from your Extra Deck to the Extra Monster Zone.You can only activate 1 \"Runick Flashing Fire\" per turn."
+      },
+      "card_text": "Activate 1 of these effects, but skip your next Battle Phase after activation;●Target 1 Special Summoned monster your opponent controls; destroy it, then banish the top 2 cards of your opponent's Deck.●Special Summon 1 \"Runick\" monster from your Extra Deck to the Extra Monster Zone.You can only activate 1 \"Runick Flashing Fire\" per turn.",
+      "csv_name": "Runick Flashing Fire",
+      "cid": "17374",
+      "passcode": 68957034,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Activate 1 of these effects, but skip your next Battle Phase after activation;\r\n● Target 1 Special Summoned monster your opponent controls; destroy it, then banish the top 2 cards of your opponent's Deck.\r\n● Special Summon 1 \"Runick\" monster from your Extra Deck to the Extra Monster Zone.\r\nYou can only activate 1 \"Runick Flashing Fire\" per turn.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=17374&request_locale=en"
+    },
+    {
+      "official_name": "Sabersaurus",
+      "attribute": "EARTH",
+      "level": 4,
+      "atk": "1900",
+      "def": "500",
+      "species": [
+        "Dinosaur",
+        "Normal"
+      ],
+      "texts": {
+        "Card Text": "This normally gentle dinosaur enjoys relaxing in its nest in the prairies. If it becomes angered, it turns terribly ferocious."
+      },
+      "card_text": "This normally gentle dinosaur enjoys relaxing in its nest in the prairies. If it becomes angered, it turns terribly ferocious.",
+      "csv_name": "Sabersaurus",
+      "cid": "6796",
+      "passcode": 37265642,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "This normally gentle dinosaur enjoys relaxing in its nest in the prairies. If it becomes angered, it turns terribly ferocious.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=6796&request_locale=en"
+    },
+    {
+      "official_name": "Sealing Ceremony of Suiton",
+      "icon": "Continuous Trap",
+      "texts": {
+        "Card Text": "Once per turn: You can send 1 WATER monster from your hand to the GY, then target 1 card in your opponent's GY; banish that target."
+      },
+      "card_text": "Once per turn: You can send 1 WATER monster from your hand to the GY, then target 1 card in your opponent's GY; banish that target.",
+      "csv_name": "Sealing Ceremony of Suiton",
+      "cid": "9798",
+      "passcode": 81443745,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Once per turn: You can send 1 WATER monster from your hand to the GY, then target 1 card in your opponent's GY; banish that target.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=9798&request_locale=en"
+    },
+    {
+      "official_name": "Shining Angel",
+      "attribute": "LIGHT",
+      "level": 4,
+      "atk": "1400",
+      "def": "800",
+      "species": [
+        "Fairy",
+        "Effect"
+      ],
+      "texts": {
+        "Card Text": "When this card is destroyed by battle and sent to the GY: You can Special Summon 1 LIGHT monster with 1500 or less ATK from your Deck in Attack Position."
+      },
+      "card_text": "When this card is destroyed by battle and sent to the GY: You can Special Summon 1 LIGHT monster with 1500 or less ATK from your Deck in Attack Position.",
+      "csv_name": "Shining Angel",
+      "cid": "4924",
+      "passcode": 95956346,
+      "decks": [
+        "Blue-Eyes Dragon Guard",
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 2,
+      "saved_desc": "When this card is destroyed by battle and sent to the Graveyard: You can Special Summon 1 LIGHT monster with 1500 or less ATK from your Deck, in face-up Attack Position.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=4924&request_locale=en"
+    },
+    {
+      "official_name": "Silver's Cry",
+      "icon": "Quick-Play Spell",
+      "texts": {
+        "Card Text": "Target 1 Dragon Normal Monster in your GY; Special Summon that target. You can only activate 1 \"Silver's Cry\" per turn."
+      },
+      "card_text": "Target 1 Dragon Normal Monster in your GY; Special Summon that target. You can only activate 1 \"Silver's Cry\" per turn.",
+      "csv_name": "Silver's Cry",
+      "cid": "10591",
+      "passcode": 87025064,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Target 1 Dragon Normal Monster in your GY; Special Summon that target. You can only activate 1 \"Silver's Cry\" per turn.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=10591&request_locale=en"
+    },
+    {
+      "official_name": "Soul Exchange",
+      "icon": "Normal Spell",
+      "texts": {
+        "Card Text": "Target 1 monster your opponent controls; this turn, if you Tribute a monster, you must Tribute that target, as if you controlled it. You cannot conduct your Battle Phase the turn you activate this card."
+      },
+      "card_text": "Target 1 monster your opponent controls; this turn, if you Tribute a monster, you must Tribute that target, as if you controlled it. You cannot conduct your Battle Phase the turn you activate this card.",
+      "csv_name": "Soul Exchange",
+      "cid": "5099",
+      "passcode": 68005187,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Target 1 monster your opponent controls; this turn, if you Tribute a monster, you must Tribute that target, as if you controlled it. You cannot conduct your Battle Phase the turn you activate this card.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=5099&request_locale=en"
+    },
+    {
+      "official_name": "Spiritual Fire Art - Kurenai",
+      "icon": "Normal Trap",
+      "texts": {
+        "Card Text": "Tribute 1 FIRE monster; inflict damage to your opponent equal to that monster's original ATK."
+      },
+      "card_text": "Tribute 1 FIRE monster; inflict damage to your opponent equal to that monster's original ATK.",
+      "csv_name": "Spiritual Fire Art - Kurenai",
+      "cid": "6441",
+      "passcode": 42945701,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Tribute 1 FIRE monster; inflict damage to your opponent equal to that monster's original ATK.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=6441&request_locale=en"
+    },
+    {
+      "official_name": "Spiritual Water Art - Aoi",
+      "icon": "Normal Trap",
+      "texts": {
+        "Card Text": "Tribute 1 WATER monster; look at your opponent's hand, then send 1 card from their hand to the GY."
+      },
+      "card_text": "Tribute 1 WATER monster; look at your opponent's hand, then send 1 card from their hand to the GY.",
+      "csv_name": "Spiritual Water Art - Aoi",
+      "cid": "6440",
+      "passcode": 6540606,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Tribute 1 WATER monster; look at your opponent's hand, then send 1 card from their hand to the Graveyard.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=6440&request_locale=en"
+    },
+    {
+      "official_name": "Spiritual Wind Art - Miyabi",
+      "icon": "Normal Trap",
+      "texts": {
+        "Card Text": "Tribute 1 WIND monster, then target 1 card your opponent controls; place that opponent's card on the bottom of the Deck."
+      },
+      "card_text": "Tribute 1 WIND monster, then target 1 card your opponent controls; place that opponent's card on the bottom of the Deck.",
+      "csv_name": "Spiritual Wind Art - Miyabi",
+      "cid": "6442",
+      "passcode": 79333300,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Tribute 1 WIND monster, then target 1 card your opponent controls; place that card on the bottom of the Deck.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=6442&request_locale=en"
+    },
+    {
+      "official_name": "Stamping Destruction",
+      "icon": "Normal Spell",
+      "texts": {
+        "Card Text": "If you control a Dragon monster: Target 1 Spell/Trap on the field; destroy that target, and if you do, inflict 500 damage to its controller."
+      },
+      "card_text": "If you control a Dragon monster: Target 1 Spell/Trap on the field; destroy that target, and if you do, inflict 500 damage to its controller.",
+      "csv_name": "Stamping Destruction",
+      "cid": "5345",
+      "passcode": 81385346,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "If you control a Dragon monster: Target 1 Spell/Trap on the field; destroy that target, and if you do, inflict 500 damage to its controller.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=5345&request_locale=en"
+    },
+    {
+      "official_name": "Straight Flush",
+      "icon": "Normal Trap",
+      "texts": {
+        "Card Text": "If your opponent controls a card in each of their Spell & Trap Zones: Destroy all cards in their Spell & Trap Zones."
+      },
+      "card_text": "If your opponent controls a card in each of their Spell & Trap Zones: Destroy all cards in their Spell & Trap Zones.",
+      "csv_name": "Straight Flush",
+      "cid": "6911",
+      "passcode": 25173686,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Activate only when all of your opponent's Spell & Trap Card Zones are occupied. Destroy all cards in your opponent's Spell & Trap Card Zones.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=6911&request_locale=en"
+    },
+    {
+      "official_name": "Swords of Revealing Light",
+      "icon": "Normal Spell",
+      "texts": {
+        "Card Text": "After this card's activation, it remains on the field, but you must destroy it during the End Phase of your opponent's 3rd turn. When this card is activated: If your opponent controls a face-down monster, flip all monsters they control face-up. While this card is face-up on the field, your opponent's monsters cannot declare an attack."
+      },
+      "card_text": "After this card's activation, it remains on the field, but you must destroy it during the End Phase of your opponent's 3rd turn. When this card is activated: If your opponent controls a face-down monster, flip all monsters they control face-up. While this card is face-up on the field, your opponent's monsters cannot declare an attack.",
+      "csv_name": "Swords of Revealing Light",
+      "cid": "4354",
+      "passcode": 72302403,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "After this card's activation, it remains on the field, but you must destroy it during the End Phase of your opponent's 3rd turn. When this card is activated: If your opponent controls a face-down monster, flip all monsters they control face-up. While this card is face-up on the field, your opponent's monsters cannot declare an attack.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=4354&request_locale=en"
+    },
+    {
+      "official_name": "The Monarchs Awaken",
+      "icon": "Normal Trap",
+      "texts": {
+        "Card Text": "If you have no cards in your Extra Deck: Target 1 face-up Tribute Summoned monster you control; its effects are negated, also it is unaffected by the effects of cards other than this card."
+      },
+      "card_text": "If you have no cards in your Extra Deck: Target 1 face-up Tribute Summoned monster you control; its effects are negated, also it is unaffected by the effects of cards other than this card.",
+      "csv_name": "The Monarchs Awaken",
+      "cid": "10963",
+      "passcode": 26822796,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "If you have no cards in your Extra Deck: Target 1 face-up Tribute Summoned monster you control; its effects are negated, also it is unaffected by the effects of cards other than this card.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=10963&request_locale=en"
+    },
+    {
+      "official_name": "The Phantom Knights of Shadow Veil",
+      "icon": "Normal Trap",
+      "texts": {
+        "Card Text": "Target 1 face-up monster you control; it gains 300 ATK/DEF. When an opponent's monster declares a direct attack while this card is in your GY: Special Summon this card in Defense Position as a Normal Monster (Warrior/DARK/Level 4/ATK 0/DEF 300). (This card is NOT treated as a Trap.) If Summoned this way, banish this card when it leaves the field."
+      },
+      "card_text": "Target 1 face-up monster you control; it gains 300 ATK/DEF. When an opponent's monster declares a direct attack while this card is in your GY: Special Summon this card in Defense Position as a Normal Monster (Warrior/DARK/Level 4/ATK 0/DEF 300). (This card is NOT treated as a Trap.) If Summoned this way, banish this card when it leaves the field.",
+      "csv_name": "The Phantom Knights of Shadow Veil",
+      "cid": "11404",
+      "passcode": 77462146,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Target 1 face-up monster you control; it gains 300 ATK/DEF. When an opponent's monster declares a direct attack while this card is in your GY: Special Summon this card in Defense Position as a Normal Monster (Warrior/DARK/Level 4/ATK 0/DEF 300). (This card is NOT treated as a Trap.) If Summoned this way, banish this card when it leaves the field.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=11404&request_locale=en"
+    },
+    {
+      "official_name": "The White Stone of Legend",
+      "attribute": "LIGHT",
+      "level": 1,
+      "atk": "300",
+      "def": "250",
+      "species": [
+        "Dragon",
+        "Tuner／Effect"
+      ],
+      "texts": {
+        "Card Text": "If this card is sent to the GY: Add 1 \"Blue-Eyes White Dragon\" from your Deck to your hand."
+      },
+      "card_text": "If this card is sent to the GY: Add 1 \"Blue-Eyes White Dragon\" from your Deck to your hand.",
+      "csv_name": "The White Stone of Legend",
+      "cid": "7850",
+      "passcode": 79814787,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "If this card is sent to the GY: Add 1 \"Blue-Eyes White Dragon\" from your Deck to your hand.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=7850&request_locale=en"
+    },
+    {
+      "official_name": "Trade-In",
+      "icon": "Normal Spell",
+      "texts": {
+        "Card Text": "Discard 1 Level 8 monster; draw 2 cards."
+      },
+      "card_text": "Discard 1 Level 8 monster; draw 2 cards.",
+      "csv_name": "Trade-In",
+      "cid": "7248",
+      "passcode": 38120068,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Discard 1 Level 8 monster; draw 2 cards.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=7248&request_locale=en"
+    },
+    {
+      "official_name": "Vampiric Koala",
+      "attribute": "EARTH",
+      "level": 4,
+      "atk": "1800",
+      "def": "1500",
+      "species": [
+        "Beast",
+        "Effect"
+      ],
+      "texts": {
+        "Card Text": "If this card inflicts battle damage to your opponent by battle with a monster: Gain LP equal to the battle damage inflicted."
+      },
+      "card_text": "If this card inflicts battle damage to your opponent by battle with a monster: Gain LP equal to the battle damage inflicted.",
+      "csv_name": "Vampiric Koala",
+      "cid": "8858",
+      "passcode": null,
+      "decks": [
+        "Blue-Eyes Dragon Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": null,
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=8858&request_locale=en"
+    },
+    {
+      "official_name": "White Elephant's Gift",
+      "icon": "Normal Spell",
+      "texts": {
+        "Card Text": "Send 1 face-up non-Effect Monster you control to the GY; draw 2 cards."
+      },
+      "card_text": "Send 1 face-up non-Effect Monster you control to the GY; draw 2 cards.",
+      "csv_name": "White Elephant's Gift",
+      "cid": "9138",
+      "passcode": 18756904,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Send 1 face-up non-Effect Monster you control to the GY; draw 2 cards.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=9138&request_locale=en"
+    },
+    {
+      "official_name": "Witchcrafter Golem Aruru",
+      "attribute": "LIGHT",
+      "level": 8,
+      "atk": "2800",
+      "def": "0",
+      "species": [
+        "Spellcaster",
+        "Effect"
+      ],
+      "texts": {
+        "Card Text": "When your opponent activates a card or effect that targets a Spellcaster monster(s) you control, or targets it for an attack (Quick Effect): You can target 1 card your opponent controls, or 1 \"Witchcrafter\" Spell in your GY; Special Summon this card from your hand, and if you do, return that targeted card to the hand. You can only use this effect of \"Witchcrafter Golem Aruru\" once per turn. Once per turn, during your opponent's Standby Phase: Return this card to the hand."
+      },
+      "card_text": "When your opponent activates a card or effect that targets a Spellcaster monster(s) you control, or targets it for an attack (Quick Effect): You can target 1 card your opponent controls, or 1 \"Witchcrafter\" Spell in your GY; Special Summon this card from your hand, and if you do, return that targeted card to the hand. You can only use this effect of \"Witchcrafter Golem Aruru\" once per turn. Once per turn, during your opponent's Standby Phase: Return this card to the hand.",
+      "csv_name": "Witchcrafter Golem Aruru",
+      "cid": "14483",
+      "passcode": 71074418,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "When your opponent activates a card or effect that targets a Spellcaster monster(s) you control, or targets it for an attack (Quick Effect): You can target 1 card your opponent controls, or 1 \"Witchcrafter\" Spell in your GY; Special Summon this card from your hand, and if you do, return that targeted card to the hand. You can only use this effect of \"Witchcrafter Golem Aruru\" once per turn. Once per turn, during your opponent's Standby Phase: Return this card to the hand.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=14483&request_locale=en"
+    },
+    {
+      "official_name": "Wonder Balloons",
+      "icon": "Continuous Spell",
+      "texts": {
+        "Card Text": "Once per turn: You can send any number of cards from your hand to the GY; place 1 Balloon Counter on this card for each card sent to the GY. All monsters your opponent controls lose 300 ATK for each Balloon Counter on this card."
+      },
+      "card_text": "Once per turn: You can send any number of cards from your hand to the GY; place 1 Balloon Counter on this card for each card sent to the GY. All monsters your opponent controls lose 300 ATK for each Balloon Counter on this card.",
+      "csv_name": "Wonder Balloons",
+      "cid": "11387",
+      "passcode": 78574395,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "Once per turn: You can send any number of cards from your hand to the GY; place 1 Balloon Counter on this card for each card sent to the GY. All monsters your opponent controls lose 300 ATK for each Balloon Counter on this card.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=11387&request_locale=en"
+    },
+    {
+      "official_name": "Wynn the Wind Charmer",
+      "attribute": "WIND",
+      "level": 3,
+      "atk": "500",
+      "def": "1500",
+      "species": [
+        "Spellcaster",
+        "Flip／Effect"
+      ],
+      "texts": {
+        "Card Text": "FLIP: Target 1 WIND monster your opponent controls; take control of that monster while this card is face-up on the field."
+      },
+      "card_text": "FLIP: Target 1 WIND monster your opponent controls; take control of that monster while this card is face-up on the field.",
+      "csv_name": "Wynn the Wind Charmer",
+      "cid": "6338",
+      "passcode": 37744402,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "FLIP: While this card is face-up on the field, take control of 1 WIND monster your opponent controls.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=6338&request_locale=en"
+    },
+    {
+      "official_name": "Zure, Knight of Dark World",
+      "attribute": "DARK",
+      "level": 4,
+      "atk": "1800",
+      "def": "1500",
+      "species": [
+        "Fiend",
+        "Normal"
+      ],
+      "texts": {
+        "Card Text": "The name of this illustrious knight is known by all residents of Dark World. He never oppresses the commoners."
+      },
+      "card_text": "The name of this illustrious knight is known by all residents of Dark World. He never oppresses the commoners.",
+      "csv_name": "Zure, Knight of Dark World",
+      "cid": "6497",
+      "passcode": 7459013,
+      "decks": [
+        "Fairy-Tail Tribute Guard"
+      ],
+      "total_copies": 1,
+      "saved_desc": "The name of this illustrious knight is known by all residents of Dark World. He never oppresses the commoners.",
+      "detail_url": "https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=6497&request_locale=en"
+    }
+  ],
+  "unmatched": []
+}

@@ -1,0 +1,163 @@
+{
+  "deck_name": "Blue-Eyes Dragon Guard",
+  "main_deck": [
+    {
+      "name": "Alexandrite Dragon",
+      "quantity": 1
+    },
+    {
+      "name": "Blue-Eyes White Dragon",
+      "quantity": 1
+    },
+    {
+      "name": "Chiron the Mage",
+      "quantity": 1
+    },
+    {
+      "name": "Divine Dragon Apocralyph",
+      "quantity": 1
+    },
+    {
+      "name": "Flamvell Guard",
+      "quantity": 1
+    },
+    {
+      "name": "Herald of Creation",
+      "quantity": 1
+    },
+    {
+      "name": "Hieratic Dragon of Tefnuit",
+      "quantity": 1
+    },
+    {
+      "name": "Judge of the Ice Barrier",
+      "quantity": 1
+    },
+    {
+      "name": "Junk Blader",
+      "quantity": 1
+    },
+    {
+      "name": "Kaibaman",
+      "quantity": 1
+    },
+    {
+      "name": "Kaiser Glider",
+      "quantity": 1
+    },
+    {
+      "name": "Luster Dragon",
+      "quantity": 1
+    },
+    {
+      "name": "Maiden with Eyes of Blue",
+      "quantity": 1
+    },
+    {
+      "name": "Mirage Dragon",
+      "quantity": 2
+    },
+    {
+      "name": "Rabidragon",
+      "quantity": 1
+    },
+    {
+      "name": "Rider of the Storm Winds",
+      "quantity": 1
+    },
+    {
+      "name": "Shining Angel",
+      "quantity": 1
+    },
+    {
+      "name": "The White Stone of Legend",
+      "quantity": 1
+    },
+    {
+      "name": "Vampiric Koala",
+      "quantity": 1
+    },
+    {
+      "name": "A Wingbeat of Giant Dragon",
+      "quantity": 1
+    },
+    {
+      "name": "Back-Up Rider",
+      "quantity": 1
+    },
+    {
+      "name": "Burst Stream of Destruction",
+      "quantity": 1
+    },
+    {
+      "name": "Cards of Consonance",
+      "quantity": 1
+    },
+    {
+      "name": "Dragon Shrine",
+      "quantity": 1
+    },
+    {
+      "name": "Dragonic Tactics",
+      "quantity": 1
+    },
+    {
+      "name": "One for One",
+      "quantity": 1
+    },
+    {
+      "name": "Silver's Cry",
+      "quantity": 1
+    },
+    {
+      "name": "Stamping Destruction",
+      "quantity": 1
+    },
+    {
+      "name": "Trade-In",
+      "quantity": 1
+    },
+    {
+      "name": "Call of the Haunted",
+      "quantity": 1
+    },
+    {
+      "name": "Castle of Dragon Souls",
+      "quantity": 1
+    },
+    {
+      "name": "Chain Healing",
+      "quantity": 1
+    },
+    {
+      "name": "Compulsory Evacuation Device",
+      "quantity": 1
+    },
+    {
+      "name": "Damage Condenser",
+      "quantity": 1
+    },
+    {
+      "name": "Fiendish Chain",
+      "quantity": 1
+    },
+    {
+      "name": "Five Brothers Explosion",
+      "quantity": 1
+    },
+    {
+      "name": "Interdimensional Matter Transporter",
+      "quantity": 1
+    },
+    {
+      "name": "Kunai with Chain",
+      "quantity": 1
+    },
+    {
+      "name": "Straight Flush",
+      "quantity": 1
+    }
+  ],
+  "main_deck_count": 40,
+  "extra_deck": []
+}
