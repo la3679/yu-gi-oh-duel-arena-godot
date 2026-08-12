@@ -42,6 +42,8 @@ var state: GameState = null
 var chain: ChainManager = null
 var triggers: TriggerCollector = null
 var summons: SummonRules = null
+var battle: BattleRules = null
+var continuous: ContinuousEffects = null
 var flow: TurnFlow = null
 var log: DuelLog = null
 
@@ -62,6 +64,10 @@ var _pending_events: Array = []
 ## Events that opened the current response window. A Quick Effect that declares specific
 ## trigger events is only offered while one of them is in here.
 var _window_events: Array = []
+## Events deliberately withheld from one Damage Step sub-step and handed to a later one.
+## A monster attacked while face-down is flipped in sub-step 2, but its Flip effect must
+## activate in sub-step 4 [S1 p.41], so the flip event travels in here.
+var _carried_events: Array = []
 ## Index into state.events marking where the current step began.
 var _event_mark: int = 0
 
@@ -92,6 +98,8 @@ func setup_duel(decks: Array, p_controllers: Array, first_player: int = 0,
 	controllers = p_controllers
 	triggers = TriggerCollector.new(state, controllers)
 	summons = SummonRules.new(state)
+	battle = BattleRules.new(state)
+	continuous = ContinuousEffects.new(state)
 	flow = TurnFlow.new(state, controllers)
 
 	for pid in range(GameState.PLAYER_COUNT):
@@ -205,6 +213,7 @@ func get_legal_actions(pid: int) -> Array:
 	out.append_array(_summon_actions(pid))
 	out.append_array(_position_actions(pid))
 	out.append_array(_set_spell_trap_actions(pid))
+	out.append_array(_attack_actions(pid))
 	# Box A2: the turn player may activate a card or effect of ANY Spell Speed.
 	out.append_array(_activation_actions(pid, null))
 	out.append_array(_phase_actions(pid))
@@ -314,6 +323,26 @@ func _set_spell_trap_actions(pid: int) -> Array:
 			continue
 		var a := DuelAction.make(Enums.ActionKind.SET_SPELL_TRAP, pid, card.id)
 		a.label = "Set a Spell/Trap"
+		out.append(a)
+	return out
+
+
+## Attack declarations, offered only during the Battle Step. RULES_SPEC.md 6.1.
+func _attack_actions(pid: int) -> Array:
+	var out: Array = []
+	if state.phase != Enums.Phase.BATTLE \
+			or state.battle_step != Enums.BattleStep.BATTLE:
+		return out
+	var targets := battle.attack_targets(pid).map(func(c): return c.id)
+	var direct := battle.can_attack_directly(pid)
+	for card in state.player(pid).monsters():
+		if not battle.can_declare_attack(card, pid):
+			continue
+		var a := DuelAction.make(Enums.ActionKind.DECLARE_ATTACK, pid, card.id)
+		a.label = "Attack with %s" % card.card_name()
+		a.attack_target_candidates = targets.duplicate()
+		a.allows_direct_attack = direct
+		a.attack_target_id = -1
 		out.append(a)
 	return out
 
@@ -462,6 +491,12 @@ func _choices_valid(template: DuelAction, action: DuelAction) -> bool:
 		var materials: Array = action.tribute_ids.map(func(i): return state.instance(i))
 		if not summons.tributes_satisfy(card, materials):
 			return false
+	if template.kind == Enums.ActionKind.DECLARE_ATTACK:
+		if action.attack_target_id == -1:
+			if not template.allows_direct_attack:
+				return false
+		elif not template.attack_target_candidates.has(action.attack_target_id):
+			return false
 	if template.target_min > 0 or not action.target_ids.is_empty():
 		if action.target_ids.size() < template.target_min \
 				or action.target_ids.size() > template.target_max:
@@ -512,6 +547,15 @@ func _apply_open_action(action: DuelAction) -> void:
 
 		Enums.ActionKind.SET_SPELL_TRAP:
 			_set_spell_trap(card, pid, action.zone_index)
+			_open_window_from_events(_events_since(_event_mark))
+
+		Enums.ActionKind.DECLARE_ATTACK:
+			var target = null if action.attack_target_id == -1 \
+				else state.instance(action.attack_target_id)
+			if not battle.declare_attack(card, target, pid):
+				return
+			# The response window after an attack declaration is a real window: the
+			# Damage Step only begins once both players have finished with it.
 			_open_window_from_events(_events_since(_event_mark))
 
 		Enums.ActionKind.ACTIVATE_CARD, Enums.ActionKind.ACTIVATE_EFFECT:
@@ -722,6 +766,11 @@ func _advance() -> void:
 			timing = Timing.DUEL_OVER
 			break
 
+		# Continuous effects are state-derived: recompute before any legality question
+		# is asked, so a modifier or restriction is never stale. Master prompt 25.
+		if continuous != null:
+			continuous.recompute()
+
 		match timing:
 			Timing.TRIGGER_CHECK:
 				if _do_trigger_check():
@@ -862,7 +911,12 @@ func _execute_pending_transition() -> void:
 	match kind:
 		Enums.ActionKind.ENTER_BATTLE_PHASE:
 			flow.enter_phase(Enums.Phase.BATTLE)
+			# The Battle Phase opens with its Start Step. [S1 p.37]
+			state.battle_step = Enums.BattleStep.START
+			state.emit(GameEvent.Kind.BATTLE_STEP_CHANGED,
+				{"step": Enums.BattleStep.START})
 		Enums.ActionKind.END_BATTLE_PHASE:
+			battle.end_battle_phase()
 			flow.enter_phase(Enums.Phase.MAIN_2)
 		Enums.ActionKind.END_PHASE:
 			if flow.needs_end_phase_cleanup():
@@ -880,8 +934,8 @@ func _execute_pending_transition() -> void:
 	timing = Timing.TRIGGER_CHECK
 
 
-## Both players declined in boxes B and C: finish any Summon that was waiting on this
-## window, then return to the open game state.
+## Both players declined in boxes B and C. Anything that was waiting on this window
+## happens now, and only then does the open game state return.
 func _close_window() -> void:
 	_window_events = []
 	if not _pending_summon.is_empty():
@@ -895,7 +949,74 @@ func _close_window() -> void:
 		_pending_events = _events_since(mark)
 		timing = Timing.TRIGGER_CHECK
 		return
+	if battle != null and battle.stage != BattleRules.Stage.NONE:
+		_advance_battle()
+		return
+	if state.phase == Enums.Phase.BATTLE \
+			and state.battle_step == Enums.BattleStep.START:
+		# The Start Step's window is over; the Battle Step begins. [S1 p.37]
+		state.battle_step = Enums.BattleStep.BATTLE
+		state.emit(GameEvent.Kind.BATTLE_STEP_CHANGED,
+			{"step": Enums.BattleStep.BATTLE})
 	timing = Timing.OPEN
+
+
+## Step the Damage Step forward one sub-step. RULES_SPEC.md 7.1 [S3].
+##
+## Each sub-step ends by handing control back to the timing machine, which opens a
+## response window before the next one begins — that is what makes the Damage Step
+## activation restriction [S1 p.41] meaningful rather than cosmetic.
+func _advance_battle() -> void:
+	var mark := state.events.size()
+
+	match battle.stage:
+		BattleRules.Stage.AFTER_DECLARATION:
+			if not battle.attack_still_valid():
+				# The attacker or its target left the field: the attack does not happen.
+				battle._clear_battle()
+				_pending_events = _events_since(mark)
+				timing = Timing.TRIGGER_CHECK
+				return
+			if battle.replay_required():
+				battle.begin_replay()
+				_pending_events = _events_since(mark)
+				timing = Timing.TRIGGER_CHECK
+				return
+			battle.begin_damage_step()
+			_pending_events = _events_since(mark)
+
+		BattleRules.Stage.DS_START:
+			battle.step_before_damage_calculation()
+			# The flip itself is withheld: its Flip effect belongs to sub-step 4.
+			var evs := _events_since(mark)
+			_carried_events = evs.filter(
+				func(e): return e.kind == GameEvent.Kind.CARD_FLIPPED_FACE_UP)
+			_pending_events = evs.filter(
+				func(e): return e.kind != GameEvent.Kind.CARD_FLIPPED_FACE_UP)
+
+		BattleRules.Stage.DS_BEFORE:
+			# Damage calculation itself offers no window: cards may only be activated
+			# "up until the start of damage calculation" [S1 p.41]. Sub-steps 3 and 4
+			# therefore run back to back, and the trigger check happens in sub-step 4.
+			battle.step_damage_calculation()
+			state.check_life_point_loss()
+			battle.step_after_damage_calculation()
+			_pending_events = _carried_events + _events_since(mark)
+			_carried_events = []
+
+		BattleRules.Stage.DS_AFTER:
+			battle.step_end_of_damage_step()
+			_pending_events = _events_since(mark)
+
+		BattleRules.Stage.DS_END:
+			battle.finish_damage_step()
+			_pending_events = _events_since(mark)
+
+		_:
+			timing = Timing.OPEN
+			return
+
+	timing = Timing.TRIGGER_CHECK
 
 
 ## Open a response window for the events an A1 action just produced.

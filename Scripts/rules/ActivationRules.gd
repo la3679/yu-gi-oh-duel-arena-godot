@@ -115,9 +115,12 @@ static func damage_step_ok(state: GameState, effect: EffectDef) -> bool:
 			return state.damage_substep == Enums.DamageSubStep.START_OF_DAMAGE_STEP \
 				or state.damage_substep == Enums.DamageSubStep.BEFORE_DAMAGE_CALCULATION
 		Enums.DamageStepPermission.MANDATORY_TRIGGER:
-			# Collected by the trigger system at its own sub-step; never offered as a
-			# free-choice fast effect.
-			return effect.optionality == Enums.Optionality.MANDATORY
+			# "Mandatory" here means the TIMING is rules-mandated, not that the effect
+			# itself is compulsory: `Shining Angel`'s "when this card is destroyed by
+			# battle" effect is optional but its window is inside the Damage Step.
+			# Such effects are collected by the trigger system at their own sub-step and
+			# are never offered as a free-choice fast effect.
+			return TriggerCollector._is_collectable(effect)
 		_:
 			return false
 
