@@ -101,6 +101,10 @@ func setup_duel(decks: Array, p_controllers: Array, first_player: int = 0,
 	battle = BattleRules.new(state)
 	continuous = ContinuousEffects.new(state)
 	flow = TurnFlow.new(state, controllers)
+	# Every question either subsystem puts to a player is a duel input; the replay payload
+	# is only complete if all of them are recorded. Master prompt 70.
+	triggers.log = log
+	flow.log = log
 
 	for pid in range(GameState.PLAYER_COUNT):
 		var p := state.player(pid)
@@ -211,6 +215,7 @@ func get_legal_actions(pid: int) -> Array:
 		return out
 
 	out.append_array(_summon_actions(pid))
+	out.append_array(_summon_procedure_actions(pid))
 	out.append_array(_position_actions(pid))
 	out.append_array(_set_spell_trap_actions(pid))
 	out.append_array(_attack_actions(pid))
@@ -291,6 +296,36 @@ func _summon_actions(pid: int) -> Array:
 			var flip := DuelAction.make(Enums.ActionKind.FLIP_SUMMON, pid, card.id)
 			flip.label = "Flip Summon %s" % card.card_name()
 			out.append(flip)
+	return out
+
+
+## Special Summons the player performs themselves through a summoning PROCEDURE rather
+## than by activating an effect — "you can Special Summon this card (from your hand)".
+## These start no Chain, so they are box A1 actions, and like a Normal Summon they open a
+## declaration window so `Champion's Vigilance` can negate the Summon.
+## RULES_SPEC.md 3 box A1, 5.5.
+func _summon_procedure_actions(pid: int) -> Array:
+	var out: Array = []
+	if state.phase != Enums.Phase.MAIN_1 and state.phase != Enums.Phase.MAIN_2:
+		return out
+	for card in state.all_instances():
+		if card.controller_id != pid or card.definition == null:
+			continue
+		for effect in card.definition.effects:
+			if effect.effect_type != Enums.EffectType.SUMMON_PROCEDURE:
+				continue
+			if not ActivationRules.can_use_summon_procedure(state, card, effect, pid):
+				continue
+			var a := DuelAction.make(Enums.ActionKind.SPECIAL_SUMMON_PROCEDURE, pid,
+				card.id, effect.effect_id)
+			a.label = "Special Summon %s" % card.card_name()
+			a.clause_text = effect.clause_text
+			# "The summoning player's choice of face-up Attack or face-up Defense, unless
+			# the card specifies." RULES_SPEC.md 5.5.
+			a.legal_positions = [Enums.Position.FACE_UP_ATTACK,
+				Enums.Position.FACE_UP_DEFENSE]
+			a.position = Enums.Position.FACE_UP_ATTACK
+			out.append(a)
 	return out
 
 
@@ -491,6 +526,10 @@ func _choices_valid(template: DuelAction, action: DuelAction) -> bool:
 		var materials: Array = action.tribute_ids.map(func(i): return state.instance(i))
 		if not summons.tributes_satisfy(card, materials):
 			return false
+	if template.kind == Enums.ActionKind.SPECIAL_SUMMON_PROCEDURE \
+			and not template.legal_positions.is_empty() \
+			and not template.legal_positions.has(action.position):
+		return false
 	if template.kind == Enums.ActionKind.DECLARE_ATTACK:
 		if action.attack_target_id == -1:
 			if not template.allows_direct_attack:
@@ -530,6 +569,25 @@ func _apply_open_action(action: DuelAction) -> void:
 			if pending.is_empty():
 				return
 			_pending_summon = pending
+			_open_window_from_events(_events_since(_event_mark))
+
+		Enums.ActionKind.SPECIAL_SUMMON_PROCEDURE:
+			var effect := _find_effect(card, action.effect_id)
+			if effect == null:
+				return
+			var ctx := ActivationRules.make_context(state, card, effect, pid, null)
+			ctx.engine = self
+			ctx.decider = _controller(pid)
+			if effect.pay_cost.is_valid() and not bool(effect.pay_cost.call(ctx)):
+				push_error("DuelEngine: summon procedure cost failed for %s after it "
+					% card.card_name() + "was offered")
+				return
+			ActivationRules.mark_used(state, card, effect, pid)
+			var ss_pending := summons.begin_special_summon(card, pid, action.position,
+				card.id, action.zone_index)
+			if ss_pending.is_empty():
+				return
+			_pending_summon = ss_pending
 			_open_window_from_events(_events_since(_event_mark))
 
 		Enums.ActionKind.NORMAL_SET, Enums.ActionKind.TRIBUTE_SET:
@@ -746,6 +804,36 @@ func negate_pending_summon(by_card_id: int = -1):
 
 func pending_summon_card():
 	return _pending_summon.get("card", null)
+
+
+# ---------------------------------------------------------------------------
+# Special Summon hook, called by card effects through EffectContext.engine.
+# ---------------------------------------------------------------------------
+
+## Special Summon `card` for `controller_id` from wherever it currently is.
+## RULES_SPEC.md 5.5 [S1 p.24].
+##
+## This is the RESOLUTION-time path: the `Shining Angel` family Special Summons while an
+## effect resolves, and a new Chain never starts mid-resolution (master prompt 45), so the
+## Summon is declared and completed in one step with no window between the two. That is
+## not a shortcut around summon negation — a card that negates a Summon performed by a
+## resolving effect is activated in response to that effect's ACTIVATION, which is an
+## ordinary Chain response the engine already supports.
+##
+## The other path is `Enums.ActionKind.SPECIAL_SUMMON_PROCEDURE`: a Special Summon the
+## player performs themselves in an open game state. That one DOES open a declaration
+## window, because there is no activation to respond to instead.
+##
+## Returns true only when the monster actually reached a Monster Zone. A caller must not
+## assume success: a full Monster Zone makes the Summon illegal and it simply does not
+## happen (the card stays where it was).
+func special_summon(card: CardInstance, controller_id: int, position: Enums.Position,
+		source_id: int = -1, zone_index: int = -1) -> bool:
+	var pending := summons.begin_special_summon(card, controller_id, position,
+		source_id, zone_index)
+	if pending.is_empty():
+		return false
+	return summons.complete_summon(pending)
 
 
 # ---------------------------------------------------------------------------

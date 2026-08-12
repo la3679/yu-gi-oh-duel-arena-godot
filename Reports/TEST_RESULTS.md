@@ -32,11 +32,11 @@ The raw command still works and produces the same numbers:
 
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
-| Core rules tests | 10 | 506 | **506** | 0 |
+| Core rules tests | 13 | 630 | **630** | 0 |
 | Per-card tests | 0 | 0 | 0 | 0 |
 | Interaction tests | 0 | 0 | 0 | 0 |
 | Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **10** | **506** | **506** | **0** |
+| **TOTAL** | **13** | **630** | **630** | **0** |
 
 `RESULT: PASS`, exit code 0.
 
@@ -63,6 +63,9 @@ removed.
 | `ContinuousTests` | 52 | `RULES_SPEC.md §4.2/§8`, master prompt §25 |
 | `CounterTests` | 44 | `RULES_SPEC.md §14`, `CARD_RULINGS.md` |
 | `HiddenInfoTests` | 76 | `RULES_SPEC.md §9, §12` |
+| `SpecialSummonTests` | 54 | `RULES_SPEC.md §5.5` |
+| `RulesQuestionTests` | 37 | `RULES_SPEC.md §8.1, §12.1`, `§6/§7`, `§2.3` |
+| `ReplayTests` | 33 | master prompt §8 / §70 |
 
 ### ChainTests — 27/27
 `Tests/rules/ChainTests.gd`. Rules: `RULES_SPEC.md §4` (Rulebook v10 pp.44–47, 51).
@@ -204,9 +207,86 @@ a card whose control changed still going to its **owner's** Graveyard.
 
 ---
 
+### SpecialSummonTests — 54/54
+`Tests/rules/SpecialSummonTests.gd`. Rules: `RULES_SPEC.md §5.5` [S1 p.24].
+
+This was the last UNVERIFIED path in the rules engine: `SummonRules.begin_special_summon()`
+compiled but nothing reached it. 22 of the 77 V1 cards Special Summon something.
+
+| Test | Asserts | Rule verified |
+|---|---:|---|
+| procedure Summon declares then succeeds | 9 | DECLARED precedes SUCCEEDED; `summoned_by = SPECIAL`; properly Special Summoned; not a Normal Summon |
+| declaration window opens first | 6 | the monster waits in `IN_TRANSIT`, controls no zone, and no success event fires until the window closes |
+| a negated Special Summon | 5 | `SUMMON_NEGATED` emitted, **no** `SPECIAL_SUMMON_SUCCEEDED`, the card returns to the hand rather than being destroyed |
+| the Normal Summon allowance | 5 | a Special Summon does not spend it; a Normal Summon is still legal in the same turn [S1 p.24] |
+| a full Monster Zone | 5 | the procedure is not offered, the engine hook returns false, the card does not move, nothing is announced |
+| Special Summon from the Deck mid-resolution | 7 | the `Shining Angel` shape: summoned during resolution, left the Deck, in the effect's position |
+| Special Summon from the GY mid-resolution | 5 | returns from the GY in the chosen position under its controller |
+| position is the player's choice | 6 | both face-up positions offered; a face-down choice the card did not grant is rejected and changes nothing |
+
+### RulesQuestionTests — 37/37
+`Tests/rules/RulesQuestionTests.gd`. The four questions Phase 4b recorded rather than
+guessed, each now decided against an official source and pinned down.
+
+| Test | Asserts | Rule verified |
+|---|---:|---|
+| a Continuous Trap waits for its own activation | 8 | the continuous clause does **not** apply while its activation is an unresolved Chain Link, and applies the moment it resolves — `RULES_SPEC.md §8.1` [S1 p.17, p.18 with p.44–47] |
+| and keeps applying while face-up | 4 | recomputes do not stack it; it ends with its source |
+| shuffled into the Deck | 4 | `revealed_to` is cleared by a shuffle, and by `shuffle_deck()` for every card — `RULES_SPEC.md §12.1` [S1 p.5, p.28] |
+| placed on the Deck without a shuffle | 3 | `revealed_to` survives: the position is still known, so the rule is keyed on the shuffle |
+| continuous player restriction | 6 | `TurnFlow.can_enter_battle_phase()` now consumes `continuous:cannot_conduct_battle_phase`, the action disappears, and it lifts with its source |
+| turn-scoped restriction | 6 | `skip_battle_phase_this_turn` survives a recompute, blocks the Battle Phase, and expires at end of turn — the two restrictions stay independent |
+| piercing battle damage | 5 | ATK − DEF is inflicted when a Defense Position monster is destroyed [S1 p.42] |
+| no piercing without the flag | 3 | the defender still dies but no damage is inflicted — piercing is never the default |
+
+### ReplayTests — 33/33
+`Tests/rules/ReplayTests.gd`. Master prompt §8 / §70.
+
+| Test | Asserts | Property verified |
+|---|---:|---|
+| the payload records the inputs | 8 | seed, first player, every submitted action with its turn/phase, strictly increasing and collision-free sequence numbers shared with the decision stream |
+| the payload carries the Deck contents | 6 | `deck_lists` holds both 40-card Decks in **pre-shuffle** order |
+| every decision is recorded | 5 | the log holds exactly as many decisions as the players were asked, including optional-trigger consent |
+| **replay reproduces the duel** | 11 | rebuilt from the payload alone, the replayed duel produces an **identical event stream**, LP, hand, board, turn number and Deck order |
+| a replayed action is re-validated | 5 | `DuelAction.from_dict()` round-trips, a forged action is rejected, and a rejected action is never logged |
+
+---
+
 ## Defects found and fixed by these tests
 
-### This milestone (Phase 4b-3)
+### This milestone (Phase 4c — the generic-engine gate)
+
+1. **`SummonRules.begin_special_summon()` was unreachable from the engine.** It existed and
+   compiled, but no engine path called it, so "Special Summon" was not a capability the
+   engine actually had. Two paths were added and tested: `DuelEngine.special_summon()` for
+   the resolution-time case (the `Shining Angel` family) and the
+   `SPECIAL_SUMMON_PROCEDURE` action for the open-game-state case (`Hieratic Dragon of
+   Tefnuit`, `Inari Fire`, `Ranryu`, `Nefarious Archfiend`), the latter opening a real
+   declaration window so a Summon negation can answer it.
+2. **The replay payload could not reproduce a duel.** It carried the Deck *names* but not
+   the Deck *contents*, and the seed only determines how a **known** Deck is shuffled.
+   `deck_lists` (pre-shuffle order) was added.
+3. **Most player decisions were never recorded.** Only `DuelEngine`'s target selection went
+   into the log; optional-trigger consent, trigger ordering, the End Phase hand-size
+   discard and every mid-resolution `EffectContext.ask()` were lost, so any duel
+   containing one of them was unreplayable. `TriggerCollector`, `TurnFlow` and
+   `EffectContext` now record through the same log.
+4. **A Continuous Spell/Trap applied its continuous effect one step too early.** It applied
+   as soon as the card was face-up, i.e. from activation, which would let it affect the
+   resolution of Chain Links above it. It now waits for its own activation to resolve.
+5. **Player-level continuous restrictions were consumed by nothing.** `restrict_player()`
+   round-tripped but `TurnFlow.can_enter_battle_phase()` only read the separate
+   un-namespaced key. It now honours both, and the two are documented as having
+   deliberately different lifetimes.
+6. **Piercing was wrongly believed to be unexercised by the V1 pool.** `Rider of the Storm
+   Winds` grants it ("If a monster equipped with this card attacks a Defense Position
+   monster, inflict piercing battle damage"), so the branch is required and is now tested
+   in both directions.
+
+No test expectation was weakened to make the implementation pass, and none of the 506
+earlier assertions was retargeted or deleted.
+
+### Previous milestone (Phase 4b-3)
 
 1. **Removing the attack TARGET cancelled the attack instead of causing a Replay.**
    `DuelEngine._advance_battle()` called `BattleRules.attack_still_valid()` — which
@@ -246,7 +326,7 @@ No test expectation was weakened to make the implementation pass.
 
 ## Known issues in the harness (not rules defects)
 
-* The run reports `~20000 ObjectDB instances were leaked at exit`. These are RefCounted
+* The run reports `~24500 ObjectDB instances were leaked at exit`. These are RefCounted
   reference cycles between `GameState`, `DuelLog` (connected signal) and the closures the
   tests capture. The count grows with the number of duels the suite builds. It does not
   affect any rules outcome and does not fail the suite, but it must be cleaned up before
@@ -262,10 +342,10 @@ No test expectation was weakened to make the implementation pass.
 
 ## Not yet covered (required by master prompt §64 — tracked, not claimed)
 
-**A. Core rules** — still missing: Special Summon execution (`begin_special_summon()` has
-no assertion and no card calls it yet), piercing battle damage (no V1 card requires it
-yet, so no test forces the branch), GY-activated effects beyond the destroyed-by-battle
-shape, equip mechanics, the duel log / replay payload, and simultaneous-LP-zero draws.
+**A. Core rules** — still missing: GY-activated effects beyond the destroyed-by-battle
+shape, equip mechanics (the `MoveReason.RULE` unequip path runs but nothing asserts it),
+and simultaneous-LP-zero draws. Special Summon execution, piercing battle damage and the
+duel log / replay payload were the other three and are now covered.
 
 **B. Per-card** — 0 of 77 cards have tests. No card in `Data/cards/cards.json` has an
 `EffectDef` yet; the engine has been exercised only against synthetic cards built by
@@ -275,23 +355,22 @@ shape, equip mechanics, the duel log / replay payload, and simultaneous-LP-zero 
 
 **D. Scripted full duels** — none yet.
 
-### Open rules questions recorded rather than guessed
+### Open rules questions — all four now RESOLVED (Phase 4c)
 
-* **When a Continuous Spell/Trap's continuous effect begins applying** — at activation, or
-  only once the activation resolves. The saved research (`RULES_SPEC.md`,
-  `CARD_RULINGS.md`) does not settle it, and the engine currently applies the effect as
-  soon as the card is face-up on the field, i.e. from activation. `ContinuousTests`
-  deliberately asserts only what holds under **both** readings (nothing while the card is
-  in the hand; applying after the activation has resolved). This must be resolved against
-  an official source in Phase 5, when the 1 Continuous Spell and 6 Continuous Traps in the
-  V1 pool are implemented.
-* **Whether `revealed_to` should be cleared when a card is shuffled back into the Deck.**
-  It currently persists for the whole Duel. No V1 card has been shown to depend on it
-  either way.
-* **Player-level continuous restrictions** (`ContinuousEffects.restrict_player`) are
-  proven to store, read back and clear correctly, but **no rules path consumes them yet** —
-  `TurnFlow.can_enter_battle_phase()` reads the separate un-namespaced
-  `skip_battle_phase_this_turn` key. Wiring is Phase 5 work.
+* **When a Continuous Spell/Trap's continuous effect begins applying.** DECIDED: only once
+  its own activation resolves. `RULES_SPEC.md §8.1` [S1 p.17, p.18 with p.44–47]. The
+  section records honestly that no single official sentence states the start point
+  verbatim and that the decision rests on the rulebook's activation-vs-resolution
+  separation.
+* **Whether `revealed_to` survives a shuffle into the Deck.** DECIDED: no — but it *does*
+  survive a placement on top/bottom without a shuffle, because the position is still
+  known. `RULES_SPEC.md §12.1` [S1 p.5, p.28].
+* **Player-level continuous restrictions.** RESOLVED: `TurnFlow.can_enter_battle_phase()`
+  now consumes `continuous:cannot_conduct_battle_phase` as well as the turn-scoped
+  `skip_battle_phase_this_turn`. Both are kept because their lifetimes differ — one is
+  rebuilt on every recompute, the other must survive one.
+* **Piercing battle damage.** The earlier note that no V1 card requires it was WRONG:
+  `Rider of the Storm Winds` grants piercing. Both branches are now tested.
 
 Coverage is reported honestly here and in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`
 (0 / 77 implemented, 0 / 77 tested). No test result in this file is estimated or projected.

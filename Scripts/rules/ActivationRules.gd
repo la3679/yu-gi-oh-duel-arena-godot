@@ -244,6 +244,39 @@ static func can_activate(state: GameState, card: CardInstance, effect: EffectDef
 	return true
 
 
+## A summoning PROCEDURE — "If only your opponent controls a monster, you can Special
+## Summon this card (from your hand)" — is not an activation and starts no Chain, so
+## can_activate() rejects it on the `starts_chain` guard by design. It is still gated:
+## location, phase, once-per-turn, a free Monster Zone, its condition and its cost all
+## have to hold. RULES_SPEC.md 5.5 [S1 p.24].
+static func can_use_summon_procedure(state: GameState, card: CardInstance,
+		effect: EffectDef, controller_id: int) -> bool:
+	if state.is_duel_over():
+		return false
+	if card == null or effect == null:
+		return false
+	if effect.effect_type != Enums.EffectType.SUMMON_PROCEDURE:
+		return false
+	if card.effects_negated:
+		return false
+	if not card.is_monster():
+		return false
+	if not location_ok(card, effect):
+		return false
+	if not phase_ok(state, effect):
+		return false
+	if not once_per_turn_ok(state, card, effect, controller_id):
+		return false
+	if not state.player(controller_id).has_free_monster_zone():
+		return false
+	var ctx := make_context(state, card, effect, controller_id, null)
+	if not condition_ok(ctx):
+		return false
+	if not cost_ok(ctx):
+		return false
+	return true
+
+
 static func _has_room_to_activate(state: GameState, card: CardInstance,
 		controller_id: int) -> bool:
 	if card.definition == null:

@@ -19,6 +19,14 @@ extends RefCounted
 var state: GameState = null
 ## PlayerController per player id, used to ask ordering / optional questions.
 var controllers: Array = []
+## Replay log, assigned by DuelEngine. Every question put to a player is a duel INPUT, so
+## it has to be recorded or the replay payload cannot reproduce the duel. Master prompt 70.
+var log: DuelLog = null
+
+
+func _record(request: DecisionRequest, answer) -> void:
+	if log != null:
+		log.record_decision(state, request, answer)
 
 
 func _init(p_state: GameState, p_controllers: Array = []) -> void:
@@ -122,6 +130,7 @@ func _ask_optional(group: Array) -> Array:
 		var req := DecisionRequest.yes_no(pid,
 			"Activate the effect of %s?" % source.card_name(), source, effect)
 		var answer = ctrl.decide(req)
+		_record(req, answer)
 		if typeof(answer) == TYPE_BOOL and answer:
 			kept.append(entry)
 	return kept
@@ -146,6 +155,7 @@ func _order_within_group(group: Array, pid: int, group_index: int) -> Array:
 		"Choose the order these effects are put onto the Chain",
 		options, {"group_index": group_index})
 	var answer = ctrl.decide(req)
+	_record(req, answer)
 	if not req.validate(answer):
 		push_error("TriggerCollector: invalid trigger ordering from player %d" % pid)
 		return group

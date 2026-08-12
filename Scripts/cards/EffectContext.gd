@@ -11,6 +11,11 @@ var state: GameState = null
 ## use it — e.g. `Champion's Vigilance` negating a Summon that has been declared but has
 ## not yet succeeded. Null in pure-legality checks.
 var engine = null
+## The ContinuousEffects system, attached while apply_continuous() runs. A continuous
+## clause that restricts a PLAYER rather than a card goes through it
+## (`ctx.continuous.restrict_player(...)`), because those restrictions are namespaced and
+## rebuilt on every recompute and must never be written from anywhere else.
+var continuous = null
 var source: CardInstance = null
 var effect: EffectDef = null
 var controller_id: int = 0
@@ -77,7 +82,12 @@ func targets() -> Array:
 func ask(request: DecisionRequest):
 	if decider == null:
 		return null
-	return decider.decide(request)
+	var answer = decider.decide(request)
+	# A mid-resolution choice is a duel INPUT, so the replay payload must carry it.
+	# Master prompt 70.
+	if engine != null and engine.log != null:
+		engine.log.record_decision(state, request, answer)
+	return answer
 
 
 func first_target():

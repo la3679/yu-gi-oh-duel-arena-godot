@@ -4,15 +4,15 @@
 > then read only the targeted files named in §8. Do **not** recursively reread the repository.
 
 **Last updated:** 2026-08-12
-**Current phase:** Phase 4 — Core rules engine. Phases 0–3 complete. Phase 4b-1
-(Fast Effect Timing, DuelEngine API, summons, Spell/Trap framework) complete **and
-tested**. Phase 4b-2 (Battle Phase / Damage Step / continuous effects) was committed as
-untested scaffolding; **Phase 4b-3 has now tested and corrected it**. Battle Phase,
-Damage Step, continuous effects, counters and hidden-information filtering are
-**DONE+TESTED**.
-**Overall status:** IN PROGRESS — **not** acceptance-complete
-**HEAD at checkpoint:** `e968405` (this documentation commit follows it)
-**Measured suite at checkpoint:** **506 passed / 0 failed** across **10 suites**;
+**Current phase:** Phase 4 — Core rules engine. Phases 0–3 complete. Phase 4b-1/4b-2/4b-3
+complete and tested. **Phase 4c is now complete: the generic-engine gate (Gate B) is
+MET.** Special Summon execution, the DuelLog replay payload, piercing damage, the
+player-level continuous restriction path and both open rules questions are all resolved
+and tested.
+**Overall status:** IN PROGRESS — **not** acceptance-complete. **Phase 5 (the 77 cards)
+may now begin.**
+**HEAD at checkpoint:** `9b12742` (the Phase 4c commit follows it)
+**Measured suite at checkpoint:** **630 passed / 0 failed** across **13 suites**;
 SmokeCheck **PASS**.
 
 ---
@@ -177,27 +177,30 @@ Key research outputs:
 
 ## 4. Build/verification status
 
-Last verified run (2026-08-12, at commit `e968405` plus the Phase 4b-3 test suites):
+Last verified run (2026-08-12, at commit `9b12742` plus the Phase 4c work):
 
 ```
 powershell -File Tools\run_tests.ps1 SmokeCheck  -> SMOKE CHECK: PASS
 powershell -File Tools\run_tests.ps1 RunTests
-  ChainTests:       27/27 passed
-  TimingTests:      37/37 passed
-  TurnFlowTests:    40/40 passed
-  SummonTests:      45/45 passed
-  SpellTrapTests:   27/27 passed
-  BattleTests:      72/72 passed
-  DamageStepTests:  86/86 passed
-  ContinuousTests:  52/52 passed
-  CounterTests:     44/44 passed
-  HiddenInfoTests:  76/76 passed
-  TOTAL: 506 passed, 0 failed (506 assertions across 10 suites)
+  ChainTests:          27/27 passed
+  TimingTests:         37/37 passed
+  TurnFlowTests:       40/40 passed
+  SummonTests:         45/45 passed
+  SpellTrapTests:      27/27 passed
+  BattleTests:         72/72 passed
+  DamageStepTests:     86/86 passed
+  ContinuousTests:     52/52 passed
+  CounterTests:        44/44 passed
+  HiddenInfoTests:     76/76 passed
+  SpecialSummonTests:  54/54 passed
+  RulesQuestionTests:  37/37 passed
+  ReplayTests:         33/33 passed
+  TOTAL: 630 passed, 0 failed (630 assertions across 13 suites)
   RESULT: PASS
 ```
 
-**506 / 506 passing. These numbers were actually produced by the command above; they are
-not estimates.** The original 176 assertions still pass unchanged — none was weakened,
+**630 / 630 passing. These numbers were actually produced by the command above; they are
+not estimates.** All 506 earlier assertions still pass unchanged — none was weakened,
 retargeted or deleted. Per-suite detail and the honest not-yet-covered list live in
 `Reports/TEST_RESULTS.md`.
 
@@ -213,6 +216,26 @@ Two things it handles that cost real time to discover:
 2. A suite that fails to **compile** makes `RunTests._initialize()` throw before it can
    call `quit()`, so the headless SceneTree runs forever at near-zero CPU. The runner does
    a `--check-only` parse pass first, turning that hang into an immediate readable error.
+
+### Defects the Phase 4c tests caught
+
+1. **`SummonRules.begin_special_summon()` was unreachable from the engine.** It compiled
+   but no engine path called it, so Special Summoning was not a capability the engine
+   actually had. Two paths now exist: `DuelEngine.special_summon()` for the
+   resolution-time case, and the `SPECIAL_SUMMON_PROCEDURE` box A1 action for the
+   open-game-state case, which opens a real declaration window.
+2. **The replay payload could not reproduce a duel.** It carried the Deck *names* but not
+   the Deck *contents*; the seed only says how a **known** Deck is shuffled. Fixed with
+   `DuelLog.deck_lists` (pre-shuffle order) plus `DuelAction.from_dict()`.
+3. **Most player decisions were never recorded.** Only target selection reached the log;
+   optional-trigger consent, trigger ordering, the hand-size discard and every
+   mid-resolution `EffectContext.ask()` were lost. `TriggerCollector`, `TurnFlow` and
+   `EffectContext` now record through the same log.
+4. **A Continuous Spell/Trap applied its continuous effect from activation** rather than
+   from resolution, which would let it affect Chain Links resolving above it.
+5. **`ContinuousEffects.restrict_player()` was consumed by no rules path.**
+6. **Piercing was wrongly recorded as unexercised by the V1 pool** — `Rider of the Storm
+   Winds` grants it.
 
 ### Defects the Phase 4b-3 tests caught
 
@@ -265,8 +288,8 @@ Two things it handles that cost real time to discover:
 | 1 | Authoritative TCG rules research | **COMPLETE** |
 | 2 | Per-card official text + rulings research (77 cards) | **COMPLETE** |
 | 3 | Architecture / scaffolding + Graphify index | **COMPLETE** |
-| 4 | Core rules engine | **IN PROGRESS** — 4b-1/4b-2/4b-3 done+tested; see §6a for the remaining gaps |
-| 5 | Card effect library (77 cards) | NOT STARTED |
+| 4 | Core rules engine | **COMPLETE** — 4b-1/4b-2/4b-3/4c done+tested |
+| 5 | Card effect library (77 cards) | NOT STARTED — **unblocked** |
 | 6 | Automated tests | NOT STARTED |
 | 7 | Basic playable UI | NOT STARTED |
 | 8 | Arena / presentation | NOT STARTED |
@@ -277,7 +300,7 @@ Two things it handles that cost real time to discover:
 | Gate | Status |
 |---|---|
 | A — Research complete | **MET** |
-| B — Core engine complete | **NOT MET** — everything in §6a is DONE+TESTED except Special Summon execution, piercing and the `DuelLog` replay payload (§7) |
+| B — Core engine complete | **MET** — every subsystem in §6a is DONE+TESTED; 630 assertions, 0 failures |
 | C — Card library complete | NOT MET |
 | D — Playable prototype | NOT MET |
 | E — Presentation complete | NOT MET |
@@ -348,7 +371,10 @@ DuelArenaGame/
 │       ├── DamageStepTests.gd   86 assertions
 │       ├── ContinuousTests.gd   52 assertions
 │       ├── CounterTests.gd      44 assertions
-│       └── HiddenInfoTests.gd   76 assertions
+│       ├── HiddenInfoTests.gd   76 assertions
+│       ├── SpecialSummonTests.gd  54 assertions
+│       ├── RulesQuestionTests.gd  37 assertions
+│       └── ReplayTests.gd         33 assertions
 ├── Tools/                             Python research + data pipeline (dev only)
 │   ├── run_tests.ps1                  headless test runner (parse-check + no pipe stall)
 │   ├── enumerate_cards.py             deck CSVs -> card_pool.json
@@ -408,11 +434,13 @@ Legend: **DONE+TESTED** = implemented and covered by passing assertions ·
 | **Hidden information filtering** | **DONE+TESTED** | `GameState.get_visible_state()` / `get_log_for()` | HiddenInfoTests |
 | **Owner vs controller** | **DONE+TESTED** | `GameState.move_card()` owner-bound zones | HiddenInfoTests |
 | Victory by 0 LP from battle damage | **DONE+TESTED** | `GameState.check_life_point_loss()` | DamageStepTests |
-| Special Summon execution | **UNVERIFIED** — `SummonRules.begin_special_summon()` exists and no card yet calls it | `Scripts/rules/SummonRules.gd` | **none** |
-| Piercing battle damage | **UNVERIFIED** — the `piercing` flag is read in damage calculation but no V1 card grants it, so the branch has never run | `BattleRules.step_damage_calculation()` | **none** |
-| Player-level continuous restrictions | **PARTIAL** — store/read/clear proven, but **no rules path consumes them** | `ContinuousEffects.restrict_player()` | ContinuousTests (API only) |
+| **Special Summon (resolution-time)** | **DONE+TESTED** | `DuelEngine.special_summon()` → `SummonRules.begin_special_summon()` + `complete_summon()` | SpecialSummonTests |
+| **Special Summon (summoning procedure)** | **DONE+TESTED** | `Enums.ActionKind.SPECIAL_SUMMON_PROCEDURE`, `ActivationRules.can_use_summon_procedure()` | SpecialSummonTests |
+| **Special Summon negation** | **DONE+TESTED** | `_pending_summon` + `negate_pending_summon()` | SpecialSummonTests |
+| **Piercing battle damage** | **DONE+TESTED** — required after all by `Rider of the Storm Winds` | `BattleRules.step_damage_calculation()` | RulesQuestionTests |
+| **Player-level continuous restrictions** | **DONE+TESTED** | `ContinuousEffects.restrict_player()` consumed by `TurnFlow.can_enter_battle_phase()` | RulesQuestionTests |
 | `PlayerController` abstraction | **DONE+TESTED** (`ScriptedController`); no UI implementation yet | `Scripts/engine/PlayerController.gd` | used by every suite |
-| Duel log / replay | **DONE, NOT TESTED** | `Scripts/engine/DuelLog.gd` | records actions, decisions, events, seed |
+| **Duel log / replay payload** | **DONE+TESTED** — a payload now round-trips to an identical event stream | `Scripts/engine/DuelLog.gd`, `DuelAction.from_dict()` | ReplayTests |
 
 ### Design decisions a future session must not silently reverse
 
@@ -455,6 +483,26 @@ Legend: **DONE+TESTED** = implemented and covered by passing assertions ·
 8. **`CardInstance.revealed_to` is honoured everywhere a hidden card can be seen**,
    including the opponent's hand, which goes through `_visible_card()` rather than
    straight to `_hidden_card_stub()`.
+9. **There are two Special Summon paths and they are not interchangeable.**
+   `DuelEngine.special_summon()` is the RESOLUTION-time path: it declares and completes in
+   one step, because no new Chain starts mid-resolution. The
+   `SPECIAL_SUMMON_PROCEDURE` action is the OPEN-game-state path and opens a real
+   declaration window, because there is no activation for a negation card to answer
+   instead. Collapsing them either loses summon negation or invents a mid-resolution
+   Chain. `RULES_SPEC.md §5.5`.
+10. **A Continuous Spell/Trap's continuous effect starts on RESOLUTION, not activation.**
+    `ContinuousEffects.activation_unresolved()` is what enforces it. `RULES_SPEC.md §8.1`.
+11. **`revealed_to` is cleared by a SHUFFLE, not by the Deck.** A card placed on top or
+    bottom without a shuffle keeps it — its position is still known. `RULES_SPEC.md §12.1`.
+12. **The two Battle Phase restrictions are deliberately separate.**
+    `skip_battle_phase_this_turn` is turn-scoped and must survive a continuous recompute;
+    `continuous:cannot_conduct_battle_phase` is state-derived and must not. Neither may be
+    expressed in terms of the other.
+13. **Every question put to a player is a duel input and must be logged.**
+    `TriggerCollector`, `TurnFlow` and `EffectContext.ask()` all record through
+    `DuelLog.record_decision()`. A new decision point that skips this silently breaks
+    replay, and `ReplayTests` will catch it (it compares the recorded count against what
+    the controllers were actually asked).
 
 ---
 
@@ -462,33 +510,33 @@ Legend: **DONE+TESTED** = implemented and covered by passing assertions ·
 
 None.
 
-### Unfinished Phase 4 work (honest list)
+### Phase 4 work — all closed (honest list)
 
-* **`SummonRules.begin_special_summon()` is still UNVERIFIED** — it exists, compiles, and
-  no test or card calls it. This is the largest remaining untested surface in the rules
-  engine, and Phase 5 depends on it (the `Shining Angel` family Special Summons).
-* **Piercing battle damage has never executed.** `BattleRules.step_damage_calculation()`
-  reads a `piercing` flag, but no V1 card grants it, so the branch is unproven. Do not
-  claim it works.
-* **`DuelLog` has no assertions.** It records actions, decisions, events and the seed, but
-  nothing verifies the replay payload reconstructs a duel.
-* **Player-level continuous restrictions are stored but never consumed.**
-  `ContinuousEffects.restrict_player()` round-trips correctly, yet
-  `TurnFlow.can_enter_battle_phase()` reads the separate un-namespaced
-  `skip_battle_phase_this_turn` key. One of the two has to give in Phase 5.
-* **Open rules question:** when a Continuous Spell/Trap's continuous effect begins
-  applying — at activation, or only once the activation resolves. The saved research does
-  not settle it; the engine currently applies it as soon as the card is face-up on the
-  field. `ContinuousTests` asserts only what holds under both readings. Resolve this
-  against an official source before implementing the 1 Continuous Spell and 6 Continuous
-  Traps in the V1 pool.
-* **Open question:** whether `revealed_to` should be cleared when a card is shuffled back
-  into the Deck. It currently persists for the whole Duel.
-* ~~`DuelEngine._advance_battle()` calls `battle._clear_battle()` from outside the
-  class.~~ **Done** — renamed to the public `BattleRules.clear_battle()`.
-* No card in `Data/cards/cards.json` has any `EffectDef` yet, so the engine has been
-  exercised only against synthetic cards built by `Tests/support/TestFixtures.gd`. That
-  is intentional for Phase 4 — the rules engine must be right before the 77 cards land.
+Everything previously listed here is now done and tested; see §6a and
+`Reports/TEST_RESULTS.md`. For the record, the four open rules questions were resolved as:
+
+* **Continuous Spell/Trap start timing** → on RESOLUTION of its own activation.
+  `RULES_SPEC.md §8.1` [S1 p.17, p.18 with p.44–47]. The section states honestly that no
+  single official sentence gives the start point verbatim.
+* **`revealed_to` and the Deck** → cleared by a SHUFFLE; kept for an unshuffled
+  top/bottom placement. `RULES_SPEC.md §12.1` [S1 p.5, p.28].
+* **`ContinuousEffects.restrict_player()`** → consumed by
+  `TurnFlow.can_enter_battle_phase()`, alongside the separate turn-scoped key.
+* **Piercing** → the earlier claim that no V1 card requires it was wrong. `Rider of the
+  Storm Winds` grants it; both branches are tested.
+
+### Genuinely still open (carried into Phase 5, not hidden)
+
+* **No card in `Data/cards/cards.json` has an `EffectDef` yet.** The engine has been
+  exercised only against synthetic cards from `Tests/support/TestFixtures.gd`. That was
+  intentional for Phase 4 and is exactly what Phase 5 changes.
+* **Equip mechanics have no assertions.** `GameState._unequip_all()` runs but nothing
+  tests it. `Rider of the Storm Winds` and `Castle of Dragon Souls` will force this.
+* **Simultaneous-LP-zero (a draw) is unexercised.**
+* **GY-activated effects** beyond the destroyed-by-battle shape are untested.
+* **~24500 leaked ObjectDB instances at exit** — RefCounted cycles between `GameState`,
+  the `DuelLog` signal and test closures. Harmless to rules outcomes, but it must be
+  cleaned up before the UI keeps one duel alive for a long session.
 
 ---
 
@@ -496,45 +544,44 @@ None.
 
 ### How to resume in one paragraph
 
-**Phase 4b-3 is complete.** The generic rules engine is now tested end to end: Fast Effect
-Timing, the `DuelEngine` legal-action API, trigger collection and ordering, summons
-(including summon negation), turn/phase flow, the Spell/Trap framework, the **Battle
-Phase**, the **Damage Step and its activation restriction**, **damage calculation**,
-**battle destruction semantics**, **continuous effects**, the **counter engine** and
-**hidden-information filtering** all pass — **506 assertions across 10 suites, 0 failures**,
-SmokeCheck PASS. Two real defects were found and fixed (attack Replay on target removal;
-`revealed_to` ignored for the opponent's hand). Read §6a for per-subsystem status and the
-eight design decisions that must not be reversed, and §7 for the honest list of what is
-still unverified. Do **not** re-read the whole repository, re-run research, or re-derive
-rules.
+**Phase 4 is complete and Gate B is MET.** The generic rules engine is tested end to end:
+Fast Effect Timing, the `DuelEngine` legal-action API, trigger collection and ordering,
+Normal/Tribute/Flip **and Special** Summons (including summon negation on both paths),
+turn/phase flow, the Spell/Trap framework, the Battle Phase, the Damage Step and its
+activation restriction, damage calculation **including piercing**, battle destruction
+semantics, continuous effects (with the correct resolution-time start), the counter engine,
+hidden-information filtering and the **DuelLog replay payload** all pass — **630 assertions
+across 13 suites, 0 failures**, SmokeCheck PASS. Read §6a for per-subsystem status and the
+**thirteen** design decisions that must not be reversed, and §7 for what is genuinely still
+open. Do **not** re-read the whole repository, re-run research, or re-derive rules.
 
-### Immediately next — Phase 4c, then Phase 5
+### Immediately next — Phase 5, the 77 card implementations
 
-Phase 4b-3's gate is met, so card implementation may begin. Two small pieces of generic
-engine work should come first, because Phase 5 immediately depends on them:
+There is no remaining generic-engine prerequisite. Cards go in
+`Scripts/cards/registry/<CardName>.gd`, one file per card, each declaring
+`const CARD_NAME := "..."` and one `EffectDef.new(...)` per official effect clause —
+`Tools/build_matrix.py` reads those two markers, so
+`Reports/CARD_IMPLEMENTATION_MATRIX.csv` can never over-report. A per-card test suite goes
+alongside, and the matrix is updated only **after** a card passes its own tests.
 
-1. **Test `SummonRules.begin_special_summon()`** (`Tests/rules/SpecialSummonTests.gd`).
-   It is the last UNVERIFIED path in the rules engine and the `Shining Angel` family
-   cannot be implemented without it. Cover: a Special Summon declared and completed; the
-   response window before it succeeds; `SPECIAL_SUMMON_SUCCEEDED` emitted only on success;
-   a negated Special Summon emitting no success trigger; Special Summoning into a full
-   Monster Zone being illegal; the Normal Summon allowance **not** being consumed; and
-   Special Summoning from the Deck / GY as the pool's cards require.
-2. **Decide the two open rules questions in §7** (when a Continuous Spell/Trap's continuous
-   effect begins applying; whether `revealed_to` survives a shuffle into the Deck) against
-   an official source before the Continuous cards are written. Record the answer in
-   `Research/RULES_SPEC.md` **and** here.
+Group the work by reusable mechanic rather than alphabetically, and build the shared
+primitives before the cards that need them. From the pool scan (22 of 77 cards Special
+Summon; 1 grants piercing):
 
-Then **Phase 5 — the 77 card implementations**, in `Scripts/cards/registry/<CardName>.gd`.
-Suggested order: the shared `Shining Angel` first (it is in both decks and exercises the
-optional destroyed-by-battle trigger the engine is already proven to support), then the
-Normal Monsters, then the Spells/Traps, then the counter cards (`Apprentice Magician`,
-`Wonder Balloons`), then the negation cards (`Champion's Vigilance`).
+1. **Primitives first** — search-and-Special-Summon from Deck/GY/hand; targeted
+   destruction; ATK/DEF modification with a stated duration; banish; return-to-hand;
+   draw; discard as cost; the equip mechanic (untested — `Rider of the Storm Winds`,
+   `Castle of Dragon Souls`).
+2. `Shining Angel` — in **both** decks, and the optional destroyed-by-battle
+   Special Summon the engine is now proven to support end to end.
+3. The 9 Normal Monsters (no effects; they validate the loader and the matrix).
+4. The Special-Summon family, then the Spells/Traps by kind.
+5. The counter cards (`Apprentice Magician`, `Wonder Balloons`).
+6. The negation cards (`Champion's Vigilance`) last — they exercise the most machinery.
 
-Rules for Phase 5, unchanged from the master prompt: one file per card, each declaring
-`const CARD_NAME := "..."` and one `EffectDef.new(...)` per official effect clause; a
-per-card test suite alongside; re-run `python Tools/build_matrix.py` so
-`Reports/CARD_IMPLEMENTATION_MATRIX.csv` cannot over-report.
+Maintain computed **X/77 implemented** and **X/77 tested** counts from the matrix, never by
+hand. No placeholders, and never silently drop an effect clause: `ChainManager` deliberately
+fails loudly on a missing `resolve()` (`ChainTests` proves it).
 
 **Do not start presentation work** (3D arena, holographic monsters, summon/attack
 animations, particles, audio, cinematic camera, UI polish). Those are Phases 7–10.

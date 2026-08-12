@@ -55,6 +55,7 @@ func recompute() -> void:
 				continue
 			var ctx := EffectContext.new(state, card, effect)
 			ctx.controller_id = card.controller_id
+			ctx.continuous = self
 			effect.apply_continuous.call(ctx)
 
 
@@ -71,6 +72,12 @@ func _clear() -> void:
 
 ## Face-up cards on the field whose effects are not negated. A face-down card and a
 ## negated card apply nothing.
+##
+## A Continuous Spell/Trap whose own activation is still an unresolved Chain Link is also
+## excluded: its continuous effect only begins applying once that activation RESOLVES.
+## RULES_SPEC.md 8.1 [S1 p.17, p.18 with p.46-47] — activating a card places it face-up on
+## the field, but an activation has no effect until its Chain Link resolves, and a
+## Continuous Spell/Trap removed before resolution resolves without effect.
 func _continuous_sources() -> Array:
 	var out: Array = []
 	for p in state.players:
@@ -79,8 +86,24 @@ func _continuous_sources() -> Array:
 				continue
 			if not card.is_face_up() or card.effects_negated:
 				continue
+			if activation_unresolved(card):
+				continue
 			out.append(card)
 	return out
+
+
+## Is this card's own card activation still on the Chain, unresolved?
+func activation_unresolved(card: CardInstance) -> bool:
+	for entry in state.chain:
+		var link: ChainLink = entry
+		if link.source_card != card:
+			continue
+		if link.effect == null \
+				or link.effect.effect_type != Enums.EffectType.CARD_ACTIVATION:
+			continue
+		if not link.resolved:
+			return true
+	return false
 
 
 # ---------------------------------------------------------------------------

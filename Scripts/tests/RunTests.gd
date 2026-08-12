@@ -24,6 +24,9 @@ func _initialize() -> void:
 	suites.append(ContinuousTests.run())
 	suites.append(CounterTests.run())
 	suites.append(HiddenInfoTests.run())
+	suites.append(SpecialSummonTests.run())
+	suites.append(RulesQuestionTests.run())
+	suites.append(ReplayTests.run())
 
 	var total_passed := 0
 	var total_failed := 0

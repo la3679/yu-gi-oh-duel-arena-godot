@@ -270,6 +270,13 @@ func move_card(card: CardInstance, to_zone: Enums.Zone, reason: Enums.MoveReason
 	elif to_zone in [Enums.Zone.DECK, Enums.Zone.EXTRA_DECK, Enums.Zone.HAND]:
 		card.position = Enums.Position.FACE_DOWN
 
+	# A card SHUFFLED into the Deck stops being identifiable [S1 p.5, p.28]. This is keyed
+	# on the shuffle rather than on the Deck on purpose: a card placed on top of or on the
+	# bottom of the Deck without a shuffle keeps what the players legally saw, because its
+	# position is still known. RULES_SPEC.md 9.3.
+	if to_zone == Enums.Zone.DECK and reason == Enums.MoveReason.SHUFFLED_INTO_DECK:
+		card.revealed_to.clear()
+
 	# Leaving the field resets per-instance effect state. Master prompt 48.
 	if was_on_field and not card.is_on_field():
 		_unequip_all(card)
@@ -444,7 +451,13 @@ func draw(pid: int, count: int) -> Array:
 	return drawn
 
 
+## Shuffling ends any legal knowledge of a revealed card's whereabouts, so `revealed_to`
+## does not survive it. The Deck is never public information: only the NUMBER of cards in
+## it is [S1 p.5, p.28], and the rulebook requires a shuffle precisely after a card effect
+## reveals cards from the Deck or looks through it [S1 p.5]. RULES_SPEC.md 9.3.
 func shuffle_deck(pid: int) -> void:
+	for card in player(pid).deck:
+		card.revealed_to.clear()
 	rng.shuffle(player(pid).deck)
 
 

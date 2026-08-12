@@ -13,6 +13,11 @@ extends RefCounted
 
 var seed_value: int = 0
 var deck_names: Array = ["", ""]
+## Each player's Deck as an ordered list of card names, captured BEFORE the opening
+## shuffle. Without it the payload cannot reproduce a duel: the seed only determines how a
+## known Deck is shuffled, so the Deck contents and their pre-shuffle order are as much an
+## input as the seed is. Master prompt 70.
+var deck_lists: Array = [[], []]
 var first_player_id: int = 0
 
 ## Ordered submitted actions: {seq, turn, phase, action: <DuelAction.to_dict()>}
@@ -25,10 +30,18 @@ var entries: Array = []
 var _seq: int = 0
 
 
+## Called by DuelEngine.setup_duel() after the Decks are built and BEFORE they are
+## shuffled, so `deck_lists` is the pre-shuffle order the seed is then applied to.
 func begin(state: GameState) -> void:
 	seed_value = state.rng.get_seed()
 	first_player_id = state.first_player_id
 	deck_names = [state.player(0).deck_name, state.player(1).deck_name]
+	deck_lists = []
+	for pid in range(GameState.PLAYER_COUNT):
+		var names: Array = []
+		for card in state.player(pid).deck:
+			names.append(card.card_name())
+		deck_lists.append(names)
 
 
 func record_action(state: GameState, action: DuelAction) -> void:
@@ -72,6 +85,7 @@ func to_replay() -> Dictionary:
 	return {
 		"seed": seed_value,
 		"deck_names": deck_names.duplicate(),
+		"deck_lists": deck_lists.duplicate(true),
 		"first_player": first_player_id,
 		"actions": actions.duplicate(true),
 		"decisions": decisions.duplicate(true),

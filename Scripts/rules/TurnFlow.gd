@@ -22,6 +22,10 @@ var controllers: Array = []
 ## during that End Phase rather than on the next player's turn. [S1 p.40]
 var end_phase_cleanup_done: bool = false
 
+## Replay log, assigned by DuelEngine. The hand-size discard is a player CHOICE, so it is
+## a duel input and has to be recorded for the replay payload. Master prompt 70.
+var log: DuelLog = null
+
 
 func _init(p_state: GameState, p_controllers: Array = []) -> void:
 	state = p_state
@@ -65,7 +69,21 @@ func can_enter_battle_phase(pid: int) -> bool:
 		return false
 	if state.turn_number == 1 and state.first_player_id == pid:
 		return false
+	# Two deliberately separate restrictions, because they have different lifetimes:
+	#
+	#   `skip_battle_phase_this_turn`  — one-shot and turn-scoped, written by a resolving
+	#      effect (`Runick Flashing Fire`: "skip your next Battle Phase after activation")
+	#      and cleared by _end_of_turn_cleanup(). It is NOT namespaced, so a continuous
+	#      recompute must not wipe it.
+	#   `continuous:cannot_conduct_battle_phase` — state-derived, rebuilt from its face-up
+	#      source on every ContinuousEffects.recompute(), and gone the moment that source
+	#      stops applying.
+	#
+	# Both must block the Battle Phase; neither may be expressed in terms of the other.
 	if bool(state.player(pid).get_restriction("skip_battle_phase_this_turn", false)):
+		return false
+	if bool(state.player(pid).get_restriction(
+			ContinuousEffects.PLAYER_KEY_PREFIX + "cannot_conduct_battle_phase", false)):
 		return false
 	return true
 
@@ -123,6 +141,8 @@ func perform_end_phase_cleanup() -> void:
 			"Discard down to %d cards" % PlayerState.HAND_SIZE_LIMIT,
 			options, excess, excess)
 		var answer = ctrl.decide(req)
+		if log != null:
+			log.record_decision(state, req, answer)
 		if req.validate(answer):
 			chosen = answer
 		else:

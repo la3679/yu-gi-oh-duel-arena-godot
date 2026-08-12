@@ -347,6 +347,36 @@ Key rulings encoded:
 * "Leaves the field" triggers do **not** fire when a field monster is shuffled into the Main
   Deck or becomes material. [S1 p.51]
 
+### 8.1 When a Continuous Spell/Trap's continuous effect begins applying — **DECIDED**
+
+Recorded as an open question during Phase 4b and resolved in Phase 4c (2026-08-12).
+
+**Rule: a Continuous Spell/Trap's continuous effect begins applying only once that card's
+own activation has RESOLVED — not at the moment of activation.**
+
+The rulebook states that Continuous Spell Cards "remain on the field once they are
+activated, and their effect continues while the card stays face-up on the field"
+[S1 p.17], and says the same of Continuous Trap Cards [S1 p.18]. That sentence fixes the
+*end* of the window (the card leaving the field or being turned face-down) but is written
+for a beginner and does not by itself separate activation from resolution.
+
+The separation comes from the general activation rules: activating a card places it
+face-up on the field, but an activation produces no effect until its Chain Link resolves,
+and resolution is strictly reverse order [S1 p.44–47]. A Continuous Spell/Trap that is
+removed from the field after activation but before resolution therefore resolves without
+effect. Applying the continuous clause from the moment of activation would let it affect
+the resolution of Chain Links *above* it, which is exactly what the Chain rules forbid.
+
+**Honest note on the source:** no single official sentence states the start point
+verbatim. The decision rests on the rulebook's activation-vs-resolution separation
+[S1 p.44–47] rather than on a quotable one-liner; the reading is the stricter of the two
+candidates and is the one consistent with the Chain rules the engine already implements.
+
+*Engine:* `ContinuousEffects._continuous_sources()` excludes a card whose own
+`CARD_ACTIVATION` Chain Link is still unresolved (`activation_unresolved()`).
+*Tests:* `RulesQuestionTests` — the buff is absent while Chain Link 1 is open and present
+the moment it resolves.
+
 ---
 
 ## 9. Ownership vs control [S1 p.52]
@@ -407,6 +437,29 @@ the **player**, not the instance, so they survive the card leaving the field.
 
 The engine knows all state internally; `get_visible_state(viewer_id)` filters it. The UI is
 only ever given a filtered view (master prompt §40).
+
+### 12.1 `revealed_to` and the Deck — **DECIDED**
+
+Recorded as an open question during Phase 4b and resolved in Phase 4c (2026-08-12).
+
+`CardInstance.revealed_to` records which players have legally seen a hidden card.
+
+**Rule: a card SHUFFLED into the Deck loses `revealed_to`. A card placed on the top or
+bottom of the Deck WITHOUT a shuffle keeps it.**
+
+The Deck is placed face-down and is never public information — only the number of cards in
+it is [S1 p.5, p.28]. The rulebook requires that "if a card effect requires you to reveal
+cards from your Deck, or look through it, shuffle it and put it back" [S1 p.5]: the shuffle
+exists precisely so that what was seen stops being usable knowledge of where anything is.
+
+The distinction is deliberate and is keyed on the **shuffle**, not on the Deck. A card
+placed on top of the Deck without shuffling has a known position, and both players
+legitimately retain what they saw, so clearing the record there would model *less*
+information than the physical game gives.
+
+*Engine:* `GameState.shuffle_deck()` clears `revealed_to` for every card in that Deck, and
+`GameState.move_card()` clears it for a move whose reason is `SHUFFLED_INTO_DECK`.
+*Tests:* `RulesQuestionTests` — both directions.
 
 ---
 
