@@ -22,3 +22,7 @@ Data/generated/konami_raw/
 # OS
 Thumbs.db
 desktop.ini
+
+# Godot CSV translation import artifacts
+*.translation
+*.csv.import
