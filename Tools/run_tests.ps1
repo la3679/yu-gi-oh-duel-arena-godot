@@ -59,4 +59,9 @@ if ($errLines.Count -gt 0) {
     Write-Output "----- stderr ($($errLines.Count) lines, first 40) -----"
     $errLines | Select-Object -First 40
 }
-if ($run.text -match "RESULT:\s*PASS") { Write-Output "RUNNER: PASS" } else { Write-Output "RUNNER: FAIL" }
+# RunTests prints "RESULT: PASS"; SmokeCheck prints "SMOKE CHECK: PASS".
+if ($run.text -match "RESULT:\s*PASS" -or $run.text -match "SMOKE CHECK:\s*PASS") {
+    Write-Output "RUNNER: PASS"
+} else {
+    Write-Output "RUNNER: FAIL"
+}

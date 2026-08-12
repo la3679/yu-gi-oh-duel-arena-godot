@@ -214,6 +214,10 @@ static func advance_to_phase(engine: DuelEngine, phase: Enums.Phase,
 		var kind := Enums.ActionKind.END_PHASE
 		if phase == Enums.Phase.BATTLE and engine.state.phase == Enums.Phase.MAIN_1:
 			kind = Enums.ActionKind.ENTER_BATTLE_PHASE
+		elif engine.state.phase == Enums.Phase.BATTLE:
+			# The Battle Phase offers END_BATTLE_PHASE rather than END_PHASE, so a duel
+			# that is already in it cannot be advanced with END_PHASE.
+			kind = Enums.ActionKind.END_BATTLE_PHASE
 		var a = find_action(actions, kind)
 		if a == null:
 			return false

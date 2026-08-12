@@ -528,10 +528,15 @@ func _visible_player(p: PlayerState, viewer_id: int) -> Dictionary:
 			else _visible_card(p.field_zone, viewer_id, false),
 	}
 	# Only the owner sees their own hand contents. Deck order is never exposed.
+	#
+	# The opponent's hand goes through _visible_card rather than straight to a stub, so a
+	# card that was legally revealed to this viewer stays visible to them. _visible_card
+	# already returns a stub otherwise: a hand card is face-down and controlled by
+	# someone else, so nothing else in that function can make it visible.
 	if is_self:
 		d["hand"] = p.hand.map(func(c): return _visible_card(c, viewer_id, true))
 	else:
-		d["hand"] = p.hand.map(func(c): return _hidden_card_stub(c))
+		d["hand"] = p.hand.map(func(c): return _visible_card(c, viewer_id, false))
 	return d
 
 

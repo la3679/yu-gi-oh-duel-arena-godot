@@ -6,10 +6,14 @@
 **Last updated:** 2026-08-12
 **Current phase:** Phase 4 — Core rules engine. Phases 0–3 complete. Phase 4b-1
 (Fast Effect Timing, DuelEngine API, summons, Spell/Trap framework) complete **and
-tested**. Phase 4b-2 (Battle Phase / Damage Step / continuous effects) committed as
-**UNVERIFIED SCAFFOLDING — zero test coverage**.
+tested**. Phase 4b-2 (Battle Phase / Damage Step / continuous effects) was committed as
+untested scaffolding; **Phase 4b-3 has now tested and corrected it**. Battle Phase,
+Damage Step, continuous effects, counters and hidden-information filtering are
+**DONE+TESTED**.
 **Overall status:** IN PROGRESS — **not** acceptance-complete
-**HEAD at checkpoint:** `117ec30` (this documentation commit follows it)
+**HEAD at checkpoint:** `e968405` (this documentation commit follows it)
+**Measured suite at checkpoint:** **506 passed / 0 failed** across **10 suites**;
+SmokeCheck **PASS**.
 
 ---
 
@@ -173,51 +177,83 @@ Key research outputs:
 
 ## 4. Build/verification status
 
-Last verified run (2026-08-12, at commit `117ec30`):
+Last verified run (2026-08-12, at commit `e968405` plus the Phase 4b-3 test suites):
 
 ```
-godot --headless --path <project> --import                  -> clean, no parse errors
-godot --headless --script res://Scripts/tests/SmokeCheck.gd -> SMOKE CHECK: PASS, exit 0
-godot --headless --script res://Scripts/tests/RunTests.gd
-  ChainTests:      27/27 passed
-  TimingTests:     37/37 passed
-  TurnFlowTests:   40/40 passed
-  SummonTests:     45/45 passed
-  SpellTrapTests:  27/27 passed
-  TOTAL: 176 passed, 0 failed (176 assertions across 5 suites)
-  RESULT: PASS, exit 0
+powershell -File Tools\run_tests.ps1 SmokeCheck  -> SMOKE CHECK: PASS
+powershell -File Tools\run_tests.ps1 RunTests
+  ChainTests:       27/27 passed
+  TimingTests:      37/37 passed
+  TurnFlowTests:    40/40 passed
+  SummonTests:      45/45 passed
+  SpellTrapTests:   27/27 passed
+  BattleTests:      72/72 passed
+  DamageStepTests:  86/86 passed
+  ContinuousTests:  52/52 passed
+  CounterTests:     44/44 passed
+  HiddenInfoTests:  76/76 passed
+  TOTAL: 506 passed, 0 failed (506 assertions across 10 suites)
+  RESULT: PASS
 ```
 
-**176 / 176 passing. This number was actually produced by the command above; it is not an
-estimate.** Per-suite detail and the honest not-yet-covered list live in
+**506 / 506 passing. These numbers were actually produced by the command above; they are
+not estimates.** The original 176 assertions still pass unchanged — none was weakened,
+retargeted or deleted. Per-suite detail and the honest not-yet-covered list live in
 `Reports/TEST_RESULTS.md`.
 
 SmokeCheck remains a load/determinism check, not part of the rules suite count.
 
-### Defects these tests caught this milestone
+### Use `Tools/run_tests.ps1`, not the raw command
 
-1. **`RunTests.gd` reported `RESULT: PASS` for a suite that ran zero assertions.** When
-   `TimingTests` failed to compile, the runner printed `TimingTests: 0/0 passed` and
-   exited 0. A zero-assertion suite is now an explicit failure. Any future session that
-   adds a suite inherits this guard — do not remove it.
-2. **Three more `:=` type-inference compile failures** (`TriggerCollector`, `DuelEngine`,
-   `SummonRules`), same root cause as the Phase 4a defects. **GDScript cannot infer
-   through a `Variant`** — that includes an element of an untyped `Array` and the return
-   of any function declared `-> Variant`. Annotate explicitly. Always re-run `--import`
-   after adding a `class_name` script.
+Two things it handles that cost real time to discover:
+
+1. Godot writes heavily to stderr (every `push_error` prints a full GDScript backtrace).
+   Piping stdout+stderr through PowerShell can block on a full pipe and appear to hang.
+   The runner redirects to files and prints them afterwards.
+2. A suite that fails to **compile** makes `RunTests._initialize()` throw before it can
+   call `quit()`, so the headless SceneTree runs forever at near-zero CPU. The runner does
+   a `--check-only` parse pass first, turning that hang into an immediate readable error.
+
+### Defects the Phase 4b-3 tests caught
+
+1. **Removing the attack TARGET cancelled the attack instead of causing a Replay.**
+   `DuelEngine._advance_battle()` checked `BattleRules.attack_still_valid()` — which
+   covered the attacker *and* the target — before `replay_required()`. `RULES_SPEC.md §6.2`
+   [S1 p.39] is explicit that a removed target **is** a Replay. Split into
+   `attacker_still_valid()` / `target_still_valid()`, Replay check first.
+2. **`get_visible_state()` ignored `revealed_to` for the opponent's hand.** The hand was
+   mapped straight to `_hidden_card_stub()`, bypassing the `revealed_to` check that
+   `_visible_card()` already implements, so a legally revealed card stayed invisible.
+3. **Two harness gaps:** `TestFixtures.end_turn()` and `advance_to_phase()` both looked
+   only for `END_PHASE`, which the Battle Phase does not offer, so any duel that reached
+   the Battle Phase silently failed to advance.
+
+### Defects earlier milestones caught (still relevant)
+
+1. **`RunTests.gd` reported `RESULT: PASS` for a suite that ran zero assertions.** A
+   zero-assertion suite is now an explicit failure. Any future session that adds a suite
+   inherits this guard — **do not remove it**.
+2. **`:=` type-inference compile failures.** **GDScript cannot infer through a `Variant`**
+   — an element of an untyped `Array`, or the return of any function declared
+   `-> Variant`. This bit again in all three new suites. Annotate explicitly. Always
+   re-run `--import` after adding a `class_name` script.
 3. **`project.godot` pointed `run/main_scene` at `res://Scenes/ui/Boot.tscn`**, which does
    not exist yet, so every headless run logged a resource-load error. The setting is
    commented out until the Phase 7 UI exists — restore it then.
 
-### Known harness issue (not a rules defect)
+### Known harness issues (not rules defects)
 
-The run reports `~7265 ObjectDB instances were leaked at exit`. These are RefCounted
-reference cycles between `GameState`, the `DuelLog` signal connection and test closures.
-It changes no rules outcome and fails nothing, but it must be cleaned up before the UI
-keeps a single duel alive for a long session.
-
-The run also prints one `SCRIPT ERROR` from `push_error`. That is **intentional** — it is
-the loud failure the "unimplemented effect fails loudly" test asserts must occur.
+* The run reports `~20000 ObjectDB instances were leaked at exit`, up from ~7265 simply
+  because the suite now builds far more duels. These are RefCounted reference cycles
+  between `GameState`, the `DuelLog` signal connection and test closures. It changes no
+  rules outcome and fails nothing, but it must be cleaned up before the UI keeps a single
+  duel alive for a long session.
+* The run prints **two** `SCRIPT ERROR` lines from `push_error`. Both are **intentional**:
+  `ChainTests` requires a missing `resolve()` to fail loudly, and `ContinuousTests`
+  requires an unknown restriction flag to be rejected rather than silently written.
+* A GDScript single-line lambda ends at the newline. A wrapped lambda body inside a call
+  argument needs an explicit `\` continuation, or it is a parse error reported with **no
+  line number**.
 
 ---
 
@@ -229,7 +265,7 @@ the loud failure the "unimplemented effect fails loudly" test asserts must occur
 | 1 | Authoritative TCG rules research | **COMPLETE** |
 | 2 | Per-card official text + rulings research (77 cards) | **COMPLETE** |
 | 3 | Architecture / scaffolding + Graphify index | **COMPLETE** |
-| 4 | Core rules engine | **IN PROGRESS** — 4b-1 done+tested; 4b-2 untested |
+| 4 | Core rules engine | **IN PROGRESS** — 4b-1/4b-2/4b-3 done+tested; see §6a for the remaining gaps |
 | 5 | Card effect library (77 cards) | NOT STARTED |
 | 6 | Automated tests | NOT STARTED |
 | 7 | Basic playable UI | NOT STARTED |
@@ -241,7 +277,7 @@ the loud failure the "unimplemented effect fails loudly" test asserts must occur
 | Gate | Status |
 |---|---|
 | A — Research complete | **MET** |
-| B — Core engine complete | NOT MET |
+| B — Core engine complete | **NOT MET** — everything in §6a is DONE+TESTED except Special Summon execution, piercing and the `DuelLog` replay payload (§7) |
 | C — Card library complete | NOT MET |
 | D — Playable prototype | NOT MET |
 | E — Presentation complete | NOT MET |
@@ -294,8 +330,8 @@ DuelArenaGame/
 │   │   ├── TriggerCollector.gd        trigger collection + simultaneous ordering
 │   │   ├── SummonRules.gd             summons, tributes, flip, position changes
 │   │   ├── TurnFlow.gd                phase order, draws, hand size, turn transition
-│   │   ├── BattleRules.gd             UNVERIFIED — battle + Damage Step
-│   │   └── ContinuousEffects.gd       UNVERIFIED — state-derived modifiers
+│   │   ├── BattleRules.gd             battle + Damage Step (tested)
+│   │   └── ContinuousEffects.gd       state-derived modifiers (tested)
 │   └── tests/
 │       ├── SmokeCheck.gd              headless load/determinism check
 │       ├── TestCase.gd                assertion harness
@@ -303,12 +339,18 @@ DuelArenaGame/
 ├── Tests/
 │   ├── support/TestFixtures.gd        synthetic cards, duel builder, engine drivers
 │   └── rules/
-│       ├── ChainTests.gd       27 assertions
-│       ├── TimingTests.gd      37 assertions
-│       ├── TurnFlowTests.gd    40 assertions
-│       ├── SummonTests.gd      45 assertions
-│       └── SpellTrapTests.gd   27 assertions
+│       ├── ChainTests.gd        27 assertions
+│       ├── TimingTests.gd       37 assertions
+│       ├── TurnFlowTests.gd     40 assertions
+│       ├── SummonTests.gd       45 assertions
+│       ├── SpellTrapTests.gd    27 assertions
+│       ├── BattleTests.gd       72 assertions
+│       ├── DamageStepTests.gd   86 assertions
+│       ├── ContinuousTests.gd   52 assertions
+│       ├── CounterTests.gd      44 assertions
+│       └── HiddenInfoTests.gd   76 assertions
 ├── Tools/                             Python research + data pipeline (dev only)
+│   ├── run_tests.ps1                  headless test runner (parse-check + no pipe stall)
 │   ├── enumerate_cards.py             deck CSVs -> card_pool.json
 │   ├── fetch_official_cards.py        official Konami DB -> konami_cards.json
 │   ├── diff_card_text.py              official vs saved text diff
@@ -356,11 +398,19 @@ Legend: **DONE+TESTED** = implemented and covered by passing assertions ·
 | Flip Summon | **DONE+TESTED** | `SummonRules.flip_summon()` | SummonTests |
 | Manual battle position changes (3 restrictions) | **DONE+TESTED** | `SummonRules.can_change_position()` | SummonTests |
 | Spell/Trap framework + Set-turn restrictions | **DONE+TESTED** | `ActivationRules.set_turn_ok()` / `card_activation_timing_ok()` | SpellTrapTests |
-| Counter support (place/remove + events) | **DONE, NOT TESTED** | `GameState.place_counters()` / `remove_counters()` | plumbing only; no assertion yet |
-| **Battle Phase / attack declaration / replay** | **UNVERIFIED** | `Scripts/rules/BattleRules.gd` | **none** |
-| **Damage Step (5 sub-steps)** | **UNVERIFIED** | `BattleRules` + `DuelEngine._advance_battle()` | **none** |
-| **Continuous effects** | **UNVERIFIED** | `Scripts/rules/ContinuousEffects.gd` | **none** |
-| Special Summon execution | partial — `SummonRules.begin_special_summon()` exists, **UNVERIFIED**, and no card yet calls it | | |
+| Counter engine (place/remove/read/clear + events) | **DONE+TESTED** | `GameState.place_counters()` / `remove_counters()` | CounterTests |
+| **Battle Phase / attack declaration / replay** | **DONE+TESTED** | `Scripts/rules/BattleRules.gd` | BattleTests |
+| **Damage Step (5 sub-steps)** | **DONE+TESTED** | `BattleRules` + `DuelEngine._advance_battle()` | DamageStepTests |
+| **Damage Step activation restriction (§7.2)** | **DONE+TESTED** | `ActivationRules.damage_step_ok()` | DamageStepTests (rule table + live Damage Step) |
+| **Damage calculation (all 6 rows of §7.4 + direct)** | **DONE+TESTED** | `BattleRules.step_damage_calculation()` | DamageStepTests |
+| **Battle destruction semantics** | **DONE+TESTED** | `GameState.move_card()` + `MoveReason` | DamageStepTests |
+| **Continuous effects** | **DONE+TESTED** | `Scripts/rules/ContinuousEffects.gd` | ContinuousTests |
+| **Hidden information filtering** | **DONE+TESTED** | `GameState.get_visible_state()` / `get_log_for()` | HiddenInfoTests |
+| **Owner vs controller** | **DONE+TESTED** | `GameState.move_card()` owner-bound zones | HiddenInfoTests |
+| Victory by 0 LP from battle damage | **DONE+TESTED** | `GameState.check_life_point_loss()` | DamageStepTests |
+| Special Summon execution | **UNVERIFIED** — `SummonRules.begin_special_summon()` exists and no card yet calls it | `Scripts/rules/SummonRules.gd` | **none** |
+| Piercing battle damage | **UNVERIFIED** — the `piercing` flag is read in damage calculation but no V1 card grants it, so the branch has never run | `BattleRules.step_damage_calculation()` | **none** |
+| Player-level continuous restrictions | **PARTIAL** — store/read/clear proven, but **no rules path consumes them** | `ContinuousEffects.restrict_player()` | ContinuousTests (API only) |
 | `PlayerController` abstraction | **DONE+TESTED** (`ScriptedController`); no UI implementation yet | `Scripts/engine/PlayerController.gd` | used by every suite |
 | Duel log / replay | **DONE, NOT TESTED** | `Scripts/engine/DuelLog.gd` | records actions, decisions, events, seed |
 
@@ -395,6 +445,16 @@ Legend: **DONE+TESTED** = implemented and covered by passing assertions ·
 6. **Continuous effects are recomputed from scratch** at the top of every `_advance()`
    iteration and are tagged (`duration = "continuous"`, `ContinuousEffects.RESTRICTION_FLAGS`)
    so they can be wiped and rebuilt. Nothing else may write those flags.
+   *Proven by ContinuousTests: five recomputes give the same value as one, and an
+   unsourced restriction flag does not survive a recompute.*
+7. **A removed attack TARGET is a Replay, not a cancelled attack.** Only the ATTACKER
+   leaving the field cancels an attack. `attacker_still_valid()` and
+   `target_still_valid()` are deliberately separate, and `_advance_battle()` runs the
+   Replay check **before** the target check. Merging them back re-introduces the defect
+   Phase 4b-3 fixed. [S1 p.39, RULES_SPEC.md §6.2]
+8. **`CardInstance.revealed_to` is honoured everywhere a hidden card can be seen**,
+   including the opponent's hand, which goes through `_visible_card()` rather than
+   straight to `_hidden_card_stub()`.
 
 ---
 
@@ -402,16 +462,30 @@ Legend: **DONE+TESTED** = implemented and covered by passing assertions ·
 
 None.
 
-### Unfinished Phase 4b work (honest list)
+### Unfinished Phase 4 work (honest list)
 
-* `BattleRules.gd`, `ContinuousEffects.gd` and `DuelEngine._advance_battle()` are
-  **committed but completely untested**. Treat every claim in them as unproven.
-* Counters, `DuelLog` and `begin_special_summon()` have no assertions.
-* `DuelEngine._advance_battle()` calls `battle._clear_battle()`, reaching into an
-  underscore-prefixed method from outside the class. Give it a public name when the
-  battle tests are written.
-* Attack replay is implemented from [S1 p.39] but the "attack with a different monster
-  spends the original's attack" branch has never been executed.
+* **`SummonRules.begin_special_summon()` is still UNVERIFIED** — it exists, compiles, and
+  no test or card calls it. This is the largest remaining untested surface in the rules
+  engine, and Phase 5 depends on it (the `Shining Angel` family Special Summons).
+* **Piercing battle damage has never executed.** `BattleRules.step_damage_calculation()`
+  reads a `piercing` flag, but no V1 card grants it, so the branch is unproven. Do not
+  claim it works.
+* **`DuelLog` has no assertions.** It records actions, decisions, events and the seed, but
+  nothing verifies the replay payload reconstructs a duel.
+* **Player-level continuous restrictions are stored but never consumed.**
+  `ContinuousEffects.restrict_player()` round-trips correctly, yet
+  `TurnFlow.can_enter_battle_phase()` reads the separate un-namespaced
+  `skip_battle_phase_this_turn` key. One of the two has to give in Phase 5.
+* **Open rules question:** when a Continuous Spell/Trap's continuous effect begins
+  applying — at activation, or only once the activation resolves. The saved research does
+  not settle it; the engine currently applies it as soon as the card is face-up on the
+  field. `ContinuousTests` asserts only what holds under both readings. Resolve this
+  against an official source before implementing the 1 Continuous Spell and 6 Continuous
+  Traps in the V1 pool.
+* **Open question:** whether `revealed_to` should be cleared when a card is shuffled back
+  into the Deck. It currently persists for the whole Duel.
+* ~~`DuelEngine._advance_battle()` calls `battle._clear_battle()` from outside the
+  class.~~ **Done** — renamed to the public `BattleRules.clear_battle()`.
 * No card in `Data/cards/cards.json` has any `EffectDef` yet, so the engine has been
   exercised only against synthetic cards built by `Tests/support/TestFixtures.gd`. That
   is intentional for Phase 4 — the rules engine must be right before the 77 cards land.
@@ -422,77 +496,70 @@ None.
 
 ### How to resume in one paragraph
 
-Phase 4b-1 is done and proven: the Fast Effect Timing machine, the `DuelEngine`
-legal-action API, trigger collection with simultaneous ordering, summons (including
-summon negation), turn/phase flow and the Spell/Trap framework all pass 176 assertions.
-Phase 4b-2 code for the Battle Phase, Damage Step and continuous effects is **written and
-committed but has never been tested**. The next session's job is to test it, fix what
-fails, and only then move on. Read §6a for per-subsystem status and the design decisions
-that must not be reversed. Do **not** re-read the whole repository, re-run research, or
-re-derive rules.
+**Phase 4b-3 is complete.** The generic rules engine is now tested end to end: Fast Effect
+Timing, the `DuelEngine` legal-action API, trigger collection and ordering, summons
+(including summon negation), turn/phase flow, the Spell/Trap framework, the **Battle
+Phase**, the **Damage Step and its activation restriction**, **damage calculation**,
+**battle destruction semantics**, **continuous effects**, the **counter engine** and
+**hidden-information filtering** all pass — **506 assertions across 10 suites, 0 failures**,
+SmokeCheck PASS. Two real defects were found and fixed (attack Replay on target removal;
+`revealed_to` ignored for the opponent's hand). Read §6a for per-subsystem status and the
+eight design decisions that must not be reversed, and §7 for the honest list of what is
+still unverified. Do **not** re-read the whole repository, re-run research, or re-derive
+rules.
 
-### Immediately next — Phase 4b-3, in this exact order
+### Immediately next — Phase 4c, then Phase 5
 
-1. **`Tests/rules/BattleTests.gd`** — write against the existing untested
-   `Scripts/rules/BattleRules.gd`. Expect failures; fix the implementation, not the test,
-   unless the test misstates the rule. Cover, all from `RULES_SPEC.md §6`:
-   * attack declaration is offered only in the Battle Step, only for a face-up Attack
-     Position monster the turn player controls;
-   * one attack per monster per turn;
-   * a direct attack is legal only when the opponent controls no monsters [S1 p.38];
-   * the response window after `ATTACK_DECLARED` really opens, and the Damage Step does
-     not begin until it closes;
-   * an attack whose attacker or target left the field before damage calculation simply
-     does not happen;
-   * **attack replay** [S1 p.39] — including the untested branch where attacking with a
-     *different* monster spends the original monster's attack.
-2. **`Tests/rules/DamageStepTests.gd`** — `RULES_SPEC.md §7`. Cover:
-   * all six rows of the damage-calculation table in §7.4 (ATK>, ATK=, ATK< against both
-     Attack and Defense Position), plus the direct attack;
-   * the 0-ATK rule: two 0-ATK Attack Position monsters destroy neither [S1 p.51];
-   * destruction is *determined* in sub-step 3 but the card is only **sent to the GY in
-     sub-step 5** — assert the ordering from the event log;
-   * a monster attacked while face-down is flipped in sub-step 2 but its **Flip effect
-     activates in sub-step 4** (the `_carried_events` mechanism in
-     `DuelEngine._advance_battle()`);
-   * the §7.2 activation restriction: an effect with `DamageStepPermission.NONE` is never
-     offered anywhere in the Damage Step; one with `UNTIL_DAMAGE_CALC` is offered in
-     sub-steps 1–2 and **not** from sub-step 3 onward;
-   * an optional destroyed-by-battle trigger (the `Shining Angel` shape) is still offered
-     to its controller in sub-step 5;
-   * battle damage reaching 0 LP ends the Duel.
-3. **`Tests/rules/ContinuousTests.gd`** — `RULES_SPEC.md`/master prompt §25. Cover: a
-   continuous ATK modifier applying and disappearing when its source leaves the field, is
-   flipped face-down, or is negated; a `cannot_attack` restriction removing the attack
-   from `get_legal_actions`; `cannot_be_destroyed_by_battle` surviving damage
-   calculation; and a counter-scaled modifier (the `Wonder Balloons` shape) recomputing
-   as counters change.
-4. **`Tests/rules/CounterTests.gd`** — placing/removing Spell Counters and Balloon
-   Counters, the `COUNTER_PLACED` / `COUNTER_REMOVED` events, that counters may only go
-   on a face-up card on the field, that removal is all-or-nothing (it is used as a cost),
-   and that counters are cleared when the card leaves the field.
-5. Rename `BattleRules._clear_battle()` to a public name once its callers are covered.
-6. **`Tests/rules/HiddenInfoTests.gd`** — `get_visible_state(viewer)` never leaks the
-   opponent's hand, a face-down card's identity, or Deck order; counts remain public
-   (`RULES_SPEC.md §12`).
-7. Register every new suite explicitly in `Scripts/tests/RunTests.gd`.
-8. Update `Reports/TEST_RESULTS.md` and this file with the **actually measured** numbers,
-   then commit.
+Phase 4b-3's gate is met, so card implementation may begin. Two small pieces of generic
+engine work should come first, because Phase 5 immediately depends on them:
 
-Only once all of the above passes should Phase 5 (the 77 card implementations) begin.
+1. **Test `SummonRules.begin_special_summon()`** (`Tests/rules/SpecialSummonTests.gd`).
+   It is the last UNVERIFIED path in the rules engine and the `Shining Angel` family
+   cannot be implemented without it. Cover: a Special Summon declared and completed; the
+   response window before it succeeds; `SPECIAL_SUMMON_SUCCEEDED` emitted only on success;
+   a negated Special Summon emitting no success trigger; Special Summoning into a full
+   Monster Zone being illegal; the Normal Summon allowance **not** being consumed; and
+   Special Summoning from the Deck / GY as the pool's cards require.
+2. **Decide the two open rules questions in §7** (when a Continuous Spell/Trap's continuous
+   effect begins applying; whether `revealed_to` survives a shuffle into the Deck) against
+   an official source before the Continuous cards are written. Record the answer in
+   `Research/RULES_SPEC.md` **and** here.
 
-### Reminders that cost time last session
+Then **Phase 5 — the 77 card implementations**, in `Scripts/cards/registry/<CardName>.gd`.
+Suggested order: the shared `Shining Angel` first (it is in both decks and exercises the
+optional destroyed-by-battle trigger the engine is already proven to support), then the
+Normal Monsters, then the Spells/Traps, then the counter cards (`Apprentice Magician`,
+`Wonder Balloons`), then the negation cards (`Champion's Vigilance`).
 
+Rules for Phase 5, unchanged from the master prompt: one file per card, each declaring
+`const CARD_NAME := "..."` and one `EffectDef.new(...)` per official effect clause; a
+per-card test suite alongside; re-run `python Tools/build_matrix.py` so
+`Reports/CARD_IMPLEMENTATION_MATRIX.csv` cannot over-report.
+
+**Do not start presentation work** (3D arena, holographic monsters, summon/attack
+animations, particles, audio, cinematic camera, UI polish). Those are Phases 7–10.
+
+### Reminders that cost time — read before writing a test
+
+* **Use `Tools/run_tests.ps1`**, not the raw Godot command. See §4 for the two reasons.
 * Run `--import` after adding any `class_name` script, or Godot will not register it.
-* Never use `:=` where the right-hand side is a `Variant` (an untyped `Array` element, or
-  a function declared `-> Variant`). It is a hard compile error, and a failed compile
-  takes the whole dependent class down with it.
-* Build tests through `Tests/support/TestFixtures.gd` — it has synthetic card builders,
-  a duel builder, `pass_until_open()`, `advance_to_phase()`, `end_turn()` and event
-  helpers. Do not hand-roll a duel.
+* Never use `:=` where the right-hand side is a `Variant` (an untyped `Array` element such
+  as `some_def.effects[0]`, or a function declared `-> Variant` such as
+  `TestFixtures.find_action()`). It is a hard compile error, and a failed compile takes
+  the whole dependent class down with it.
+* **A GDScript single-line lambda ends at the newline.** A wrapped lambda body inside a
+  call argument needs an explicit `\` continuation, or you get
+  `Expected closing ")" after call arguments` with **no line number**.
+* Build tests through `Tests/support/TestFixtures.gd` — synthetic card builders,
+  `new_duel()`, `battle_duel()` (turn 2, player 0 attacking, past the turn-1 Battle Phase
+  prohibition), `pass_until_open()`, `advance_to_phase()`, `end_turn()`, `attack()`,
+  `events_of()`, `count_events()`, `first_event_index()`. Do not hand-roll a duel.
 * The engine does **not** pause when nobody holds a legal response: it auto-passes and
-  resolves. Assertions about intermediate states must read the event log, not the live
-  card. This caused the one test failure of the last session.
+  resolves the whole attack, chain or Damage Step inside one `submit_action()`. To observe
+  an intermediate state, either read the event log or give a player a fast effect so the
+  window genuinely opens.
+* A phase change is a box-E declaration first: after `submit_action(ENTER_BATTLE_PHASE)`
+  the phase has **not** changed yet if the opponent holds a response.
 
 **Where the rules live:** every subsystem above must cite `Research/RULES_SPEC.md` section
 numbers in comments, and those trace to `RULES_SOURCES.md` S1–S4. Do not re-derive rules.
@@ -506,7 +573,8 @@ matrix, so the matrix can never over-report.
 
 ```bash
 python Tools/build_card_db.py && python Tools/build_matrix.py
-"<godot>" --headless --path "<project>" --script res://Scripts/tests/SmokeCheck.gd
+powershell -ExecutionPolicy Bypass -File Tools\run_tests.ps1 SmokeCheck
+powershell -ExecutionPolicy Bypass -File Tools\run_tests.ps1 RunTests
 ```
 
 **Do not:** re-run the 251-image identification; re-fetch the 77 card pages (they are cached
