@@ -6,27 +6,40 @@ extends SceneTree
 ##
 ## Exits 0 only when every suite passes. Suites are registered explicitly so a suite
 ## that fails to load is a hard error rather than a silently skipped test.
+##
+## A suite that runs ZERO assertions is also a failure. Without that check a suite whose
+## script failed to compile reports "0/0 passed" and the run would claim PASS while
+## testing nothing — which happened once during development and must never be possible.
 
 func _initialize() -> void:
 	var suites: Array[TestCase] = []
 
 	suites.append(ChainTests.run())
+	suites.append(TimingTests.run())
+	suites.append(TurnFlowTests.run())
+	suites.append(SummonTests.run())
+	suites.append(SpellTrapTests.run())
 
 	var total_passed := 0
 	var total_failed := 0
+	var empty_suites: Array[String] = []
 	print("")
 	for s in suites:
 		print(s.report())
 		total_passed += s.passed
 		total_failed += s.failed
+		if s.total() == 0:
+			empty_suites.append(s.suite_name)
 
 	print("")
 	print("=======================================")
 	print("TOTAL: %d passed, %d failed (%d assertions across %d suite(s))"
 		% [total_passed, total_failed, total_passed + total_failed, suites.size()])
+	for name in empty_suites:
+		print("EMPTY SUITE: %s ran no assertions — treated as a failure" % name)
 	print("=======================================")
 
-	if total_failed > 0:
+	if total_failed > 0 or not empty_suites.is_empty():
 		print("RESULT: FAIL")
 		quit(1)
 	else:

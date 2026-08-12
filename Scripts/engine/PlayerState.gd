@@ -22,6 +22,10 @@ var hand: Array = []
 var graveyard: Array = []     # ordered, most recent last [S1 p.4]
 var banished: Array = []
 var extra_deck: Array = []    # unused by the V1 pool, modelled for later
+## Holding area for a card that is mid-Summon or mid-activation and is therefore not
+## yet on the field. A monster whose Summon is negated never reaches a Monster Zone,
+## so it needs somewhere real to live while the response window is open.
+var in_transit: Array = []
 
 var monster_zones: Array = []       # size 5, null == empty
 var spell_trap_zones: Array = []    # size 5, null == empty

@@ -15,10 +15,17 @@ extends RefCounted
 ##     and processed after the Chain fully resolves (master prompt 45).
 
 var state: GameState = null
+## The DuelEngine, passed through to each EffectContext so effects can reach the timing
+## machine. Null in the pure-chain unit tests, which do not need it.
+var engine = null
+## The links of the most recently resolved Chain, kept after state.chain is cleared so
+## the caller can apply post-resolution rules (a Normal Spell/Trap going to the GY).
+var last_resolved_links: Array = []
 
 
-func _init(p_state: GameState) -> void:
+func _init(p_state: GameState, p_engine = null) -> void:
 	state = p_state
+	engine = p_engine
 
 
 # ---------------------------------------------------------------------------
@@ -163,7 +170,11 @@ func top_link() -> ChainLink:
 
 ## Resolve the whole Chain, highest link first. Returns the events that were deferred
 ## during resolution for the caller to process afterwards (master prompt 45).
-func resolve_chain(decider = null) -> Array:
+##
+## `controllers` is the per-player-id array of PlayerControllers; each link is resolved
+## with its OWN controller attached, so a mid-resolution choice is always put to the
+## player who activated that link.
+func resolve_chain(controllers = null) -> Array:
 	if state.chain.is_empty():
 		return []
 
@@ -171,13 +182,14 @@ func resolve_chain(decider = null) -> Array:
 
 	state.chain_is_resolving = true
 	state.deferred_trigger_events.clear()
+	last_resolved_links = state.chain.duplicate()
 
 	# Strictly reverse order.
 	for i in range(state.chain.size() - 1, -1, -1):
 		if state.is_duel_over():
 			break
 		var link: ChainLink = state.chain[i]
-		_resolve_link(link, decider)
+		_resolve_link(link, _controller_for(controllers, link.controller_id))
 
 	state.chain_is_resolving = false
 
@@ -188,6 +200,12 @@ func resolve_chain(decider = null) -> Array:
 	var deferred := state.deferred_trigger_events.duplicate()
 	state.deferred_trigger_events.clear()
 	return deferred
+
+
+static func _controller_for(controllers, pid: int):
+	if controllers is Array and pid >= 0 and pid < controllers.size():
+		return controllers[pid]
+	return null
 
 
 func _resolve_link(link: ChainLink, decider) -> void:
@@ -229,6 +247,8 @@ func _resolve_link(link: ChainLink, decider) -> void:
 	ctx.controller_id = link.controller_id
 	ctx.link = link
 	ctx.decider = decider
+	ctx.engine = engine
+	ctx.chosen_target_ids = link.target_ids.duplicate()
 
 	effect.resolve.call(ctx)
 

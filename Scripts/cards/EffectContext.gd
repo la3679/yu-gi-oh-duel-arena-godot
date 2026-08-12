@@ -7,6 +7,10 @@ extends RefCounted
 ## keeps card behaviour testable in isolation and keeps the engine the single authority.
 
 var state: GameState = null
+## The DuelEngine driving this activation. Effects that must talk to the timing machine
+## use it — e.g. `Champion's Vigilance` negating a Summon that has been declared but has
+## not yet succeeded. Null in pure-legality checks.
+var engine = null
 var source: CardInstance = null
 var effect: EffectDef = null
 var controller_id: int = 0
@@ -19,8 +23,21 @@ var link: ChainLink = null
 var trigger_event: GameEvent = null
 
 ## Interface used to ask a player something mid-resolution. Master prompt 42.
-## Assigned by DuelEngine; null in pure-legality checks.
+## A PlayerController, assigned by DuelEngine; null in pure-legality checks.
 var decider = null
+
+## Targets chosen at activation, before the Chain Link exists. RULES_SPEC.md 10.
+## Cost callables read this so a cost may depend on the chosen target.
+var chosen_target_ids: Array = []
+
+## Written by pay_cost() to record what the cost actually consumed. Copied onto the
+## Chain Link, so an effect can reference what was paid when it later resolves.
+var cost_payload: Dictionary = {}
+
+## Caller-supplied query parameters. Used by rules-layer queries that ask a card a
+## question outside of activation, e.g. SummonRules asking a potential Tribute
+## "are you worth 2 Tributes for THIS summon?" via {"summoning_card": CardInstance}.
+var params: Dictionary = {}
 
 
 func _init(p_state: GameState = null, p_source: CardInstance = null,
@@ -45,7 +62,22 @@ func opponent_id() -> int:
 
 
 func targets() -> Array:
-	return link.targets(state) if link != null else []
+	if link != null:
+		return link.targets(state)
+	var out := []
+	for tid in chosen_target_ids:
+		var c = state.instance(tid)
+		if c != null:
+			out.append(c)
+	return out
+
+
+## Ask this effect's controller a question mid-resolution. Master prompt 42.
+## Returns null when no decider is attached (pure-legality evaluation).
+func ask(request: DecisionRequest):
+	if decider == null:
+		return null
+	return decider.decide(request)
 
 
 func first_target():

@@ -138,6 +138,7 @@ func _unordered_zone_array(pid: int, zone: Enums.Zone):
 		Enums.Zone.GRAVEYARD: return p.graveyard
 		Enums.Zone.BANISHED: return p.banished
 		Enums.Zone.EXTRA_DECK: return p.extra_deck
+		Enums.Zone.IN_TRANSIT: return p.in_transit
 		_: return null
 
 
@@ -210,6 +211,8 @@ func _attach(card: CardInstance, pid: int, zone: Enums.Zone, index: int,
 			p.banished.append(card)
 		Enums.Zone.EXTRA_DECK:
 			p.extra_deck.append(card)
+		Enums.Zone.IN_TRANSIT:
+			p.in_transit.append(card)
 		_:
 			return false
 	card.zone = zone
@@ -323,6 +326,80 @@ func _unequip_all(card: CardInstance) -> void:
 		if host != null:
 			host.equipped_card_ids.erase(card.id)
 		card.equipped_to_id = -1
+
+
+# ---------------------------------------------------------------------------
+# Counters. Required by the V1 pool: Apprentice Magician places a Spell Counter,
+# Wonder Balloons accumulates Balloon Counters (CARD_RULINGS.md; RULES_SPEC.md 14).
+# ---------------------------------------------------------------------------
+
+## Counters may only be placed on a card that is face-up on the field, unless a card
+## says otherwise. Returns false when the placement is not legal.
+func place_counters(card: CardInstance, kind: String, amount: int,
+		source_id: int = -1) -> bool:
+	if card == null or amount <= 0:
+		return false
+	if not card.is_on_field() or not card.is_face_up():
+		return false
+	card.add_counters(kind, amount)
+	emit(GameEvent.Kind.COUNTER_PLACED, {
+		"card_id": card.id, "card_name": card.card_name(),
+		"counter": kind, "amount": amount,
+		"total": card.counter_count(kind), "source_id": source_id,
+	})
+	return true
+
+
+## Removing counters is frequently a cost, so a partial removal must never happen:
+## either the full amount comes off or nothing does.
+func remove_counters(card: CardInstance, kind: String, amount: int,
+		source_id: int = -1) -> bool:
+	if card == null or amount <= 0:
+		return false
+	if not card.remove_counters(kind, amount):
+		return false
+	emit(GameEvent.Kind.COUNTER_REMOVED, {
+		"card_id": card.id, "card_name": card.card_name(),
+		"counter": kind, "amount": amount,
+		"total": card.counter_count(kind), "source_id": source_id,
+	})
+	return true
+
+
+func total_counters(card: CardInstance, kind: String) -> int:
+	return card.counter_count(kind) if card != null else 0
+
+
+# ---------------------------------------------------------------------------
+# Battle position / face orientation
+# ---------------------------------------------------------------------------
+
+## Change a card's battle position and emit the semantic event. `by_effect` records
+## whether this was a manual change (which consumes the once-per-turn allowance) or an
+## effect-driven one (which does not). RULES_SPEC.md 5.3.
+func set_battle_position(card: CardInstance, new_position: Enums.Position,
+		by_effect: bool, source_id: int = -1) -> void:
+	if card == null or card.position == new_position:
+		return
+	var was_face_up := card.is_face_up()
+	var old := card.position
+	card.position = new_position
+	if not by_effect:
+		card.position_changed_this_turn = true
+	emit(GameEvent.Kind.BATTLE_POSITION_CHANGED, {
+		"card_id": card.id, "card_name": card.card_name(),
+		"from": old, "to": new_position,
+		"by_effect": by_effect, "source_id": source_id,
+	})
+	if was_face_up and not card.is_face_up():
+		# Flipping face-down resets per-instance effect state. Master prompt 48.
+		card.on_flipped_face_down()
+	elif not was_face_up and card.is_face_up():
+		card.turn_flipped = turn_number
+		emit(GameEvent.Kind.CARD_FLIPPED_FACE_UP, {
+			"card_id": card.id, "card_name": card.card_name(),
+			"position": new_position, "source_id": source_id,
+		})
 
 
 # ---------------------------------------------------------------------------
