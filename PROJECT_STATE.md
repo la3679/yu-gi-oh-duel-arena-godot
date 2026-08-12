@@ -4,7 +4,7 @@
 > then read only the targeted files named in §8. Do **not** recursively reread the repository.
 
 **Last updated:** 2026-08-12
-**Current phase:** Phase 4 — Core rules engine (Phases 0–3 complete)
+**Current phase:** Phase 4 — Core rules engine (Phases 0–3 complete; chain layer done + tested)
 **Overall status:** IN PROGRESS — **not** acceptance-complete
 
 ---
@@ -185,8 +185,26 @@ non-empty official text and valid subtypes, both decks total exactly 40, Spell S
 classification, destruction-vs-sent-to-GY semantics, and that stat modifiers do not leak
 into `CardDef`.
 
-**This is a load/determinism check, not the rules test suite.** The full suite (Phase 6)
-does not exist yet.
+**This is a load/determinism check, not the rules test suite.**
+
+The rules test suite now exists and passes:
+
+```
+godot --headless --script res://Scripts/tests/RunTests.gd
+  ChainTests: 27/27 passed
+  TOTAL: 27 passed, 0 failed        RESULT: PASS, exit 0
+```
+
+`ChainTests` covers Spell Speed response legality, chain link numbering, reverse
+resolution order, negate-activation vs negate-effect, the Counter Trap restriction,
+chain-link-number visibility at resolution (needed by Chain Detonation / Chain Healing),
+and loud failure on an unimplemented effect. Full detail and the honest
+not-yet-covered list are in `Reports/TEST_RESULTS.md`.
+
+**Two real defects were caught by these tests**, both type-inference compile failures that
+silently broke `GameState` — see `Reports/TEST_RESULTS.md`. Lesson for future sessions:
+GDScript `:=` cannot infer through an untyped `Array` element; annotate the type explicitly.
+Always run `--import` after adding a new `class_name` script, or Godot will not register it.
 
 ---
 
@@ -276,24 +294,46 @@ None.
 
 ## 8. Next step and architecture map for resumption
 
-**Immediately next (Phase 4):** build the core rules engine in `Scripts/engine/` and
-`Scripts/rules/`, in this order:
+### Already built and verified (Phase 4, part 1)
 
-1. `Scripts/engine/GameEvent.gd` — the semantic event vocabulary from master prompt §63.
-2. `Scripts/engine/GameState.gd` — authoritative state (master prompt §7A): players, LP,
-   turn, phase, all zones, chain state, pending triggers, per-turn counters, RNG, win state.
-   Must expose `get_visible_state(viewer_id)` for hidden-information filtering.
-3. `Scripts/engine/DuelLog.gd` — action/replay log (master prompt §8).
-4. `Scripts/cards/EffectDef.gd` — the effect definition record (master prompt §43), carrying
-   effect id, type, Spell Speed, activation locations, timing, condition/cost/target/resolve
-   callables, once-per-turn key, and `damage_step_permission`.
-5. `Scripts/rules/ChainManager.gd` — chain build/resolve, implementing `RULES_SPEC.md §4`.
-6. `Scripts/rules/TurnFlow.gd` — the Fast Effect Timing state machine, boxes A–E,
-   implementing `RULES_SPEC.md §3` literally.
-7. `Scripts/rules/SummonRules.gd`, `BattleRules.gd`, `DamageStep.gd`, `ContinuousEffects.gd`.
-8. `Scripts/engine/DuelEngine.gd` — the public API from master prompt §68:
+| File | Purpose | Verified |
+|---|---|---|
+| `Scripts/engine/Enums.gd` | zones, phases, damage sub-steps, move reasons, spell speeds, damage-step permissions + rule classifiers | SmokeCheck |
+| `Scripts/engine/Rng.gd` | deterministic seeded Fisher-Yates RNG | SmokeCheck |
+| `Scripts/engine/CardDef.gd` | immutable canonical definition | SmokeCheck |
+| `Scripts/engine/CardInstance.gd` | per-copy state, stats, counters, usage, equip links | SmokeCheck |
+| `Scripts/engine/GameEvent.gd` | the full semantic event vocabulary (master prompt §63) | compiles |
+| `Scripts/engine/PlayerState.gd` | per-player zones, LP, summon allowance, named OPT tracking | compiles |
+| `Scripts/engine/GameState.gd` | authoritative state; `move_card()` with MoveReason; draw/deck-out; LP; `get_visible_state(viewer)` hidden-info filter; `get_public_log()` | compiles |
+| `Scripts/cards/EffectDef.gd` | declarative effect clause record (master prompt §43) | compiles |
+| `Scripts/cards/EffectContext.gd` | what effect callables receive | compiles |
+| `Scripts/rules/ChainLink.gd` | one chain link; targets/costs fixed at activation; link number | **ChainTests** |
+| `Scripts/rules/ChainManager.gd` | chain build/respond/negate/resolve per `RULES_SPEC.md §4` | **ChainTests 27/27** |
+| `Scripts/tests/TestCase.gd`, `RunTests.gd` | headless assertion harness + entry point | in use |
+
+### Immediately next (Phase 4, part 2) — in this order
+
+1. `Scripts/rules/TriggerCollector.gd` — collect trigger effects off a `GameEvent`, then order
+   them per `RULES_SPEC.md §4.4`: turn player mandatory → opponent mandatory → turn player
+   optional → opponent optional, prompting for order within a group and asking before any
+   optional effect fires.
+2. `Scripts/rules/TurnFlow.gd` — the Fast Effect Timing state machine, boxes **A–E**,
+   implementing `RULES_SPEC.md §3` literally. This is the single highest-value correctness
+   component; write its tests alongside it.
+3. `Scripts/rules/SummonRules.gd` — `RULES_SPEC.md §5` (normal/set/tribute/flip/special,
+   position-change restrictions, Tribute counts incl. the `Kaiser Sea Horse` override).
+4. `Scripts/rules/BattleRules.gd` + `DamageStep.gd` — `RULES_SPEC.md §6–7`, including the
+   §7.2 activation restriction and the five damage sub-steps.
+5. `Scripts/rules/ContinuousEffects.gd` — state-derived modifiers/restrictions (§25).
+6. `Scripts/engine/DuelLog.gd` — action/replay log (master prompt §8).
+7. `Scripts/engine/DuelEngine.gd` — the public API (master prompt §68):
    `get_legal_actions`, `get_legal_responses`, `submit_action`, `get_pending_decision`,
    `submit_decision`, `get_visible_state`, `get_public_log`.
+8. `Scripts/engine/PlayerController.gd` — abstraction with a local-human implementation now
+   and a CPU placeholder interface only (master prompt §69).
+
+Register every new suite in `Scripts/tests/RunTests.gd` — suites are listed explicitly so a
+suite that fails to load is a hard error rather than a silent skip.
 
 **Where the rules live:** every subsystem above must cite `Research/RULES_SPEC.md` section
 numbers in comments, and those trace to `RULES_SOURCES.md` S1–S4. Do not re-derive rules.
