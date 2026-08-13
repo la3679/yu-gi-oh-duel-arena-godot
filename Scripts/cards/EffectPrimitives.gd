@@ -622,6 +622,49 @@ static func destroyed_by_battle_condition() -> Callable:
 		return ev.data.get("reason") == Enums.MoveReason.DESTROYED_BY_BATTLE
 
 
+## "If this card is destroyed and sent to the GY" — `Kaiser Glider`.
+##
+## Wider than `destroyed_by_battle_condition()` in one direction and narrower in another:
+## it accepts a destruction by a card effect as well as by battle, and it insists the card
+## actually REACHED the Graveyard. A destruction whose card ends up somewhere else does not
+## satisfy "destroyed **and sent to the GY**". [S1 p.52-53]
+##
+## A rules destruction (`DESTROYED_BY_RULE`, an Equip Card losing its host) is deliberately
+## excluded, exactly as it is from `event_is_destruction_of()`.
+static func destroyed_and_sent_to_gy_condition() -> Callable:
+	return func(ctx: EffectContext) -> bool:
+		var ev: GameEvent = ctx.trigger_event
+		if ev == null or ev.kind != GameEvent.Kind.CARD_SENT_TO_GY:
+			return false
+		if int(ev.data.get("card_id", -1)) != ctx.source.id:
+			return false
+		if Enums.Zone.GRAVEYARD != ev.data.get("to_zone", Enums.Zone.DECK):
+			return false
+		var reason = ev.data.get("reason", null)
+		return reason == Enums.MoveReason.DESTROYED_BY_BATTLE \
+			or reason == Enums.MoveReason.DESTROYED_BY_EFFECT
+
+
+## The monster `card` is currently battling, or null when it is not in a battle.
+##
+## Read from `GameState.current_attacker` / `current_attack_target`, which are both set from
+## attack declaration until `BattleRules.clear_battle()`. That covers damage calculation,
+## which is where a "cannot be destroyed by battle with …" clause is asked
+## (`BattleRules._can_be_destroyed_by_battle`). A direct attack has no opposing monster.
+static func battle_opponent_of(state: GameState, card: CardInstance) -> CardInstance:
+	if state == null or card == null or state.attack_is_direct:
+		return null
+	var attacker = state.current_attacker
+	var defender = state.current_attack_target
+	if attacker == null or defender == null:
+		return null
+	if card == attacker:
+		return defender
+	if card == defender:
+		return attacker
+	return null
+
+
 ## Did `event` report `card_id` LEAVING the field? "Leaves the field" is about the zones
 ## the card moved between, not about why, so this deliberately ignores the MoveReason:
 ## destroyed, banished, returned to the hand and Tributed all leave the field.

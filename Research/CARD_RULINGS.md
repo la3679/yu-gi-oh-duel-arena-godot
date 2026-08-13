@@ -393,6 +393,59 @@ the Attribute requirement instead of from a printed word.
 on the borrowed monster. Flip the Charmer face-down or remove it and control returns immediately;
 turning the *borrowed* monster face-down changes nothing.
 
+### R27 — `A Wingbeat of Giant Dragon`: the return is the EFFECT, and it gates activation
+
+**Decided (Phase 5 batch 7).** Three separate questions, two settled from published rulings and
+one reasoned.
+
+1. **Cost or effect?** — **EFFECT.** The current PSCT text has neither a colon nor a semicolon
+   ("Return 1 Level 5 or higher Dragon-Type monster you control to the hand, and if you do,
+   destroy all Spell and Trap Cards on the field"), so everything in it happens at RESOLUTION,
+   and the published rulings state directly that returning the monster is not a cost.
+   *Confidence: HIGH.* Observable: the Dragon is still on the field while the Chain is being
+   built, so a Chain Link 2 that removes it changes what this card does.
+2. **Does it target?** — **NO.** The word "target" does not appear, and the rulings say so
+   explicitly. The Dragon is chosen at resolution from whatever is legal then.
+   *Confidence: HIGH.*
+3. **Can it be activated with no Level 5 or higher Dragon?** — implemented as **NO**.
+   *Confidence: MEDIUM.* No ruling was found stating it in those words. The reasoning is that
+   the first action is mandatory and definite and "and if you do" makes every remaining word
+   depend on it, so with no Dragon the card can do nothing whatever; the published rulings
+   confirm the dependency direction (a chosen monster that fails to reach the hand — a Fusion
+   Monster that goes to the Extra Deck instead, or one unaffected by Spell Cards — does **not**
+   trigger the destruction). If this is ever shown to be wrong, the fix is to delete the
+   clause's `condition`; nothing else depends on it.
+
+*Sources:* Yugipedia / Yu-Gi-Oh! Wiki card-rulings pages for `A Wingbeat of Giant Dragon`
+(community transcriptions of Konami rulings, **not** an S1–S4 official source — recorded here
+with that caveat rather than presented as official). Consulted 2026-08-13.
+*Tests:* `AWingbeatOfGiantDragonTests` — the clause shape, the resolution-time choice, the
+"no return means no destruction" branch, and both negative candidate directions.
+
+### R28 — a card that destroys "all Spell and Trap Cards on the field" does not destroy itself
+
+**Decided (Phase 5 batch 7). Confidence: MEDIUM.**
+
+`A Wingbeat of Giant Dragon` is a Normal Spell, and a Normal Spell is face-up **on the field**
+while it resolves — the engine only moves it to the Graveyard afterwards, with
+`MoveReason.RESOLVED_TO_GY`. So "destroy all Spell and Trap Cards on the field" raises the
+question of whether it destroys itself.
+
+Implemented as **NO**. Two reasons:
+
+* The published rulings for `Heavy Storm`, whose effect is worded identically ("Destroy all
+  Spell and Trap Cards on the field"), state that it does not destroy itself.
+* Those same rulings state that `Heavy Storm` cannot be activated with no **other** card to
+  destroy — which is only coherent if the card does not count itself. That internal consistency
+  is the stronger half of the argument.
+
+The difference is observable (`last_move_reason` becomes `DESTROYED_BY_EFFECT` instead of
+`RESOLVED_TO_GY`, and a `CARD_DESTROYED` event appears), so it is asserted rather than assumed:
+`AWingbeatOfGiantDragonTests :: it does not destroy itself`.
+
+*Source:* community transcriptions of the `Heavy Storm` rulings, **not** an S1–S4 official
+source. Consulted 2026-08-13. Recorded honestly as reasoned-from-precedent.
+
 ---
 
 ## 5. Banlist note (master prompt §51)
