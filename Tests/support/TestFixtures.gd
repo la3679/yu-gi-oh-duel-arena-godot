@@ -103,7 +103,12 @@ static func trigger_effect(effect_id: String, events: Array, order_log: Array,
 ## that calls `GameState.destroy()` directly changes the board without ever reaching a
 ## trigger check.
 ##
-## `mode` is "destroy" | "banish" | "bounce" | "flip_face_down".
+## `mode` is "destroy" | "banish" | "bounce" | "flip_face_down" | "send_to_gy".
+##
+## "send_to_gy" exists because `GameState.destroy()` correctly refuses a card that is not on
+## the field, so it cannot move a card out of the HAND. A clause keyed on "this face-up card
+## ON THE FIELD is sent to the GY" needs a card reaching the Graveyard from somewhere else
+## in order to be tested negatively.
 static func interferer(card_name: String, victim: CardInstance, mode: String) -> CardDef:
 	var d := trap(card_name)
 	var e := EffectDef.new("interfere", "Test: %s one specific card." % mode)
@@ -121,6 +126,9 @@ static func interferer(card_name: String, victim: CardInstance, mode: String) ->
 			"bounce":
 				ctx.state.move_card(victim, Enums.Zone.HAND,
 					Enums.MoveReason.RETURNED_TO_HAND, {"source_id": ctx.source.id})
+			"send_to_gy":
+				ctx.state.move_card(victim, Enums.Zone.GRAVEYARD,
+					Enums.MoveReason.SENT_TO_GY_BY_EFFECT, {"source_id": ctx.source.id})
 			"flip_face_down":
 				ctx.state.set_battle_position(victim, Enums.Position.FACE_DOWN_DEFENSE,
 					true, ctx.source.id)
@@ -227,6 +235,26 @@ static func activate_card(engine: DuelEngine, pid: int, card: CardInstance,
 		target_ids: Array = []) -> bool:
 	var offered = find_action(engine.get_legal_actions(pid),
 		Enums.ActionKind.ACTIVATE_CARD, card.id)
+	if offered == null:
+		return false
+	var action = offered
+	if not target_ids.is_empty():
+		action = offered.with_choices({"target_ids": target_ids})
+	if not engine.submit_action(action):
+		return false
+	pass_until_open(engine)
+	return true
+
+
+## Activate one EFFECT of a card already on the field (an Ignition or Quick Effect), as
+## opposed to activating the card itself. `Castle of Dragon Souls`, `Sealing Ceremony of
+## Suiton` and `Wonder Balloons` all sit face-up on the field and then activate an effect,
+## which is an `ACTIVATE_EFFECT` action rather than `ACTIVATE_CARD`.
+## Returns false when the activation was not offered or was rejected.
+static func activate_effect(engine: DuelEngine, pid: int, card: CardInstance,
+		effect_id: String, target_ids: Array = []) -> bool:
+	var offered = find_action(engine.get_legal_actions(pid),
+		Enums.ActionKind.ACTIVATE_EFFECT, card.id, effect_id)
 	if offered == null:
 		return false
 	var action = offered

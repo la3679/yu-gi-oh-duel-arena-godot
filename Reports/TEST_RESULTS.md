@@ -1,6 +1,6 @@
 # TEST_RESULTS
 
-**Last run:** 2026-08-12 (Phase 5 batch 3)
+**Last run:** 2026-08-13 (Phase 5 batch 4)
 **Engine:** Godot 4.7.1.stable.official.a13da4feb (headless)
 
 Command:
@@ -33,10 +33,10 @@ The raw command still works and produces the same numbers:
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
 | Core rules tests | 14 | 713 | **713** | 0 |
-| Per-card tests | 15 | 801 | **801** | 0 |
+| Per-card tests | 20 | 1209 | **1209** | 0 |
 | Interaction tests | 1 | 46 | **46** | 0 |
 | Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **30** | **1560** | **1560** | **0** |
+| **TOTAL** | **35** | **1968** | **1968** | **0** |
 
 Per-test assertion counts in this file are **measured**, not counted by hand from source:
 `TestCase` records them per test and `Scripts/tests/DumpAssertionCounts.gd` prints them.
@@ -44,7 +44,7 @@ A suite that loops over nine cards runs many more assertions than it has `t.` ca
 and the earlier hand-written `ShiningAngelTests` breakdown was wrong for exactly that
 reason — it has been corrected against the measurement.
 
-Card library: **23 / 77 implemented, 23 / 77 tested** — computed by `Tools/build_matrix.py`
+Card library: **28 / 77 implemented, 28 / 77 tested** — computed by `Tools/build_matrix.py`
 from `Scripts/cards/registry/*.gd`, the card database's `is_normal` flag and
 `Tests/cards/*.gd`, never by hand.
 
@@ -92,6 +92,11 @@ removed.
 | `NefariousArchfiendTests` | 44 | per-card |
 | `GagagashieldTests` | 63 | per-card |
 | `RiderOfTheStormWindsTests` | 66 | per-card |
+| `CastleOfDragonSoulsTests` | 109 | per-card |
+| `FiendishChainTests` | 74 | per-card |
+| `FiveBrothersExplosionTests` | 67 | per-card |
+| `SealingCeremonyOfSuitonTests` | 73 | per-card |
+| `WonderBalloonsTests` | 85 | per-card |
 | `SpecialSummonInteractionTests` | 46 | interaction |
 
 ### ChainTests — 27/27
@@ -304,7 +309,66 @@ guessed, each now decided against an official source and pinned down.
 
 ## Defects found and fixed by these tests
 
-### This milestone (Phase 5 batch 3 — Continuous-Trap revival, summoning procedures, Equip)
+### This milestone (Phase 5 batch 4 — the remaining Continuous Traps and the Continuous Spell)
+
+**Three engine defects, all of them pre-existing gaps rather than mistakes made this batch.**
+Each was found because a card in this batch is the first card in the pool that needs the
+behaviour, and each is now covered by assertions.
+
+1. **A resolving effect could not see what its own cost had paid.** `ChainManager._resolve_link()`
+   built the resolution `EffectContext` with the targets and the decider but **never copied
+   `ChainLink.cost_payload`**, so `ctx.cost_payload` was always empty at resolution. Every card
+   implemented before this batch happened to have a cost whose size was fixed by the card, so
+   nothing had noticed. `Wonder Balloons` is the first card whose EFFECT is measured by its own
+   COST — "place 1 Balloon Counter on this card **for each card sent to the GY**" — and
+   recounting from the Graveyard is not an option, because the sent cards are indistinguishable
+   from everything else already there. Fixed by carrying the payload forward in `_resolve_link()`.
+   Covered by `WonderBalloonsTests :: "any number" is the player's choice`, which sends three of
+   four cards and asserts exactly three counters.
+
+2. **"You can only control 1" was never checked on any route a SPELL/TRAP takes onto the field.**
+   `SummonRules.control_limit_satisfied()` existed and was consumed by `can_normal_summon_or_set`,
+   `begin_special_summon` and `can_use_summon_procedure` — all three of them **monster** routes.
+   `Castle of Dragon Souls` is the pool's only Spell/Trap carrying the restriction, so its limit
+   was silently unenforced: a second copy could be activated freely. Fixed in
+   `ActivationRules.can_activate()`, which now asks the same question for a non-monster card
+   activation. Setting a second copy stays legal and the limit is re-tested when it is activated
+   — see `Research/CARD_RULINGS.md` R19 for why that is the right reading and not a shortcut.
+   Covered by `CastleOfDragonSoulsTests :: the control limit on a TRAP`.
+
+3. **A continuously-applied negation had no system-owned channel, and applying one would have
+   depended on board iteration order.** `CardInstance.effects_negated` is a plain flag cleared
+   only when a card leaves the field or is flipped face-down; `ContinuousEffects` neither wrote
+   nor cleared it. Had `Fiendish Chain` set it directly, the negation would have outlived its
+   own source — the exact bug the continuous system exists to make impossible. Worse, because
+   `_continuous_sources()` skips negated cards, a single-pass recompute would have given a
+   *different answer depending on which card was walked first*: a monster processed before
+   Fiendish Chain would apply its own continuous effect for that recompute, and one processed
+   after it would not. Fixed with three pieces that belong together:
+   `ContinuousEffects.NEGATION_FLAG` (listed in `RESTRICTION_FLAGS`, so it is wiped and rebuilt
+   like everything else the system owns) written only via `negate_effects()`;
+   `CardInstance.effects_are_negated()` as the single read point, which every rules-layer caller
+   now uses; and a **two-pass** `recompute()` driven by the declarative `EffectDef.negates_effects`
+   marker, so negating clauses run before anything asks whether a source is negated. Covered by
+   `FiendishChainTests :: it negates a CONTINUOUS effect`, which uses a monster whose only effect
+   is continuous and additionally asserts that five recomputes equal one.
+
+No pre-existing **rules** defect was found beyond these three, and that is reported as-is. All
+1560 assertions from the previous milestone still pass unchanged; none was weakened, retargeted
+or deleted.
+
+Two test-authoring mistakes cost a cycle and are worth recording:
+
+* `GameState.destroy()` correctly refuses a card that is **not on the field**, so
+  `TestFixtures.interferer(..., "destroy")` cannot move a card out of the HAND. A clause keyed on
+  "this face-up card **on the field** is sent to the GY" needs a card reaching the Graveyard from
+  somewhere else to be tested negatively; a `"send_to_gy"` mode was added for exactly that.
+* Continuous effects are recomputed by the engine at every timing point, so a board arranged
+  **directly** through `TestFixtures.give_*` has not had one yet. A baseline assertion about a
+  continuous effect taken before any engine action reads the un-recomputed value and fails
+  confusingly.
+
+### Previous milestone (Phase 5 batch 3 — Continuous-Trap revival, summoning procedures, Equip)
 
 Three defects, two of them in engine code written during this batch and caught before the
 cards that depend on it were written, one a genuine gap in the pre-existing engine.
@@ -454,7 +518,7 @@ No test expectation was weakened to make the implementation pass.
 
 ## Known issues in the harness (not rules defects)
 
-* The run reports `50075 ObjectDB instances were leaked at exit`. These are RefCounted
+* The run reports `61457 ObjectDB instances were leaked at exit`. These are RefCounted
   reference cycles between `GameState`, `DuelLog` (connected signal) and the closures the
   tests capture. The count grows with the number of duels the suite builds. It does not
   affect any rules outcome and does not fail the suite, but it must be cleaned up before
@@ -470,20 +534,27 @@ No test expectation was weakened to make the implementation pass.
 
 ## Not yet covered (required by master prompt §64 — tracked, not claimed)
 
-**A. Core rules** — still missing: **simultaneous-LP-zero draws**. Equip mechanics were
-on this list and are now covered end to end by `EquipTests` (83 assertions), together with
+**A. Core rules** — still missing: **simultaneous-LP-zero draws**. Effect damage (as
+opposed to battle damage), banishing as a COST, continuous negation of another card's effects,
+and a turn-scoped ATK modifier that outlives its source were on this list and are now covered by
+batch 4. Equip mechanics were on this list
+and are now covered end to end by `EquipTests` (83 assertions), together with
 destruction prevention and destruction replacement. GY-activated effects were on it too and
 are now exercised by `Inari Fire`, `Ranryu` and `Nefarious Archfiend Eater of
 Nefariousness`. Special Summon execution, piercing battle damage and the duel log / replay
 payload were covered in the previous milestone.
 
-**B. Per-card** — **23 of 77** cards implemented and tested: the 9 vanilla Normal
-Monsters, `Shining Angel`, the first Special Summon batch (`Monster Reborn`,
-`Silver's Cry`, `Kaibaman`, `Dragonic Tactics`, `One for One`) and batch 3 (`Birthright`,
-`Call of the Haunted`, `Hieratic Dragon of Tefnuit`, `Inari Fire`, `Ranryu`,
-`Nefarious Archfiend Eater of Nefariousness`, `Gagagashield`,
-`Rider of the Storm Winds`). The other 54 are honestly reported as `NOT_IMPLEMENTED` /
+**B. Per-card** — **28 of 77** cards implemented and tested: the 9 vanilla Normal
+Monsters, `Shining Angel`, the first Special Summon batch (`Monster Reborn`, `Silver's Cry`,
+`Kaibaman`, `Dragonic Tactics`, `One for One`), batch 3 (`Birthright`, `Call of the Haunted`,
+`Hieratic Dragon of Tefnuit`, `Inari Fire`, `Ranryu`, `Nefarious Archfiend Eater of
+Nefariousness`, `Gagagashield`, `Rider of the Storm Winds`) and batch 4 (`Castle of Dragon
+Souls`, `Fiendish Chain`, `Five Brothers Explosion`, `Sealing Ceremony of Suiton`,
+`Wonder Balloons`). The other **49** are honestly reported as `NOT_IMPLEMENTED` /
 `NOT_TESTED` in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`.
+
+With batch 4 the pool's **Continuous Spell/Trap group is complete**: all 6 Continuous Traps and
+the single Continuous Spell are implemented and tested.
 
 ### ShiningAngelTests — 43/43
 `Tests/cards/ShiningAngelTests.gd`. The first per-card suite, and the shape every later
@@ -705,6 +776,98 @@ monster that equips **itself**.
 | **destruction replacement in battle** | 6 | the equipped monster survives a losing battle and the battle damage is still inflicted |
 | the host leaving the field | 4 | banished host ⇒ Rider destroyed by `DESTROYED_BY_RULE`, not by the replacement clause |
 
+---
+
+## Phase 5 batch 4 — the remaining Continuous Traps and the Continuous Spell
+
+All per-test counts below are **measured** by `Scripts/tests/DumpAssertionCounts.gd`.
+
+### CastleOfDragonSoulsTests — 109/109
+`Tests/cards/CastleOfDragonSoulsTests.gd`. Research/CARD_RULINGS.md R19. The card was
+mis-grouped as an Equip card in an earlier plan; it is a **Continuous Trap** and equips nothing.
+
+| Test | Asserts | What it proves |
+|---|---:|---|
+| the clause shape | 24 | four EffectDefs for three printed clauses — the fourth is the Trap's own activation, which has no printed effect; an Ignition Effect at Spell Speed 1, never a fast effect, Main Phases only; the control limit is found by effect id |
+| **the banish is a COST** | 10 | `CARD_BANISHED` and not `CARD_SENT_TO_GY` [S1 p.53]; the target gains 700 while its printed and **original** ATK are untouched |
+| **the cost survives negation** | 8 | already paid before any response window opened, and not refunded when Chain Link 2 removes the target |
+| the cost filter | 5 | a **Wyrm** named "... Dragon" does not qualify, nor does a Dragon in the opponent's GY, with a positive control |
+| **the boost survives its own source leaving the field** | 7 | the parenthesis "(even if this card leaves the field)" — exactly one modifier, carried by the `end_of_turn` duration rather than the continuous one, where a continuous modifier would have vanished |
+| the boost expires at the end of the turn | 6 | back to printed ATK with no stale modifier |
+| once per turn | 7 | a second use is refused even with a Dragon left to pay with; the use returns |
+| the target filter | 6 | "1 monster you control" reaches a **face-down** one and not the opponent's; a forged activation is rejected |
+| **sent to the GY recovers a banished Dragon** | 9 | including the very Dragon this card banished as its own cost; properly Special Summoned, and the position is the player's choice |
+| banished rather than sent to the GY | 5 | a banished Castle never reaches the Graveyard, so nothing fires and nobody is asked [S1 p.53] |
+| **never face-up on the field** | 7 | a copy sent from the HAND does not fire the clause, with a positive control on the same board showing a field copy does |
+| declining | 5 | asked, said no, the Dragon stays banished |
+| **the control limit on a TRAP** | 10 | two Set copies are both activatable; once one is face-up the other is refused, hand-built included; the opponent is unaffected; destroying the first lifts it |
+
+### FiendishChainTests — 74/74
+`Tests/cards/FiendishChainTests.gd`. The pool's first CONTINUOUS NEGATION.
+
+| Test | Asserts | What it proves |
+|---|---:|---|
+| the clause shape | 15 | three EffectDefs; the continuous clause declares `negates_effects`, which is what orders the recompute |
+| the target filter | 7 | a Normal Monster and a **face-down** monster are both illegal targets — whether a face-down monster is an Effect Monster is not something either player may act on; both players' face-up Effect Monsters are legal |
+| it negates an activated effect | 8 | `Kaibaman`'s Ignition Effect stops being offered, a hand-built activation is rejected, and nothing was Tributed; negation goes through the continuous channel rather than overwriting the one-shot flag |
+| **it negates a CONTINUOUS effect** | 7 | the two-pass recompute: a monster whose own effect is continuous loses it, and five recomputes equal one |
+| the attack lock | 6 | the flag is on the monster, the attack disappears, another monster attacks freely, a hand-built attack is refused |
+| the negation ends with this card | 7 | destroy Fiendish Chain and both halves lift together — they are one clause |
+| flipped face-down | 6 | "that FACE-UP monster" stops applying, and Fiendish Chain is **not** destroyed: being flipped face-down is not being destroyed |
+| **the monster being destroyed destroys this card** | 5 | and the link is cleared so nothing fires twice |
+| **the monster being banished does NOT** | 6 | "is destroyed" is narrower than "leaves the field" [S1 p.52-53]; the Trap stays face-up with nothing to negate |
+| a target that left before resolution | 7 | Chain Link 2 removes it; the Trap resolves, stays on the field, and holds no stale reference |
+
+### FiveBrothersExplosionTests — 67/67
+`Tests/cards/FiveBrothersExplosionTests.gd`. Research/CARD_RULINGS.md R16.
+
+| Test | Asserts | What it proves |
+|---|---:|---|
+| the clause shape | 13 | two printed clauses, two EffectDefs — this card's activation genuinely has a printed effect; the second clause is MANDATORY |
+| **it counts itself** | 5 | activation places it face-up on the field, so it is one of the cards it counts [S1 p.28-30] |
+| it counts every Continuous card you control | 6 | a Continuous Spell and a Continuous Trap both count; a Normal Trap and the opponent's do not |
+| **a SET Continuous Trap is not counted** | 7 | with the same card, once face-up, as the positive control (R16) |
+| **the opponent's effect burns** | 9 | 500 damage per Continuous Spell/Trap in your Graveyard; your own LP untouched |
+| your own effect does not | 5 | "by your OPPONENT'S card effect" — the agent is read from the movement's source |
+| banished does not | 7 | "sent to your GRAVEYARD" — a banish inflicts nothing [S1 p.53] |
+| the Graveyard count | 6 | a Normal Trap, a monster and the opponent's Continuous Trap are all excluded; exactly 3 counted |
+| **effect damage can end the Duel** | 9 | LP floored at 0, the result and end reason recorded [S1 p.33] |
+
+### SealingCeremonyOfSuitonTests — 73/73
+`Tests/cards/SealingCeremonyOfSuitonTests.gd`. The mirror image of `Castle of Dragon Souls`:
+here the banish is the EFFECT and the send is the cost.
+
+| Test | Asserts | What it proves |
+|---|---:|---|
+| the clause shape | 15 | two EffectDefs; an Ignition Effect at Spell Speed 1 with a real cost checked before the activation is offered |
+| sends and banishes | 8 | the WATER monster reaches the **owner's** Graveyard, the target is banished and still owned by the opponent |
+| **a send is not a discard** | 6 | `SENT_AS_COST`, explicitly not `DISCARDED`, still "sent to the GY" and not a destruction; exactly one card was sent — the banished one was not |
+| "1 CARD" in their GY | 7 | a Spell and a Trap are legal targets too |
+| only the opponent's Graveyard | 6 | with a positive control; a hand-built activation on your own card is rejected |
+| the cost filter | 5 | an EARTH monster in hand and a WATER monster in your **Graveyard** both fail; a WATER monster in hand succeeds |
+| **the cost survives negation** | 7 | paid before the opponent could respond, not refunded when Chain Link 2 removes the target |
+| a target that left the Graveyard | 6 | returned to the hand by Chain Link 2 and **not** chased there |
+| once per turn is per COPY | 9 | a second copy has its own use; the first copy's use returns next turn |
+| outside the Main Phases | 4 | absent in the Battle Phase, present again in Main Phase 2 [S1 p.10] |
+
+### WonderBalloonsTests — 85/85
+`Tests/cards/WonderBalloonsTests.gd`. The V1 pool's only **Continuous Spell**, and the first
+card to actually drive the counter engine that `CounterTests` built.
+
+| Test | Asserts | What it proves |
+|---|---:|---|
+| the clause shape | 17 | three EffectDefs; Continuous Spell at Spell Speed 1, activatable from hand or a Set copy |
+| one card in hand | 6 | with a single candidate and a minimum of one there is nothing to ask; `SENT_AS_COST`, one counter |
+| **"any number" is the player's choice** | 8 | three of four cards sent, three counters placed, the fourth kept — a count `choose_n` cannot express |
+| any **card**, not just monsters | 6 | a Spell and a Trap in hand are legal to send |
+| counters accumulate | 7 | a second turn's use adds to the first rather than replacing it |
+| **the drain scales with the counters** | 11 | -300 per counter; five recomputes equal one; exactly one modifier entry; 3 counters give -900 |
+| only the opponent | 5 | your own monsters untouched; **every** monster they control, face-down included |
+| **ATK floors at 0** | 5 | 300 - 900 is 0, not -600, and the ORIGINAL ATK is untouched |
+| the drain ends with the card | 7 | destroyed gives no modifier, and its counters were cleared when it left the field |
+| an empty hand cannot pay | 5 | "any number" still has a minimum of one; hand-built rejected; one card is enough |
+| once per turn | 8 | refused even with cards left to send; the use returns |
+
 **C. Interaction** — `SpecialSummonInteractionTests` (46). Everything else, not yet.
 
 ### SpecialSummonInteractionTests — 46/46
@@ -739,5 +902,5 @@ purpose: a card is only counted as TESTED because it has its own suite.
   `Rider of the Storm Winds` grants piercing. Both branches are now tested.
 
 Coverage is reported honestly here and in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`
-(**23 / 77 implemented, 23 / 77 tested**). No test result in this file is estimated or
+(**28 / 77 implemented, 28 / 77 tested**). No test result in this file is estimated or
 projected.

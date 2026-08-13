@@ -212,7 +212,7 @@ static func can_activate(state: GameState, card: CardInstance, effect: EffectDef
 		return false
 	if not effect.starts_chain:
 		return false
-	if card.effects_negated:
+	if card.effects_are_negated():
 		return false
 	if not location_ok(card, effect):
 		return false
@@ -232,6 +232,17 @@ static func can_activate(state: GameState, card: CardInstance, effect: EffectDef
 	if effect.effect_type == Enums.EffectType.CARD_ACTIVATION \
 			and card.zone == Enums.Zone.HAND \
 			and not _has_room_to_activate(state, card, controller_id):
+		return false
+
+	# "You can only control 1 '<name>'." — until now this was only asked on the routes a
+	# MONSTER takes onto the field, so a Spell/Trap carrying the same restriction
+	# (`Castle of Dragon Souls`) was unrestricted. Activating a Spell/Trap is what puts it
+	# face-up on the field, so that is where the limit has to be enforced for one.
+	# Setting a second copy stays legal: a Set card has not been activated, and the limit is
+	# re-tested if and when it is. [S1 p.53 "Control"]
+	if effect.effect_type == Enums.EffectType.CARD_ACTIVATION \
+			and not card.is_monster() \
+			and not SummonRules.control_limit_satisfied(state, card, controller_id):
 		return false
 
 	var ctx := make_context(state, card, effect, controller_id, trigger_event)
@@ -257,7 +268,7 @@ static func can_use_summon_procedure(state: GameState, card: CardInstance,
 		return false
 	if effect.effect_type != Enums.EffectType.SUMMON_PROCEDURE:
 		return false
-	if card.effects_negated:
+	if card.effects_are_negated():
 		return false
 	if not card.is_monster():
 		return false

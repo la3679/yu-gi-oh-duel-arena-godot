@@ -121,6 +121,24 @@ func is_trap() -> bool:
 	return definition != null and definition.is_trap()
 
 
+## Are this card's effects negated right now?
+##
+## Two independent channels feed this and they must not be collapsed into one variable:
+##
+##   * `effects_negated` is a one-shot negation written by whatever caused it and cleared
+##     when the card leaves the field or is flipped face-down;
+##   * `ContinuousEffects.NEGATION_FLAG` is written by a CONTINUOUS clause that negates
+##     ("negate the effects of that face-up monster while it is on the field" —
+##     `Fiendish Chain`). It is owned by the continuous system, wiped on every recompute
+##     and rebuilt from the board, so it switches off by itself the moment its source
+##     stops applying. Nothing outside `ContinuousEffects` may write it.
+##
+## Every rules-layer question about negation goes through this method, never through the
+## raw variable, so a continuously negated card is negated everywhere.
+func effects_are_negated() -> bool:
+	return effects_negated or bool(flags.get(ContinuousEffects.NEGATION_FLAG, false))
+
+
 func is_face_up() -> bool:
 	return Enums.is_face_up(position)
 

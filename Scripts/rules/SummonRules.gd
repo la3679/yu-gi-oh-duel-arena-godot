@@ -55,7 +55,7 @@ func tributes_required(card: CardInstance) -> int:
 func tribute_value(material: CardInstance, summoned: CardInstance) -> int:
 	if material == null or material.definition == null:
 		return 1
-	if material.effects_negated:
+	if material.effects_are_negated():
 		return 1
 	for effect in material.definition.effects:
 		if effect.effect_id != TRIBUTE_VALUE_EFFECT_ID:
@@ -78,7 +78,7 @@ func tribute_value(material: CardInstance, summoned: CardInstance) -> int:
 ## needing a SummonRules instance. There is deliberately only one implementation.
 static func control_limit_satisfied(p_state: GameState, card: CardInstance,
 		controller_id: int) -> bool:
-	if card == null or card.definition == null or card.effects_negated:
+	if card == null or card.definition == null or card.effects_are_negated():
 		return true
 	for effect in card.definition.effects:
 		if effect.effect_id != CONTROL_LIMIT_EFFECT_ID:

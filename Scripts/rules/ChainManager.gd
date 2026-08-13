@@ -249,6 +249,11 @@ func _resolve_link(link: ChainLink, decider) -> void:
 	ctx.decider = decider
 	ctx.engine = engine
 	ctx.chosen_target_ids = link.target_ids.duplicate()
+	# What the COST actually consumed, carried forward from activation. A clause whose
+	# effect is measured by its own cost — `Wonder Balloons`' "place 1 Balloon Counter on
+	# this card FOR EACH card sent to the GY" — cannot be resolved without it, and a cost is
+	# never re-inspected or recomputed at resolution. RULES_SPEC.md 10.
+	ctx.cost_payload = link.cost_payload.duplicate()
 
 	effect.resolve.call(ctx)
 

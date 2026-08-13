@@ -16,6 +16,15 @@ extends RefCounted
 ## LEAVES the field — which is when `flags` has already been cleared. RULES_SPEC.md 15.
 const REVIVED_MONSTER_KEY := "revived_monster"
 
+## Memory key used by a Continuous card that stays attached to the monster it TARGETED at
+## activation (`Fiendish Chain`). The Chain Link that carried the target is gone by the time
+## the continuous clause runs, so the link has to outlive it. RULES_SPEC.md 15.
+const AFFLICTED_MONSTER_KEY := "afflicted_monster"
+
+## Cost payload key used by every cost in this file, so a resolution that is measured by
+## what its cost consumed reads one well-known name. RULES_SPEC.md 10.
+const COST_CARDS_KEY := "cost_cards"
+
 
 # ---------------------------------------------------------------------------
 # Searching zones
@@ -375,6 +384,79 @@ static func pay_send_to_gy_cost(ctx: EffectContext, candidates: Array, count: in
 	return paid
 
 
+## "Banish 1 Dragon monster from your GY" as an activation COST.
+##
+## Deliberately NOT `pay_send_to_gy_cost` with a different zone: banishing is not sending
+## to the Graveyard [S1 p.53], it emits `CARD_BANISHED` rather than `CARD_SENT_TO_GY`, and a
+## banished card is reachable by the clauses that say "banished" and by nothing else. A cost
+## is all-or-nothing, so this returns [] rather than a partial payment.
+static func pay_banish_cost(ctx: EffectContext, candidates: Array, count: int,
+		prompt: String) -> Array:
+	var chosen := choose_n(ctx, candidates, count, Enums.DecisionKind.CHOOSE_COST, prompt)
+	if chosen.size() != count:
+		return []
+	var paid: Array = []
+	for entry in chosen:
+		var card: CardInstance = entry
+		if not ctx.state.move_card(card, Enums.Zone.BANISHED, Enums.MoveReason.BANISHED,
+				{"source_id": ctx.source.id}):
+			push_error("EffectPrimitives.pay_banish_cost: could not banish %s"
+				% card.card_name())
+			return paid
+		paid.append(card)
+	return paid
+
+
+## "Send ANY NUMBER of cards from your hand to the GY" as an activation COST.
+##
+## `choose_n` cannot express this: the count is the player's, not the card's. The minimum is
+## ONE, not zero — "any number" still has to send something for the clause to have been
+## paid, and `Wonder Balloons` measures its own effect by how many were sent, so a payment
+## of nothing would resolve to nothing. Returns [] when the cost could not be paid at all.
+static func pay_send_any_number_to_gy_cost(ctx: EffectContext, candidates: Array,
+		prompt: String) -> Array:
+	if candidates.is_empty():
+		return []
+	var options: Array = []
+	for entry in candidates:
+		var card: CardInstance = entry
+		options.append(card.id)
+
+	var chosen: Array = []
+	if options.size() == 1:
+		# One candidate and a minimum of one: there is nothing to decide.
+		chosen = candidates.duplicate()
+	else:
+		var request := DecisionRequest.select(Enums.DecisionKind.CHOOSE_COST,
+			ctx.controller_id, prompt, options, 1, options.size(), ctx.source, ctx.effect)
+		var answer = ctx.ask(request)
+		if not request.validate(answer):
+			push_error("EffectPrimitives.pay_send_any_number_to_gy_cost: invalid selection for %s"
+				% ctx.source.card_name())
+			return []
+		for value in (answer as Array):
+			chosen.append(ctx.state.instance(int(value)))
+
+	var paid: Array = []
+	for entry in chosen:
+		var card: CardInstance = entry
+		if not ctx.state.move_card(card, Enums.Zone.GRAVEYARD,
+				Enums.MoveReason.SENT_AS_COST, {"source_id": ctx.source.id}):
+			push_error("EffectPrimitives.pay_send_any_number_to_gy_cost: could not send %s"
+				% card.card_name())
+			return paid
+		paid.append(card)
+	return paid
+
+
+## How many cards a cost recorded under `COST_CARDS_KEY` actually consumed, read at
+## RESOLUTION from the Chain Link's payload. Never recomputed from the board: the cards are
+## already in the Graveyard and indistinguishable from anything else there.
+static func cost_card_count(ctx: EffectContext) -> int:
+	var ids = ctx.cost_payload.get(COST_CARDS_KEY, null)
+	return (ids as Array).size() if ids is Array else 0
+
+
 ## Record what a cost consumed on the context, so the Chain Link carries it and the duel
 ## log can show what was actually paid.
 static func record_cost(ctx: EffectContext, key: String, cards: Array) -> void:
@@ -433,6 +515,132 @@ static func event_is_destruction_of(event: GameEvent, card_id: int) -> bool:
 		or reason == Enums.MoveReason.DESTROYED_BY_EFFECT
 
 
+## "When this FACE-UP card ON THE FIELD is sent to the GY" — `Castle of Dragon Souls`,
+## `Five Brothers Explosion`.
+##
+## Three separate requirements, and dropping any one of them widens the clause:
+##   * it must be a "sent to the GY" movement, which `CARD_SENT_TO_GY` already encodes
+##     (a BANISHED card is not sent to the GY [S1 p.53], and neither is a bounced one);
+##   * it must have come FROM the field, so a copy discarded from the hand does not fire it;
+##   * it must have been FACE-UP, which is only answerable from `CardInstance.last_move_*`
+##     because the move itself turns a card in the Graveyard face-up. RULES_SPEC.md 15.
+static func event_is_sent_to_gy_from_face_up_field(event: GameEvent,
+		card: CardInstance) -> bool:
+	if event == null or event.kind != GameEvent.Kind.CARD_SENT_TO_GY:
+		return false
+	if card == null or int(event.data.get("card_id", -1)) != card.id:
+		return false
+	var from_zone: Enums.Zone = event.data.get("from_zone", Enums.Zone.DECK)
+	if not Enums.is_on_field_zone(from_zone):
+		return false
+	return card.last_move_was_face_up
+
+
+## Was the movement `event` reports caused by a card effect belonging to `pid`?
+##
+## "by your OPPONENT'S CARD EFFECT" (`Five Brothers Explosion`) is two questions, not one:
+## the movement has to be an EFFECT — battle destruction and a rules destruction are not —
+## and the card that caused it has to be one that player controls. The agent is read from
+## the move's `source_id`; a movement with no source (a rules movement) belongs to nobody.
+static func event_caused_by_effect_of(state: GameState, event: GameEvent,
+		pid: int) -> bool:
+	if event == null:
+		return false
+	var reason = event.data.get("reason", null)
+	if reason != Enums.MoveReason.DESTROYED_BY_EFFECT \
+			and reason != Enums.MoveReason.SENT_TO_GY_BY_EFFECT:
+		return false
+	var source_id := int(event.data.get("source_id", -1))
+	if source_id == -1:
+		return false
+	var agent = state.instance(source_id)
+	if agent == null:
+		return false
+	return (agent as CardInstance).controller_id == pid
+
+
+# ---------------------------------------------------------------------------
+# Temporary stat changes
+# ---------------------------------------------------------------------------
+
+## "It gains N ATK until the end of this turn (even if this card leaves the field)."
+##
+## This is NOT a continuous modifier. A continuous modifier is state-derived and vanishes
+## the instant its source stops applying, which is the exact opposite of what this clause
+## says. It is a one-off modifier with the turn-scoped `"end_of_turn"` duration, which
+## `TurnFlow._end_of_turn_cleanup()` removes from every instance when the turn ends —
+## whoever's turn it was, and whether or not the source is still on the field.
+## RULES_SPEC.md 8.
+static func gain_atk_until_end_of_turn(ctx: EffectContext, card: CardInstance,
+		amount: int) -> bool:
+	if card == null or amount == 0:
+		return false
+	card.add_atk_modifier(ctx.source.id, amount, "end_of_turn",
+		"%d:%s:end_of_turn:%d" % [ctx.source.id, ctx.effect.effect_id,
+			ctx.state.turn_number])
+	return true
+
+
+# ---------------------------------------------------------------------------
+# Banishing as an EFFECT (not as a cost — see pay_banish_cost)
+# ---------------------------------------------------------------------------
+
+## "Banish that target." Resolution-time, so the target is re-checked first: a card that
+## already left `required_zone` is no longer a legal thing to banish and the clause simply
+## does nothing to it. Master prompt 44.
+static func banish_target(ctx: EffectContext, required_zone: Enums.Zone) -> CardInstance:
+	var target := surviving_target(ctx, required_zone)
+	if target == null:
+		ctx.log_note("the target is no longer where the clause needs it")
+		return null
+	if not ctx.state.move_card(target, Enums.Zone.BANISHED, Enums.MoveReason.BANISHED,
+			{"source_id": ctx.source.id}):
+		ctx.log_note("the banish did not happen")
+		return null
+	return target
+
+
+# ---------------------------------------------------------------------------
+# Counting Continuous Spell/Trap Cards. `Five Brothers Explosion`.
+# ---------------------------------------------------------------------------
+
+static func is_continuous_spell_or_trap(card: CardInstance) -> bool:
+	if card == null or card.definition == null:
+		return false
+	var kind: Enums.STKind = card.definition.st_kind
+	return kind == Enums.STKind.CONTINUOUS_SPELL or kind == Enums.STKind.CONTINUOUS_TRAP
+
+
+## "Each Continuous Spell/Trap Card you control."
+##
+## FACE-UP only. A Set Spell/Trap Card is face-down, and a face-down card's specific
+## subtype is not a property either player may act on — the same reasoning that stops a
+## clause reading "1 Effect Monster on the field" from reaching a face-down monster. A card
+## activated this turn counts: activation is what put it face-up on the field [S1 p.28-30],
+## which is why `Five Brothers Explosion` counts ITSELF when its own activation resolves.
+## Recorded as a decision in Research/CARD_RULINGS.md R16.
+static func continuous_spell_traps_controlled(state: GameState, pid: int) -> Array:
+	var out: Array = []
+	for entry in state.player(pid).controlled_cards():
+		var card: CardInstance = entry
+		if not card.is_face_up():
+			continue
+		if is_continuous_spell_or_trap(card):
+			out.append(card)
+	return out
+
+
+## "Each Continuous Spell/Trap Card in your Graveyard." Every card in a Graveyard is public
+## and face-up, so unlike the field version there is nothing to filter on visibility.
+static func continuous_spell_traps_in_graveyard(state: GameState, pid: int) -> Array:
+	var out: Array = []
+	for entry in state.player(pid).graveyard:
+		var card: CardInstance = entry
+		if is_continuous_spell_or_trap(card):
+			out.append(card)
+	return out
+
+
 # ---------------------------------------------------------------------------
 # Continuous-Trap revival links. RULES_SPEC.md 15.
 #
@@ -454,6 +662,22 @@ static func revived_monster(ctx: EffectContext) -> CardInstance:
 
 static func clear_revival_link(ctx: EffectContext) -> void:
 	ctx.state.forget(ctx.source, REVIVED_MONSTER_KEY)
+
+
+## The monster a Continuous card TARGETED at activation and stays attached to
+## (`Fiendish Chain`). Separate from the revival link on purpose: this card did not Summon
+## the monster and must never be confused with one that did.
+static func link_afflicted_monster(ctx: EffectContext, monster: CardInstance) -> void:
+	ctx.state.remember(ctx.source, AFFLICTED_MONSTER_KEY, monster.id)
+
+
+static func afflicted_monster(ctx: EffectContext) -> CardInstance:
+	var linked = ctx.state.recall_card(ctx.source, AFFLICTED_MONSTER_KEY)
+	return linked as CardInstance if linked != null else null
+
+
+static func clear_afflicted_link(ctx: EffectContext) -> void:
+	ctx.state.forget(ctx.source, AFFLICTED_MONSTER_KEY)
 
 
 ## "Activate this card by targeting 1 <...> in your GY; Special Summon that target in
@@ -506,12 +730,26 @@ static func destroy_self(ctx: EffectContext) -> bool:
 # ---------------------------------------------------------------------------
 
 ## "You can only control 1 '<name>'." A hard limit on how many copies may be on the field
-## at once, checked as part of the summoning procedure's condition [S1 p.53 "Control"].
-## Face-down copies count: they are still cards you control.
+## at once [S1 p.53 "Control"].
+##
+## A face-down MONSTER counts. It occupies a Monster Zone, it is fully in play, and it is
+## unambiguously a monster you control — which is why `Inari Fire` and `Ranryu` are blocked
+## by a Set copy.
+##
+## A face-down SPELL/TRAP does not. A Set Spell/Trap has not been activated, applies none of
+## its text and is not yet in play as that card; the same reasoning that keeps a face-down
+## card out of every other clause worded by specific card type. The alternative reading
+## makes the restriction incoherent for a Trap: holding two Set copies of
+## `Castle of Dragon Souls` would forbid activating EITHER of them, and the card would
+## become unplayable the moment you drew a second one. The limit is therefore re-tested at
+## the moment a Spell/Trap is activated, which is when the second copy would actually reach
+## the field face-up. Recorded as a decision in Research/CARD_RULINGS.md R19.
 static func controls_no_other_copy(ctx: EffectContext) -> bool:
 	for entry in ctx.me().controlled_cards():
 		var card: CardInstance = entry
-		if card != ctx.source and card.card_name() == ctx.source.card_name():
+		if card == ctx.source or card.card_name() != ctx.source.card_name():
+			continue
+		if card.is_monster() or card.is_face_up():
 			return false
 	return true
 

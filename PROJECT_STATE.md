@@ -3,22 +3,27 @@
 > Persistent resume file. A new Claude Code session should read **this file first**,
 > then read only the targeted files named in §8. Do **not** recursively reread the repository.
 
-**Last updated:** 2026-08-12
+**Last updated:** 2026-08-13
 **Current phase:** **Phase 5 — the card effect library.** Phases 0–4 are complete and
 Gate B (the generic rules engine) is MET; nothing in Phase 4 needs revisiting.
-**Phase 5 progress:** batches 1-3 are complete — the registry and effect primitives,
+**Phase 5 progress:** batches 1-4 are complete — the registry and effect primitives,
 `Shining Angel`, the **9 vanilla Normal Monsters**, the **resolution-time Special Summon
-batch** (`Monster Reborn`, `Silver's Cry`, `Kaibaman`, `Dragonic Tactics`, `One for One`)
-and **batch 3**: the two Continuous-Trap revivals (`Birthright`, `Call of the Haunted`),
+batch** (`Monster Reborn`, `Silver's Cry`, `Kaibaman`, `Dragonic Tactics`, `One for One`),
+**batch 3**: the two Continuous-Trap revivals (`Birthright`, `Call of the Haunted`),
 the four summoning-procedure monsters (`Hieratic Dragon of Tefnuit`, `Inari Fire`,
 `Ranryu`, `Nefarious Archfiend Eater of Nefariousness`) and the first Equip-card group
-(`Gagagashield`, `Rider of the Storm Winds`) — **23 / 77 implemented, 23 / 77 tested**.
-**Nothing in batch 3 is partial, unverified or approximated:** every card listed above has
-its own suite and passes it in full. **54 unique playable cards remain.**
+(`Gagagashield`, `Rider of the Storm Winds`), and **batch 4**: the remaining Continuous
+Traps and the Continuous Spell (`Castle of Dragon Souls`, `Fiendish Chain`,
+`Five Brothers Explosion`, `Sealing Ceremony of Suiton`, `Wonder Balloons`)
+— **28 / 77 implemented, 28 / 77 tested**.
+**Nothing in batch 4 is partial, unverified or approximated:** every card listed above has
+its own suite and passes it in full. **49 unique playable cards remain.**
+With batch 4 the pool's **Continuous Spell/Trap group is complete** (all 6 Continuous Traps
+plus the single Continuous Spell).
 **Overall status:** IN PROGRESS — **not** acceptance-complete.
-**HEAD at checkpoint:** `3c1cc40` (the Phase 5 batch-3 commit follows it)
-**Measured suite at checkpoint:** **1560 passed / 0 failed** across **30 suites**
-(713 core rules + 801 per-card + 46 interaction); SmokeCheck **PASS**.
+**HEAD at checkpoint:** `565ae0c` (the Phase 5 batch-4 commit follows it)
+**Measured suite at checkpoint:** **1968 passed / 0 failed** across **35 suites**
+(713 core rules + 1209 per-card + 46 interaction); SmokeCheck **PASS**.
 
 ---
 
@@ -182,7 +187,7 @@ Key research outputs:
 
 ## 4. Build/verification status
 
-Last verified run (2026-08-12, at commit `3c1cc40` plus the Phase 5 batch-3 work):
+Last verified run (2026-08-13, at commit `565ae0c` plus the Phase 5 batch-4 work):
 
 ```
 powershell -File Tools\run_tests.ps1 SmokeCheck  -> SMOKE CHECK: PASS
@@ -203,14 +208,18 @@ powershell -File Tools\run_tests.ps1 RunTests
   DragonicTacticsTests:39/39      NefariousArchfiendTests:      44/44
   OneForOneTests:      40/40      GagagashieldTests:            63/63
                                   RiderOfTheStormWindsTests:    66/66
+  --- batch 4 (Phase 5) ---
+  CastleOfDragonSoulsTests:     109/109   SealingCeremonyOfSuitonTests: 73/73
+  FiendishChainTests:            74/74    WonderBalloonsTests:          85/85
+  FiveBrothersExplosionTests:    67/67
   --- interaction (Phase 5) ---
   SpecialSummonInteractionTests: 46/46
-  TOTAL: 1560 passed, 0 failed (1560 assertions across 30 suites)
+  TOTAL: 1968 passed, 0 failed (1968 assertions across 35 suites)
   RESULT: PASS
 ```
 
-**1560 / 1560 passing. These numbers were actually produced by the command above; they
-are not estimates.** All 1016 earlier assertions still pass unchanged — none was weakened,
+**1968 / 1968 passing. These numbers were actually produced by the command above; they
+are not estimates.** All 1560 earlier assertions still pass unchanged — none was weakened,
 retargeted or deleted. Per-suite detail and the honest not-yet-covered list live in
 `Reports/TEST_RESULTS.md`.
 
@@ -236,6 +245,33 @@ Two things it handles that cost real time to discover:
 2. A suite that fails to **compile** makes `RunTests._initialize()` throw before it can
    call `quit()`, so the headless SceneTree runs forever at near-zero CPU. The runner does
    a `--check-only` parse pass first, turning that hang into an immediate readable error.
+
+### Defects the Phase 5 batch-4 tests caught
+
+All three are **pre-existing gaps**, each surfaced because a batch-4 card is the first card in
+the pool that needs the behaviour. Full write-up in `Reports/TEST_RESULTS.md`.
+
+1. **A resolving effect could not see what its own cost had paid.**
+   `ChainManager._resolve_link()` built the resolution `EffectContext` without copying
+   `ChainLink.cost_payload`, so `ctx.cost_payload` was always empty at resolution. Every card
+   before this batch had a cost whose size the CARD fixed, so nothing noticed.
+   `Wonder Balloons` — "place 1 Balloon Counter **for each card sent to the GY**" — cannot be
+   resolved without it, and recounting from the Graveyard is impossible. Fixed by carrying the
+   payload forward. `EffectPrimitives.cost_card_count()` is the read side.
+2. **"You can only control 1" was never checked on any route a SPELL/TRAP takes onto the
+   field.** `SummonRules.control_limit_satisfied()` was consumed only by the three MONSTER
+   routes, so `Castle of Dragon Souls` — the pool's only Spell/Trap carrying the restriction
+   — was unrestricted and a second copy could be activated freely. Now asked in
+   `ActivationRules.can_activate()` for a non-monster card activation. This gap was predicted in
+   the previous checkpoint's batch-4 plan and is now closed.
+3. **A continuously-applied negation had no system-owned channel, and would have depended on
+   board iteration order.** `CardInstance.effects_negated` was a plain flag that
+   `ContinuousEffects` neither wrote nor cleared, so a card setting it directly would have
+   negated a monster forever, outliving its own source. Worse, since `_continuous_sources()`
+   skips negated cards, a single-pass recompute gave a different answer depending on which card
+   was walked first. Fixed with `ContinuousEffects.NEGATION_FLAG` +
+   `CardInstance.effects_are_negated()` + a **two-pass** `recompute()` ordered by the
+   declarative `EffectDef.negates_effects` marker.
 
 ### Defects the Phase 5 batch-3 tests caught
 
@@ -326,7 +362,7 @@ Two things it handles that cost real time to discover:
 | 2 | Per-card official text + rulings research (77 cards) | **COMPLETE** |
 | 3 | Architecture / scaffolding + Graphify index | **COMPLETE** |
 | 4 | Core rules engine | **COMPLETE** — 4b-1/4b-2/4b-3/4c done+tested |
-| 5 | Card effect library (77 cards) | **IN PROGRESS** — **23 / 77** implemented and tested (batches 1-3) |
+| 5 | Card effect library (77 cards) | **IN PROGRESS** — **28 / 77** implemented and tested (batches 1-4) |
 | 6 | Automated tests | NOT STARTED |
 | 7 | Basic playable UI | NOT STARTED |
 | 8 | Arena / presentation | NOT STARTED |
@@ -402,7 +438,12 @@ DuelArenaGame/
 │   │       ├── Ranryu.gd              control limit + procedure + optional targeting revival
 │   │       ├── NefariousArchfiendEaterOfNefariousness.gd  opponent's End Phase GY effect
 │   │       ├── Gagagashield.gd        Trap that equips + COUNTED destruction prevention
-│   │       └── RiderOfTheStormWinds.gd  monster that equips itself + piercing + replacement
+│   │       ├── RiderOfTheStormWinds.gd  monster that equips itself + piercing + replacement
+│   │       ├── CastleOfDragonSouls.gd  banish as COST + ATK gain that outlives the source
+│   │       ├── FiendishChain.gd       continuous NEGATION + attack lock + mutual destruction
+│   │       ├── FiveBrothersExplosion.gd  LP gain on activation + opponent-agent burn trigger
+│   │       ├── SealingCeremonyOfSuiton.gd  send-from-hand COST + banish from their GY
+│   │       └── WonderBalloons.gd      the Continuous Spell: variable cost + Balloon Counters
 │   ├── rules/
 │   │   ├── ChainLink.gd               one chain link
 │   │   ├── ChainManager.gd            chain build / negate / reverse resolve
@@ -450,6 +491,11 @@ DuelArenaGame/
 │   ├── NefariousArchfiendTests.gd        44
 │   ├── GagagashieldTests.gd              63
 │   ├── RiderOfTheStormWindsTests.gd      66
+│   ├── CastleOfDragonSoulsTests.gd      109
+│   ├── FiendishChainTests.gd             74
+│   ├── FiveBrothersExplosionTests.gd     67
+│   ├── SealingCeremonyOfSuitonTests.gd   73
+│   ├── WonderBalloonsTests.gd            85
 │   └── SpecialSummonInteractionTests.gd  46   (no card-under-test marker, on purpose)
 ├── Tools/                             Python research + data pipeline (dev only)
 │   ├── run_tests.ps1                  headless test runner (parse-check + no pipe stall)
@@ -459,7 +505,7 @@ DuelArenaGame/
 │   ├── dump_official_text.py          human-readable card text dump
 │   ├── build_card_db.py               -> Data/cards/cards.json + deck lists
 │   └── build_matrix.py                -> Reports/CARD_IMPLEMENTATION_MATRIX.csv
-├── Reports/CARD_IMPLEMENTATION_MATRIX.csv   77 rows, text verified, 23 implemented
+├── Reports/CARD_IMPLEMENTATION_MATRIX.csv   77 rows, text verified, 28 implemented
 └── graphify-out/graph.json            dev index (git-ignored)
 ```
 
@@ -520,6 +566,12 @@ Legend: **DONE+TESTED** = implemented and covered by passing assertions ·
 | **Destruction prevention (uncounted and COUNTED) and destruction REPLACEMENT** | **DONE+TESTED** | `GameState.destruction_prevented()` / `carry_out_destruction()` / `destroy()` | EquipTests, GagagashieldTests, RiderOfTheStormWindsTests |
 | **Per-card facts that outlive the field (`last_move_*`, `card_memory`)** | **DONE+TESTED** | `GameState.move_card()`, `GameState.remember/recall/forget` | InariFireTests, BirthrightTests, CallOfTheHauntedTests |
 | **"You can only control 1 …" on every route onto the field** | **DONE+TESTED** | `SummonRules.control_limit_satisfied()`, consumed by `can_normal_summon_or_set`, `begin_special_summon`, `ActivationRules.can_use_summon_procedure` | InariFireTests, RanryuTests, NefariousArchfiendTests |
+| **Continuous NEGATION of another card's effects** | **DONE+TESTED** | `ContinuousEffects.NEGATION_FLAG` / `negate_effects()` / two-pass `recompute()`, read via `CardInstance.effects_are_negated()` | FiendishChainTests |
+| **A cost's payload readable at RESOLUTION** | **DONE+TESTED** | `ChainManager._resolve_link()` copies `ChainLink.cost_payload`; `EffectPrimitives.cost_card_count()` | WonderBalloonsTests |
+| **Banish as a COST (vs. banish as an effect)** | **DONE+TESTED** | `EffectPrimitives.pay_banish_cost()` vs `banish_target()` | CastleOfDragonSoulsTests, SealingCeremonyOfSuitonTests |
+| **Turn-scoped ATK modifier that outlives its source** | **DONE+TESTED** | `EffectPrimitives.gain_atk_until_end_of_turn()` + `TurnFlow._end_of_turn_cleanup()` | CastleOfDragonSoulsTests |
+| **Effect damage / LP gain (not battle damage)** | **DONE+TESTED** | `GameState.change_life_points()` + an explicit `check_life_point_loss()` by the caller | FiveBrothersExplosionTests |
+| **Counters driven by a real card** | **DONE+TESTED** | `GameState.place_counters()` consumed by `Wonder Balloons` | WonderBalloonsTests |
 | **Duel log / replay payload** | **DONE+TESTED** — a payload now round-trips to an identical event stream | `Scripts/engine/DuelLog.gd`, `DuelAction.from_dict()` | ReplayTests |
 
 ### Design decisions a future session must not silently reverse
@@ -650,6 +702,41 @@ Legend: **DONE+TESTED** = implemented and covered by passing assertions ·
     `Hieratic Dragon of Tefnuit` revived by `Monster Reborn` may attack; one that used its own
     procedure may not. CARD_RULINGS.md §2.1.
 
+24. **`CardInstance.effects_negated` is never read directly.** Every rules-layer question about
+    negation goes through `CardInstance.effects_are_negated()`, which ORs the one-shot flag with
+    the continuous system's `ContinuousEffects.NEGATION_FLAG`. The two channels have different
+    lifetimes on purpose: the flag is cleared only when a card leaves the field or is flipped
+    face-down, while the continuous one is wiped and rebuilt on every recompute so it switches
+    off by itself with its source. Writing `effects_negated = true` from a card would recreate
+    exactly the bug the continuous system exists to prevent.
+25. **`ContinuousEffects.recompute()` is TWO passes and must stay two.** A clause that negates
+    is declared with `EffectDef.negates_effects` (fluent: `negating()`) and runs in pass 1;
+    everything else runs in pass 2, by which time "is this source negated?" has a stable answer.
+    Collapsing them makes the result depend on the order the board is walked in — a monster
+    processed before `Fiendish Chain` would apply its own continuous effect and one processed
+    after it would not. `FiendishChainTests :: it negates a CONTINUOUS effect` is the guard.
+26. **A cost's payload reaches resolution, and an effect measured by its own cost reads it from
+    there.** `ChainManager._resolve_link()` copies `ChainLink.cost_payload` onto the resolution
+    context. `Wonder Balloons` places one counter per card its cost sent; recounting the
+    Graveyard is not an alternative, because the sent cards are indistinguishable from
+    everything already there. Costs are still never re-checked or refunded.
+27. **"Banish as a cost" and "banish as an effect" are separate primitives and must stay
+    separate.** `pay_banish_cost()` runs at activation and is never refunded
+    (`Castle of Dragon Souls`); `banish_target()` runs at resolution and re-checks the target
+    first (`Sealing Ceremony of Suiton`). Neither is "a move to the banished zone" with a
+    different caller — the difference is when it happens and whether it can fail.
+28. **"You can only control 1" counts a face-down MONSTER but not a face-down SPELL/TRAP.**
+    A Set Spell/Trap has not been activated and is not yet in play as that card; the limit is
+    re-tested when it IS activated, in `ActivationRules.can_activate()`. The other reading makes
+    the restriction incoherent for a Trap — two Set copies would forbid activating either.
+    Reasoning and confidence recorded in `Research/CARD_RULINGS.md` §4A (R19).
+29. **A Continuous Spell/Trap with no printed activation effect still gets a real
+    `CARD_ACTIVATION` EffectDef** whose resolution is an honest no-op with a log note. It is not
+    a placeholder: activating the card is what puts it face-up on the field, which is what makes
+    its other clauses reachable. `Castle of Dragon Souls`, `Sealing Ceremony of Suiton` and
+    `Wonder Balloons` each carry one, which is why their EffectDef counts exceed their printed
+    clause counts. The per-card suites assert the count and say why.
+
 ---
 
 ## 7. Blockers
@@ -673,21 +760,18 @@ Everything previously listed here is now done and tested; see §6a and
 
 ### Genuinely still open (carried through Phase 5, not hidden)
 
-* **54 of 77 cards are not implemented yet.** They are honestly `NOT_IMPLEMENTED` in the
+* **49 of 77 cards are not implemented yet.** They are honestly `NOT_IMPLEMENTED` in the
   matrix; see §8 for the next batch.
 * **Simultaneous-LP-zero (a draw) is unexercised.** This is now the ONLY item left on the
   core-rules "not yet covered" list in `Reports/TEST_RESULTS.md`.
-* **`Castle of Dragon Souls` was mis-grouped as an Equip card** in the previous checkpoint's
-  §8 plan. Its official text is *"Once per turn: You can banish 1 Dragon monster from your GY,
-  then target 1 monster you control; it gains 700 ATK until the end of this turn (even if this
-  card leaves the field) …"* — it is a **Continuous Trap with a temporary ATK boost**, not an
-  Equip Card, and it equips nothing. It was therefore deliberately NOT included in the Equip
-  group and is queued with the other Continuous Traps (see §8). This is a correction to the
-  plan, not an omission from the batch.
+* **`Castle of Dragon Souls` was mis-grouped as an Equip card** in an earlier checkpoint's
+  §8 plan. **CLOSED in batch 4.** It is a **Continuous Trap with a temporary ATK boost**, it
+  equips nothing, and it is implemented and tested as one (109 assertions). Preserve this
+  correction: it must never be moved back into an Equip group.
 * **`Kunai with Chain` and `Fairy Tail - Rella` still exercise Equip mechanics** and are not
   implemented yet. The generic subsystem they need now exists and is tested; they still need
   their own per-card work.
-* **50075 leaked ObjectDB instances at exit** (measured on this run, up from 34241 — it grows
+* **61457 leaked ObjectDB instances at exit** (measured on this run, up from 50075 — it grows
   with the number of duels the suite builds) — RefCounted cycles between `GameState`, the
   `DuelLog` signal and test closures. Harmless to rules outcomes, but it must be cleaned up
   before the UI keeps one duel alive for a long session.
@@ -698,7 +782,7 @@ Everything previously listed here is now done and tested; see §6a and
 
 ### How to resume in one paragraph
 
-**Phase 4 is complete and Gate B is MET; Phase 5 is 23 / 77 of the way through.** The generic
+**Phase 4 is complete and Gate B is MET; Phase 5 is 28 / 77 of the way through.** The generic
 rules engine is tested end to end (Fast Effect Timing, the `DuelEngine` legal-action API,
 trigger collection and ordering, Normal/Tribute/Flip **and Special** Summons including summon
 negation on both paths, turn/phase flow, the Spell/Trap framework, the Battle Phase, the Damage
@@ -706,10 +790,13 @@ Step and its activation restriction, damage calculation including piercing, batt
 semantics, continuous effects, the counter engine, hidden-information filtering, the DuelLog
 replay payload, and — new in batch 3 — **Equip Cards, destruction prevention/replacement,
 per-card facts that outlive the field, and the "you can only control 1" limit**). On top of it
-the card library has the 9 vanillas, `Shining Angel`, the resolution-time Special Summon batch
-and all of batch 3 — **1560 assertions across 30 suites, 0 failures**, SmokeCheck PASS. Read
-§6a for per-subsystem status and the **twenty-three** design decisions that must not be
-reversed, and §7 for what is genuinely still open. Do **not** re-read the whole repository,
+the card library has the 9 vanillas, `Shining Angel`, the resolution-time Special Summon batch,
+all of batch 3, and all of batch 4 — which completes the pool's **Continuous Spell/Trap
+group** and adds continuous NEGATION, banish-as-a-cost, an ATK gain that outlives its source,
+effect damage, and the first real use of the counter engine — **1968 assertions across 35
+suites, 0 failures**, SmokeCheck PASS. Read §6a for per-subsystem status and the
+**twenty-nine** design decisions that must not be reversed, and §7 for what is genuinely still
+open. Do **not** re-read the whole repository,
 re-run research, or re-derive rules.
 
 ### Batch 3 — COMPLETE (nothing partial, nothing unverified)
@@ -743,32 +830,62 @@ Generic mechanics completed and tested in this batch — none is left UNVERIFIED
 
 Cards started but unfinished: **none.** Mechanics still unverified from this batch: **none.**
 
-### The NEXT batch (batch 4) — start here
+### Batch 4 — COMPLETE (nothing partial, nothing unverified)
 
-**The remaining Continuous Traps and Continuous Spell, then counters, then negation.** In
-order:
+**The remaining Continuous Traps and the Continuous Spell.** The pool's Continuous
+Spell/Trap group is now finished: 6 Continuous Traps + 1 Continuous Spell, all implemented
+and all tested.
 
-1. **`Castle of Dragon Souls`** (Continuous Trap) — corrected out of the Equip group, see §7.
-   Three things it needs that nothing implements yet: **banish as a COST** from the GY, an ATK
-   boost that survives its own source leaving the field ("even if this card leaves the field",
-   so `until = "end_of_turn"` rather than the continuous duration), and a
-   "when this face-up card **is sent to the GY**" trigger that fires for **any** reason.
-   `Research/CARD_RULINGS.md` R19. Also carries "You can only control 1", which
-   `SummonRules.CONTROL_LIMIT_EFFECT_ID` already covers — but note it is a TRAP, so the limit
-   has to be checked where a Spell/Trap reaches the field, which `SummonRules` does NOT do
-   today. That gap is real and must be closed before the card is marked implemented.
-2. **The remaining Continuous Traps and the Continuous Spell**, reusing
-   `ContinuousEffects` and the `activation_unresolved()` start-timing rule already tested by
-   `RulesQuestionTests`.
-3. **The counter cards** — `Apprentice Magician` (Spell Counter) and `Wonder Balloons`
-   (Balloon Counter). The counter engine is built and tested (`CounterTests`, 44); these are
-   the first real cards to drive it. `Apprentice Magician` also Special Summons in **face-down
-   Defense Position**, which is the one case `EffectPrimitives.choose_face_up_position()`
-   deliberately does not offer — it must pass the position explicitly.
-4. **`Kunai with Chain` and `Fairy Tail - Rella`** — the second Equip group. The generic
-   subsystem now exists and is tested, so these are ordinary per-card work.
-5. **The negation cards** (`Champion's Vigilance`) **last** — they exercise the most machinery,
-   including `negate_pending_summon()` on both Summon paths.
+| Card | EffectDefs | Suite | Result |
+|---|---:|---|---|
+| `Castle of Dragon Souls` | 4 | `CastleOfDragonSoulsTests` | 109/109 |
+| `Fiendish Chain` | 3 | `FiendishChainTests` | 74/74 |
+| `Five Brothers Explosion` | 2 | `FiveBrothersExplosionTests` | 67/67 |
+| `Sealing Ceremony of Suiton` | 2 | `SealingCeremonyOfSuitonTests` | 73/73 |
+| `Wonder Balloons` | 3 | `WonderBalloonsTests` | 85/85 |
+
+Generic mechanics completed and tested in this batch — none is left UNVERIFIED:
+
+* **Continuous NEGATION** — `ContinuousEffects.NEGATION_FLAG` / `negate_effects()`, read
+  everywhere through `CardInstance.effects_are_negated()`, applied by a **two-pass**
+  `recompute()` ordered by the declarative `EffectDef.negates_effects` marker.
+* **Banish as a COST vs. banish as an EFFECT** — `pay_banish_cost()` and `banish_target()`,
+  deliberately two primitives.
+* **A cost's payload readable at RESOLUTION** — `ChainManager._resolve_link()` +
+  `EffectPrimitives.cost_card_count()`, for a clause measured by its own cost.
+* **A variable-size cost** — `pay_send_any_number_to_gy_cost()`, minimum one.
+* **A turn-scoped ATK modifier that outlives its source** —
+  `gain_atk_until_end_of_turn()`, expiring in `TurnFlow._end_of_turn_cleanup()`.
+* **Effect damage and LP gain** — including a Duel ending at 0 LP from a card effect.
+* **The control limit on a Spell/Trap** — enforced in `ActivationRules.can_activate()`.
+* **Counters driven by a real card** — `Wonder Balloons` is the first consumer of the
+  counter engine `CounterTests` built.
+
+Cards started but unfinished: **none.** Mechanics still unverified from this batch: **none.**
+
+### The NEXT batch (batch 5) — start here
+
+**The counter monster, then the second Equip group, then negation.** Continue the
+mechanic-grouped ordering; do not switch to alphabetical.
+
+1. **`Apprentice Magician`** — the pool's remaining counter card (Spell Counter). The counter
+   engine is built and tested (`CounterTests`, 44) and now has one real consumer
+   (`Wonder Balloons`), so this is ordinary per-card work with one exception: it Special
+   Summons in **face-down Defense Position**, which is the one case
+   `EffectPrimitives.choose_face_up_position()` deliberately does not offer. It must pass the
+   position explicitly rather than widening that primitive.
+2. **`Kunai with Chain` and `Fairy Tail - Rella`** — the second Equip group. The generic Equip
+   subsystem exists and is tested (`EquipTests`, 83). `Fairy Tail - Rella` additionally needs
+   **targeting protection / redirect** (`Research/CARD_RULINGS.md` §3), which nothing implements
+   yet — expect that to be the real work, not the equipping.
+3. **The negation cards** (`Champion's Vigilance`) **last** — they exercise the most machinery,
+   including `negate_pending_summon()` on **both** Summon paths, and "negate the activation and
+   destroy that card", which is distinct from the continuous negation batch 4 added
+   (`ChainTests :: negate activation vs negate effect` already pins the distinction).
+
+After those, the remaining unimplemented cards are mostly Normal Spells/Traps with
+movement effects (return to hand, place on top/bottom of Deck, shuffle into Deck, excavate)
+and the charmer control-change group — group them by those mechanics, not by card type.
 
 ### Phase 5 — how the card library is built (the pattern is now established)
 
@@ -810,8 +927,16 @@ Cards are done in **mechanic** groups, not alphabetically. Batches completed so 
   Between them they introduced the Equip subsystem, destruction prevention and replacement,
   the "control limit", persistent per-card facts, and the first real use of the summoning
   procedure path.
+* **Batch 4 — the remaining Continuous Traps and the Continuous Spell**:
+  `Castle of Dragon Souls`, `Fiendish Chain`, `Five Brothers Explosion`,
+  `Sealing Ceremony of Suiton`, `Wonder Balloons`. Between them they introduced continuous
+  NEGATION and the two-pass recompute, banish as a COST (as distinct from banish as an
+  effect), a variable-size cost, a cost payload readable at resolution, a turn-scoped ATK
+  modifier that outlives its source, effect damage and LP gain, the control limit on a
+  Spell/Trap, and the first real consumer of the counter engine. This batch **completes the
+  pool's Continuous Spell/Trap group**.
 
-The batch to do next is spelled out under **"The NEXT batch (batch 4)"** above.
+The batch to do next is spelled out under **"The NEXT batch (batch 5)"** above.
 
 Primitives added by batch 2, in `Scripts/cards/EffectPrimitives.gd` — reuse these rather
 than re-inventing them: `cards_in()`, `cards_in_either_graveyard()`, `monster_of_level()`,
@@ -827,6 +952,15 @@ Primitives added by batch 3: `monster_with_stats()`, `event_is_leaving_the_field
 `special_summon_self()`, `set_atk_and_def()`, `equip_source_to_target()`,
 `equipped_host()`. Test-side: `TestFixtures.interferer()` and
 `TestFixtures.activate_card()`.
+
+Primitives added by batch 4: `pay_banish_cost()`, `pay_send_any_number_to_gy_cost()`,
+`cost_card_count()`, `banish_target()`, `gain_atk_until_end_of_turn()`,
+`event_is_sent_to_gy_from_face_up_field()`, `event_caused_by_effect_of()`,
+`is_continuous_spell_or_trap()`, `continuous_spell_traps_controlled()`,
+`continuous_spell_traps_in_graveyard()`, `link_afflicted_monster()`, `afflicted_monster()`,
+`clear_afflicted_link()`. Test-side: `TestFixtures.activate_effect()` (for an
+`ACTIVATE_EFFECT` action, which `activate_card()` does not find) and the `interferer()`
+`"send_to_gy"` mode.
 
 No placeholders, and never silently drop a clause: `ChainManager` fails loudly on a
 missing `resolve()` and `CardRegistry` rejects a chain-starting effect that has none.
@@ -871,6 +1005,19 @@ animations, particles, audio, cinematic camera, UI polish). Those are Phases 7�
   resolves the whole attack, chain or Damage Step inside one `submit_action()`. To observe
   an intermediate state, either read the event log or give a player a fast effect so the
   window genuinely opens.
+* `TestFixtures.activate_card()` finds an `ACTIVATE_CARD` action only. An effect activated
+  from a card already on the field is an `ACTIVATE_EFFECT` action — use
+  `TestFixtures.activate_effect()`.
+* **`get_legal_actions(pid)` returns nothing unless the engine is OPEN *and* `pid` is the turn
+  player.** An interferer meant to fire in an open game state must therefore belong to the TURN
+  PLAYER; a Chain Link 2 goes through `get_legal_responses()` instead. Both mistakes cost a
+  cycle in batch 4 and neither fails loudly — the helper just returns false.
+* **`GameState.destroy()` correctly refuses a card that is not on the field**, so
+  `interferer(..., "destroy")` cannot move a card out of the hand. Use the `"send_to_gy"` mode.
+* **Continuous effects are recomputed at engine timing points, not when a test arranges the
+  board.** A baseline assertion about a continuous effect taken straight after
+  `TestFixtures.give_*` reads the un-recomputed value. Run one explicit
+  `ContinuousEffects.new(state).recompute()` first, or take an engine action.
 * A phase change is a box-E declaration first: after `submit_action(ENTER_BATTLE_PHASE)`
   the phase has **not** changed yet if the opponent holds a response.
 

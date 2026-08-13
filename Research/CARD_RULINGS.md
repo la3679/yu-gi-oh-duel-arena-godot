@@ -176,6 +176,61 @@ an official source will be escalated rather than guessed (master prompt §86).
 
 ---
 
+## 4A. Rulings decided during implementation
+
+Recorded as each card was written, so a later session does not re-litigate them. Each entry
+says what was decided, on what basis, and how confident that basis is.
+
+### R16 — `Five Brothers Explosion`: does a face-down Set card count as "a Continuous Spell/Trap Card you control"?
+
+**DECIDED: no — FACE-UP cards only.**
+
+Basis: a face-down Set Spell/Trap Card has not been activated, applies none of its text, and
+its *specific subtype* is not a property either player may act on. This is the same principle
+that keeps a clause worded "1 Effect Monster on the field" (`Fiendish Chain`) from reaching a
+face-down monster. The card's own first clause counts **itself**, because activating a
+Spell/Trap is what places it face-up on the field [S1 p.28–30], and by the time the activation
+resolves it is already there.
+
+Confidence: the *general* face-down principle is well established; a card-specific Konami Q&A
+for this card could **not** be retrieved — `db.yugioh-card.com/yugiohdb/faq_search.action`
+redirects to the database homepage from this environment, and no unofficial source was accepted
+in its place. The decision is therefore reasoned from the official rulebook rather than quoted
+from a per-card ruling, and it is stated here rather than hidden. It is implemented in one
+place (`EffectPrimitives.continuous_spell_traps_controlled()`) and tested in both directions
+(`FiveBrothersExplosionTests :: a SET Continuous Trap is not counted`, which also carries the
+positive control of the same card counting once it is face-up), so revisiting it is a one-line
+change plus a test flip.
+
+The second clause's counterpart question does not arise: "each Continuous Spell/Trap Card **in
+your Graveyard**" needs no visibility filter, because every card in a Graveyard is public.
+
+### R19 — `Castle of Dragon Souls`: does a face-down Set copy count for "You can only control 1"?
+
+**DECIDED: no for a Spell/Trap; yes for a monster.** The limit is re-tested at the moment a
+Spell/Trap is **activated**, which is when a second copy would actually reach the field face-up.
+
+Basis: the alternative reading makes the restriction incoherent for a Trap — holding two Set
+copies would forbid activating **either** of them, and the card would become unplayable the
+moment a second copy was drawn. A face-down *monster*, by contrast, occupies a Monster Zone and
+is unambiguously a monster you control, which is why `Inari Fire` and `Ranryu` are correctly
+blocked by a Set copy and that behaviour is unchanged.
+
+Both halves live in one place (`EffectPrimitives.controls_no_other_copy()`), and the enforcement
+point for a Spell/Trap is `ActivationRules.can_activate()` — before this batch, **no route
+checked the limit for a Spell/Trap at all**, which is recorded as an engine defect in
+`Reports/TEST_RESULTS.md`.
+
+### R19 (second part) — the ATK gain that outlives its source
+
+"It gains 700 ATK until the end of this turn **(even if this card leaves the field)**" is
+implemented as a turn-scoped modifier (`"end_of_turn"`), **not** as a continuous effect. A
+continuous effect is state-derived and vanishes the moment its source stops applying, which is
+precisely what the parenthesis forbids. `TurnFlow._end_of_turn_cleanup()` removes it from every
+instance at the turn transition, whoever's turn it was.
+
+---
+
 ## 5. Banlist note (master prompt §51)
 
 These are fixed casual decks built from an owned physical collection. Current Forbidden/Limited

@@ -42,6 +42,13 @@ var damage_step_permission: Enums.DamageStepPermission = Enums.DamageStepPermiss
 ## Does this effect start a Chain? Continuous effects and summon procedures do not.
 var starts_chain: bool = true
 
+## Does this CONTINUOUS clause negate another card's effects? `ContinuousEffects.recompute()`
+## applies these before every other continuous clause, because "is this source negated?"
+## has no stable answer until they have run. Declared rather than inferred so the ordering
+## never depends on which cards happen to be on the field. `Fiendish Chain` is the only
+## card in the V1 pool that sets it.
+var negates_effects: bool = false
+
 ## Does this effect target? RULES_SPEC.md 10, master prompt 17.
 var targets: bool = false
 var target_count_min: int = 0
@@ -104,6 +111,12 @@ func of_type(t: Enums.EffectType) -> EffectDef:
 
 func with_spell_speed(s: int) -> EffectDef:
 	spell_speed = s
+	return self
+
+
+## Mark a CONTINUOUS clause as one that negates another card's effects. See `negates_effects`.
+func negating() -> EffectDef:
+	negates_effects = true
 	return self
 
 

@@ -20,6 +20,12 @@ extends RefCounted
 const CONTINUOUS_DURATION := "continuous"
 const PLAYER_KEY_PREFIX := "continuous:"
 
+## Set on a card whose effects are negated by a CONTINUOUS clause of another card
+## (`Fiendish Chain`). Read through `CardInstance.effects_are_negated()`, never directly,
+## and written only by `negate_effects()` below. It is listed in RESTRICTION_FLAGS so it is
+## wiped and rebuilt like every other state-derived flag.
+const NEGATION_FLAG := "effects_negated_by_continuous"
+
 ## Per-card restriction flags this system owns. Cleared and rebuilt on every recompute,
 ## so a card must never write these from anywhere else.
 const RESTRICTION_FLAGS := [
@@ -30,6 +36,7 @@ const RESTRICTION_FLAGS := [
 	"cannot_be_tributed",
 	"cannot_change_position",
 	"piercing",
+	NEGATION_FLAG,
 ]
 
 var state: GameState = null
@@ -45,11 +52,27 @@ func _init(p_state: GameState) -> void:
 
 ## Wipe every continuous-sourced modifier and restriction, then reapply from the current
 ## board. Cheap for the V1 pool: at most a handful of face-up cards per side.
+## Two passes, and the split is load-bearing rather than cosmetic.
+##
+## `_clear()` erases the negation flag along with everything else, so during a recompute
+## "is this source negated?" is only answerable once the negating clauses have run again.
+## With a single pass the answer would depend on the order the sources happen to be
+## iterated in: a monster processed before `Fiendish Chain` would apply its own continuous
+## effect for one recompute despite being negated, and a monster processed after it would
+## not. Pass 1 applies only the clauses that negate; pass 2 applies everything else and can
+## then trust `effects_are_negated()`.
 func recompute() -> void:
 	_clear()
-	for card in _continuous_sources():
+	_apply_pass(true)
+	_apply_pass(false)
+
+
+func _apply_pass(negation_only: bool) -> void:
+	for card in _continuous_sources(negation_only):
 		for effect in card.definition.effects:
 			if effect.effect_type != Enums.EffectType.CONTINUOUS:
+				continue
+			if effect.negates_effects != negation_only:
 				continue
 			if not effect.apply_continuous.is_valid():
 				continue
@@ -78,13 +101,22 @@ func _clear() -> void:
 ## RULES_SPEC.md 8.1 [S1 p.17, p.18 with p.46-47] — activating a card places it face-up on
 ## the field, but an activation has no effect until its Chain Link resolves, and a
 ## Continuous Spell/Trap removed before resolution resolves without effect.
-func _continuous_sources() -> Array:
+## `negation_pass` is true while pass 1 runs. In that pass the continuously-applied
+## negation flag has just been cleared and has not been rebuilt yet, so asking about it
+## would be meaningless; only a negation written from OUTSIDE this system is honoured then.
+## Pass 2 uses the full answer. Nothing in the V1 pool can negate a negator — `Fiendish
+## Chain` targets Effect Monsters only — so pass 1 has no ordering dependency of its own.
+func _continuous_sources(negation_pass: bool = false) -> Array:
 	var out: Array = []
 	for p in state.players:
 		for card in p.controlled_cards():
 			if card == null or card.definition == null:
 				continue
-			if not card.is_face_up() or card.effects_negated:
+			if not card.is_face_up():
+				continue
+			if card.effects_negated:
+				continue
+			if not negation_pass and card.effects_are_negated():
 				continue
 			if activation_unresolved(card):
 				continue
@@ -134,6 +166,15 @@ static func restrict(card: CardInstance, flag: String) -> bool:
 		return false
 	card.flags[flag] = true
 	return true
+
+
+## "Negate the effects of that face-up monster while it is on the field." [Fiendish Chain]
+##
+## This is the ONLY way to write a continuously-applied negation. It goes through
+## `restrict()` so the flag is validated against RESTRICTION_FLAGS and is wiped by the next
+## recompute like everything else this system owns.
+static func negate_effects(card: CardInstance) -> bool:
+	return restrict(card, NEGATION_FLAG)
 
 
 ## Set a player-level continuous restriction, e.g. "cannot_conduct_battle_phase".

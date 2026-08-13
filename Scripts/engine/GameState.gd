@@ -478,7 +478,7 @@ func _query_sources(effect_id: String) -> Array:
 		for card in p.controlled_cards():
 			if card == null or card.definition == null:
 				continue
-			if not card.is_face_up() or card.effects_negated:
+			if not card.is_face_up() or card.effects_are_negated():
 				continue
 			for effect in card.definition.effects:
 				if effect.effect_id == effect_id:
@@ -831,7 +831,7 @@ func _visible_card(card: CardInstance, viewer_id: int, force_visible: bool) -> D
 		"face_up": card.is_face_up(),
 		"hidden": false,
 		"counters": card.counters.duplicate(),
-		"effects_negated": card.effects_negated,
+		"effects_negated": card.effects_are_negated(),
 		"equipped_to": card.equipped_to_id,
 		"equipped_cards": card.equipped_card_ids.duplicate(),
 	}

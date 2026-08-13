@@ -27,6 +27,11 @@ func _initialize() -> void:
 		NefariousArchfiendTests.run(),
 		GagagashieldTests.run(),
 		RiderOfTheStormWindsTests.run(),
+		CastleOfDragonSoulsTests.run(),
+		FiendishChainTests.run(),
+		FiveBrothersExplosionTests.run(),
+		SealingCeremonyOfSuitonTests.run(),
+		WonderBalloonsTests.run(),
 		# A rules suite, but Reports/TEST_RESULTS.md quotes its per-test counts too, and
 		# they have to be measured for the same reason.
 		EquipTests.run(),
