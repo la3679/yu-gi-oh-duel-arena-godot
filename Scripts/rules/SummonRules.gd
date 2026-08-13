@@ -209,6 +209,13 @@ func can_change_position(card: CardInstance, controller_id: int) -> bool:
 
 
 func opposite_face_up_position(card: CardInstance) -> Enums.Position:
+	return opposite_face_up_position_of(card)
+
+
+## The same question with no duel attached, for a card effect that changes a battle position
+## rather than a player doing it manually (`Enemy Controller`). A face-up monster is in
+## exactly one of two positions, so "change its battle position" is this toggle.
+static func opposite_face_up_position_of(card: CardInstance) -> Enums.Position:
 	return Enums.Position.FACE_UP_DEFENSE if card.position == Enums.Position.FACE_UP_ATTACK \
 		else Enums.Position.FACE_UP_ATTACK
 

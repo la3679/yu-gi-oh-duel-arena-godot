@@ -1,6 +1,6 @@
 # TEST_RESULTS
 
-**Last run:** 2026-08-13 (Phase 5 batch 5)
+**Last run:** 2026-08-13 (Phase 5 batch 6)
 **Engine:** Godot 4.7.1.stable.official.a13da4feb (headless)
 
 Command:
@@ -32,15 +32,28 @@ The raw command still works and produces the same numbers:
 
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
-| Core rules tests | 14 | 713 | **713** | 0 |
-| Per-card tests | 24 | 1638 | **1638** | 0 |
+| Core rules tests | 15 | 846 | **846** | 0 |
+| Per-card tests | 28 | 1970 | **1970** | 0 |
 | Interaction tests | 1 | 46 | **46** | 0 |
 | Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **39** | **2397** | **2397** | **0** |
+| **TOTAL** | **44** | **2862** | **2862** | **0** |
 
-All **1968** assertions from the previous checkpoint still pass **unchanged** — none was
-weakened, retargeted or deleted. Batch 5 added **429**: `ApprenticeMagicianTests` 92,
-`KunaiWithChainTests` 117, `FairyTailRellaTests` 106, `ChampionsVigilanceTests` 114.
+Batch 6 added **465** and changed **two** existing suites, both deliberately and both because
+the behaviour they described was corrected:
+
+* `SummonTests` 45 → **85**. Four new tests for the Flip Summon declaration architecture. The
+  original `Flip Summon legality and position` test is unchanged and still passes.
+* `ChampionsVigilanceTests` 114 → **128**. Its `KNOWN GAP` test — which asserted that a Flip
+  Summon could NOT be negated — was **replaced** by `it negates a Flip Summon`, plus a positive
+  control that an unanswered Flip Summon still succeeds. This is the one test expectation
+  changed this batch, and it was changed because the old expectation described an engine
+  limitation that has been fixed, not because the new code failed it.
+* New: `ControlTests` **93** (the control gate), `AussaTheEarthCharmerTests` **107**,
+  `EriaTheWaterCharmerTests` **36**, `WynnTheWindCharmerTests` **48**,
+  `EnemyControllerTests` **127**.
+
+Every other assertion from the previous checkpoint passes **unchanged** — none was weakened,
+retargeted or deleted.
 
 Per-test assertion counts in this file are **measured**, not counted by hand from source:
 `TestCase` records them per test and `Scripts/tests/DumpAssertionCounts.gd` prints them.
@@ -48,7 +61,7 @@ A suite that loops over nine cards runs many more assertions than it has `t.` ca
 and the earlier hand-written `ShiningAngelTests` breakdown was wrong for exactly that
 reason — it has been corrected against the measurement.
 
-Card library: **32 / 77 implemented, 32 / 77 tested** — computed by `Tools/build_matrix.py`
+Card library: **36 / 77 implemented, 36 / 77 tested** — computed by `Tools/build_matrix.py`
 from `Scripts/cards/registry/*.gd`, the card database's `is_normal` flag and
 `Tests/cards/*.gd`, never by hand.
 
@@ -70,7 +83,8 @@ removed.
 | `ChainTests` | 27 | `RULES_SPEC.md §4` |
 | `TimingTests` | 37 | `RULES_SPEC.md §3`, `§4.4` |
 | `TurnFlowTests` | 40 | `RULES_SPEC.md §1, §2, §13` |
-| `SummonTests` | 45 | `RULES_SPEC.md §5` |
+| `SummonTests` | 85 | `RULES_SPEC.md §5`, `§5.4` |
+| `ControlTests` | 93 | `RULES_SPEC.md §5.6` [S1 p.52] |
 | `SpellTrapTests` | 27 | `RULES_SPEC.md §4.2` |
 | `BattleTests` | 72 | `RULES_SPEC.md §6` |
 | `DamageStepTests` | 86 | `RULES_SPEC.md §7` |
@@ -104,7 +118,11 @@ removed.
 | `ApprenticeMagicianTests` | 92 | per-card |
 | `KunaiWithChainTests` | 117 | per-card |
 | `FairyTailRellaTests` | 106 | per-card |
-| `ChampionsVigilanceTests` | 114 | per-card |
+| `ChampionsVigilanceTests` | 128 | per-card |
+| `AussaTheEarthCharmerTests` | 107 | per-card |
+| `EriaTheWaterCharmerTests` | 36 | per-card |
+| `WynnTheWindCharmerTests` | 48 | per-card |
+| `EnemyControllerTests` | 127 | per-card |
 | `SpecialSummonInteractionTests` | 46 | interaction |
 
 ### ChainTests — 27/27
@@ -317,7 +335,109 @@ guessed, each now decided against an official source and pinned down.
 
 ## Defects found and fixed by these tests
 
-### This milestone (Phase 5 batch 5 — the counter monster, the second Equip group, negation)
+### This milestone (Phase 5 batch 6 — Flip Summon negation, and the control-change group)
+
+Cards: `Aussa the Earth Charmer` (107), `Eria the Water Charmer` (36), `Wynn the Wind Charmer`
+(48), `Enemy Controller` (127). All four are complete: every official clause implemented, every
+clause tested positively and negatively. **Nothing in this batch is partial or unverified.**
+
+The batch was done in three units, each tested and committed before the next began.
+
+**Unit A — the Flip Summon negation gap, closed generically.** This was the KNOWN GAP batch 5
+recorded, and it was an ENGINE defect rather than a card one:
+
+1. **A Flip Summon did not declare.** `SummonRules.flip_summon()` applied the flip immediately
+   and emitted `FLIP_SUMMON_SUCCEEDED`, so no response window opened and no negation card was
+   ever offered one. A Flip Summon **is** a Summon [S1 p.24]. Replaced by
+   `begin_flip_summon()` / `_complete_flip_summon()`, the same declaration → response →
+   completion shape the other two routes use — but deliberately **not** the same mechanism. The
+   monster does not move: it waits face-down in the Monster Zone it already occupies, because
+   entering `Zone.IN_TRANSIT` would be a departure from the field, destroying its Equip Cards
+   and clearing its per-instance state. Covered by four new `SummonTests` cases and by
+   `ChampionsVigilanceTests :: it negates a Flip Summon`.
+2. **A consequence that had to be fixed with it:** `EffectPrimitives.summon_is_pending()`
+   answered "is a Summon pending?" by scanning `PlayerState.in_transit`, which covers only the
+   Normal and Special routes. A Flip Summon that had genuinely been declared read as "no Summon
+   is pending". Moved to `GameState.pending_summon_card_id`, written by every `begin_*_summon()`
+   and cleared by `complete_summon()` / `abort_summon()`, so all three routes answer uniformly.
+
+**Unit B — the control subsystem, and one more declared-but-unconsumed piece of vocabulary.**
+
+3. **`GameEvent.Kind.CONTROL_CHANGED` had ZERO emitters.** It had been in the event vocabulary
+   since the engine was written and nothing ever raised it, so no card could have keyed on a
+   change of control and no test could have observed one. This is the same failure shape as
+   batch 5's `cannot_be_targeted` — declared, round-tripping, and doing nothing — and it is the
+   reason a repository-wide search for readers *and writers* is now part of adding any
+   vocabulary. It has real emitters now.
+
+`ControlTests` (93) is the **control gate**, written and passing before any Charmer was
+implemented, exactly as `EquipTests` came before `Gagagashield`. What it proves about the engine
+rather than about one card:
+
+* a control change is **not** a `move_card()`. The sharpest probe is an Equip Card on the stolen
+  monster: an Equip Card dies when its host leaves the field [S1 p.29], so if control change were
+  a move it would die. It does not, `on_leave_field()` does not run, and `last_move_*` is not
+  rewritten to describe a move that did not happen.
+* **owner is never controller.** A borrowed monster destroyed or Tributed under temporary control
+  still reaches its OWNER's Graveyard [S1 p.52].
+* leases **stack per card** and unwind newest-first. Ending a lease that is not the newest hands
+  its `from_controller` down to the next one instead of moving the card, so control still returns
+  all the way to where it started rather than stopping at an intermediate controller.
+* control cannot be taken with **no free Monster Zone** — a monster is only ever controlled from
+  one — and the failed attempt announces nothing and records no lease.
+
+**Unit C — `Enemy Controller`,** whose two bullets are two EffectDefs with different costs,
+different effects and different durations, and are never collapsed into one generic control Spell.
+Its "until the End Phase" duration is expired by `TurnFlow.enter_phase()` and asserted against
+event **sequence numbers**, not merely against the final state, because this engine's End Phase is
+two steps and "which step" is the whole question (R25).
+
+**Three test-authoring mistakes worth recording, because each cost a cycle and each will recur.**
+
+* **A bare `count_events()` counts events other cards raised.** Activating a Set Spell/Trap flips
+  that card face-up, which is itself a `CARD_FLIPPED_FACE_UP` **and** a
+  `BATTLE_POSITION_CHANGED`. Three assertions in this batch were wrong for that reason alone.
+  `TestFixtures.count_events_for(engine, kind, card_id)` was added and is the right tool whenever
+  the question is about one specific card.
+* **The Battle Phase is prohibited on turn 1** [S1 p.35], so `advance_to_phase(BATTLE)` returns
+  **false** rather than advancing, and a following `advance_to_phase(MAIN_2)` then walks straight
+  into the End Phase — which silently expired an "until the End Phase" lease three phases early
+  and made two `EnemyControllerTests` cases fail for a reason that had nothing to do with the
+  card. Any test that cares *when* in a turn something happens must build a turn-2 duel, and must
+  assert the return value of `advance_to_phase()`.
+* **A synthetic FLIP effect must key on ITS OWN flip.** The first draft of
+  `TestFixtures.flip_effect_monster()` fired on any `CARD_FLIPPED_FACE_UP` event, which would
+  have made every later Flip test quietly wrong. `DamageStepTests._flip_effect_monster()` already
+  had the correct shape — check the event's `card_id` against `ctx.source.id` — and the fixture
+  now matches it.
+
+**One diagnostic defect fixed.** `CardRegistry._load_one()` reported a registry script that failed
+to **compile** as `"declares no CARD_NAME"`, because `get_script_constant_map()` returns an empty
+dictionary for a broken script. That sends the reader hunting for a missing constant in a file
+whose real problem is a type error elsewhere; it cost a cycle here. The two cases are now
+distinguished by a `can_instantiate()` check.
+
+**Generic mechanics added this batch** — each is generic, each has its own tests:
+
+* **The Flip Summon declaration architecture** — `SummonRules.begin_flip_summon()` /
+  `_complete_flip_summon()`, `GameEvent.Kind.FLIP_SUMMON_DECLARED`, and
+  `GameState.pending_summon_card_id` as the single authoritative answer to "what would be
+  Summoned?" across all three routes.
+* **Change of control** — `GameState.change_control()` / `can_change_control()` /
+  `end_control_lease()` / `drop_control_leases_for()` / `expire_control_leases()`, the
+  `control_leases` register, and `Enums.ControlDuration`
+  (`WHILE_SOURCE_FACE_UP` / `UNTIL_END_PHASE` / `PERMANENT`). Expiry runs at exactly two named
+  points: `DuelEngine._advance()` (the same cadence as the continuous recompute, but a state
+  mutation rather than a derived flag, which is why it is not inside `recompute()`), and
+  `TurnFlow.enter_phase()` on entering the End Phase.
+* **Card-facing control primitives** — `EffectPrimitives.opponent_monsters()`,
+  `take_control_of_target()` (which re-checks the target at resolution), and
+  `charmer_take_control()` for the three word-identical Charmer clauses.
+* **`SummonRules.opposite_face_up_position_of()`** — the battle-position toggle as a static, for
+  a card effect that changes a position rather than a player doing it manually.
+* **Test-side:** `TestFixtures.flip_effect_monster()`, `summon_negator()`, `count_events_for()`.
+
+### Previous milestone (Phase 5 batch 5 — the counter monster, the second Equip group, negation)
 
 Cards: `Apprentice Magician` (92), `Kunai with Chain` (117), `Fairy Tail - Rella` (106),
 `Champion's Vigilance` (114). All four are complete: every official clause implemented, every
@@ -615,10 +735,14 @@ No test expectation was weakened to make the implementation pass.
 
 ## Known issues in the harness (not rules defects)
 
-* The run reports `74049 ObjectDB instances were leaked at exit`, up from 61457 at the previous
-  checkpoint purely because the suite now builds more duels (429 more assertions across four new
-  per-card suites). No test fails, hangs, or becomes unreliable because of it, and no rules
-  outcome changes; measured again this milestone so the trend stays visible. These are RefCounted
+* The run reports **`85668 ObjectDB instances were leaked at exit`**, up from 74049 at the batch-5
+  checkpoint and 61457 at batch 4 — purely because the suite now builds more duels (465 more
+  assertions across five new suites). The growth is proportional to the number of duels built, not
+  to anything batch 6 introduced. No test fails, hangs, or becomes unreliable because of it, no
+  rules outcome changes, and there is no memory pressure, so it was correctly not allowed to
+  derail batch 6 — but it **must be characterised or fixed before Phase 7**, when the UI keeps a
+  single duel alive for a long session. Measured again this milestone so the trend stays visible.
+  These are RefCounted
   reference cycles between `GameState`, `DuelLog` (connected signal) and the closures the
   tests capture. The count grows with the number of duels the suite builds. It does not
   affect any rules outcome and does not fail the suite, but it must be cleaned up before
@@ -644,10 +768,17 @@ are now exercised by `Inari Fire`, `Ranryu` and `Nefarious Archfiend Eater of
 Nefariousness`. Special Summon execution, piercing battle damage and the duel log / replay
 payload were covered in the previous milestone.
 
-**B. Per-card** — **32 of 77** cards implemented and tested; **45 remain**, honestly reported as
-`NOT_IMPLEMENTED` / `NOT_TESTED` in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`. Batch 5 added
-`Apprentice Magician`, `Kunai with Chain`, `Fairy Tail - Rella` and `Champion's Vigilance`, which
-completes the pool's **Equip group** (all four equippers) and its **only Counter Trap**.
+**B. Per-card** — **36 of 77** cards implemented and tested; **41 remain**, honestly reported as
+`NOT_IMPLEMENTED` / `NOT_TESTED` in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`. Batch 6 added
+`Aussa the Earth Charmer`, `Eria the Water Charmer`, `Wynn the Wind Charmer` and
+`Enemy Controller`, which completes the pool's **control-change group** — every card in the V1
+pool that changes control is now implemented and tested.
+
+The paragraph below describes the state at the end of batch 5 and is kept for the record.
+
+**B (batch 5 snapshot)** — **32 of 77** cards implemented and tested; **45 remained**. Batch 5
+added `Apprentice Magician`, `Kunai with Chain`, `Fairy Tail - Rella` and `Champion's Vigilance`,
+which completes the pool's **Equip group** (all four equippers) and its **only Counter Trap**.
 
 The paragraph below describes the state at the end of batch 4 and is kept for the record.
 

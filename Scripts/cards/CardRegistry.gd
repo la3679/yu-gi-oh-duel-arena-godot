@@ -69,6 +69,14 @@ func _load_one(path: String) -> void:
 		errors.append("%s could not be loaded" % path)
 		return
 
+	# A script that failed to COMPILE still loads, but hands back an empty constant map and
+	# cannot be instantiated. Reporting that as "declares no CARD_NAME" sends the reader
+	# looking for a missing constant in a file whose real problem is a syntax or type error
+	# somewhere else entirely — it cost a cycle in batch 6, so the two are now distinct.
+	if not script.can_instantiate():
+		errors.append("%s failed to compile — run the parse check on it" % path)
+		return
+
 	var constants: Dictionary = script.get_script_constant_map()
 	if not constants.has("CARD_NAME"):
 		errors.append("%s declares no CARD_NAME" % path)

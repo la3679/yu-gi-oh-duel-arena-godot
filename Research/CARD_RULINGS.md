@@ -313,16 +313,85 @@ Continuous Spell/Trap already face-up on the field. "Negate the **activation**" 
 cost the negated card already paid (`RULES_SPEC.md §10`). The field condition requires a
 **face-up** monster, on the same reasoning as `controls_face_up_monster_of_race()`.
 
-**KNOWN GAP, not resolved this batch:** a **Flip Summon is a Summon** [S1 p.24] and this card
-should be able to negate one, but `SummonRules.flip_summon()` applies the flip immediately
-instead of splitting into begin/complete like the other two Summon routes, so no declaration
-window opens and the card cannot answer it. This is an ENGINE limitation, not a card one. It is
-asserted as current behaviour by `ChampionsVigilanceTests :: KNOWN GAP` so it cannot be silently
-forgotten, and it is carried in `PROJECT_STATE.md §7`.
+**The Flip Summon gap is CLOSED (batch 6).** It was recorded here at the batch-5 checkpoint as
+a KNOWN GAP: a **Flip Summon is a Summon** [S1 p.24] and this card should be able to negate one,
+but `SummonRules.flip_summon()` applied the flip immediately instead of splitting into
+begin/complete like the other two routes, so no declaration window opened. That was an ENGINE
+limitation, not a card one, and batch 6 fixed it generically rather than inside this card.
+
+The fix is deliberately **not** the Normal/Special Summon mechanism reused unchanged. A Flip
+Summon's monster does not move: it waits face-down in the Monster Zone it already occupies for
+the whole declaration window, because entering `Zone.IN_TRANSIT` would be a departure from the
+field and would destroy its Equip Cards and clear its per-instance state. Consequences, all
+tested:
+
+* a negated Flip Summon leaves the monster **face-down** — the position change WAS the Summon;
+* **no** `FLIP_SUMMON_SUCCEEDED` event, so no successful-summon trigger is collected;
+* **no Flip effect**, because a Flip effect keys on being flipped face-up and the monster never
+  was (`AussaTheEarthCharmerTests :: a NEGATED Flip Summon never triggers it`);
+* the Normal Summon allowance and the once-per-turn manual position change are both untouched.
+
+"Is a Summon pending?" therefore stopped being answerable by scanning `in_transit`, which covers
+only two of the three routes, and moved to `GameState.pending_summon_card_id`.
+`ChampionsVigilanceTests :: it negates a Flip Summon` replaces the old KNOWN GAP test, with
+`:: left unanswered, the same Flip Summon completes normally` as its positive control.
 
 "monster(s)": the plural exists because one Summon can place several monsters at once. Nothing in
 the V1 pool does, so there is one pending Summon record and negating it negates the whole Summon.
 Not exercised beyond that, and said so.
+
+### R25 — `Enemy Controller`: when exactly does "until the End Phase" end?
+
+**DECIDED: control returns as the End Phase is ENTERED**, before anything else happens in it.
+
+The official text gives a duration ("take control of that target until the End Phase") but not an
+instant, and this engine's End Phase is deliberately **two steps** — the first performs the
+hand-size discard, which happens at the *end* of the End Phase [S1 p.40], and the second ends the
+turn (`PROJECT_STATE.md` design decision 3). A duration worded "until the End Phase" runs up TO
+that phase, so it expires the moment the phase begins; anything later would let a borrowed monster
+be Tributed for, or discarded to, an effect during a phase the card says the loan is already over.
+Implemented in `TurnFlow.enter_phase()` and asserted against the event sequence numbers, not
+merely against the final state (`EnemyControllerTests :: control expires as the End Phase is
+ENTERED`).
+
+**Confidence: reasonable, not certain.** No single official sentence names the instant, which is
+recorded here rather than dressed up. What IS certain and is what the test pins down: it lasts the
+whole of the controlling player's turn through Main Phase 2, and it is gone before the next turn.
+
+Two further decisions on the same card:
+
+* **"Tribute 1 monster" is a COST**, paid at activation and never refunded. Negate the activation
+  afterwards and the Tribute stays paid. With no monster to Tribute the second bullet is not
+  offered at all — a cost that cannot be paid blocks the ACTIVATION, it does not merely make the
+  effect do nothing. The first bullet is unaffected, because the two bullets are independent
+  activations of the same card ("Activate 1 of these effects").
+* **Neither bullet is legal in the Damage Step.** [S1 p.41] permits only Counter Traps, effects
+  that negate, and effects that directly change ATK/DEF. A battle position change is none of
+  those, however tempting the timing looks. `RULES_SPEC.md §7.2`.
+* The first bullet's position change is **by effect**, so it does not spend the monster's
+  once-per-turn manual battle position change and is not subject to the three manual-change
+  restrictions [S1 p.36] — those govern what a PLAYER may do in their Main Phase.
+
+### R26 — the three Charmers share one implementation, and that is not over-generalisation
+
+`Aussa the Earth Charmer`, `Eria the Water Charmer` and `Wynn the Wind Charmer` carry the current
+official text **word for word apart from the Attribute** (§2.1), so the mechanics live in one
+primitive, `EffectPrimitives.charmer_take_control()`. Each card still declares its own name,
+Attribute and quoted text, and each has its own suite; if any one of them is errata'd apart from
+the others it stops calling the primitive and writes its own clause.
+`WynnTheWindCharmerTests :: the three Charmers are three cards` asserts on a real board that the
+three Attribute filters genuinely differ, so the sharing cannot quietly collapse them into one.
+
+**On Eria specifically:** the older printing said "1 **face-up** WATER monster" and the current
+official text does not. Dropping the word changed nothing about what can be taken — a face-down
+monster's Attribute is not a property either player may act on, so it cannot satisfy "1 WATER
+monster" — and that is asserted in both directions rather than assumed
+(`EriaTheWaterCharmerTests :: face-down is still not a target`). The restriction now comes from
+the Attribute requirement instead of from a printed word.
+
+**On the duration:** "while this card is face-up on the field" is a condition on the CHARMER, not
+on the borrowed monster. Flip the Charmer face-down or remove it and control returns immediately;
+turning the *borrowed* monster face-down changes nothing.
 
 ---
 
