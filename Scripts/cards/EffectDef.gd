@@ -57,6 +57,11 @@ var once_per_turn_named_activation: bool = false
 ## Shared restriction group: effects with the same non-empty key on the same card share
 ## one per-turn use. Maiden with Eyes of Blue uses this ("only 1 effect per turn").
 var restriction_group: String = ""
+## "TWICE per turn, it cannot be destroyed …" — a clause that may apply more than once in
+## a turn but not without limit. 0 means unlimited. Counted on the source instance by the
+## rules layer (`CardInstance.uses_this_turn`), never by the card's own callables, so a
+## query clause can stay a pure function. RULES_SPEC.md 11, 17.
+var uses_per_turn: int = 0
 
 # --- Behaviour callables ---
 ## func(ctx: EffectContext) -> bool — is the activation condition satisfied?
@@ -72,6 +77,12 @@ var legal_targets: Callable = Callable()
 var resolve: Callable = Callable()
 ## func(ctx: EffectContext) -> void — apply/refresh a continuous effect.
 var apply_continuous: Callable = Callable()
+## func(ctx: EffectContext) -> CardInstance — a destruction REPLACEMENT query:
+## "If a monster equipped with this card would be destroyed, destroy this card instead."
+## `ctx.params` carries {"card": the card that would be destroyed, "reason": MoveReason}.
+## Returns the card to destroy in its place, or null when this clause does not apply.
+## RULES_SPEC.md 17; recognised by `GameState.DESTRUCTION_REPLACEMENT_EFFECT_ID`.
+var destruction_substitute: Callable = Callable()
 
 ## Reference back to the researched ruling note, e.g. "R3" in Research/CARD_RULINGS.md.
 var ruling_ref: String = ""

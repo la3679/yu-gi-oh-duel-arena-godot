@@ -6,14 +6,19 @@
 **Last updated:** 2026-08-12
 **Current phase:** **Phase 5 — the card effect library.** Phases 0–4 are complete and
 Gate B (the generic rules engine) is MET; nothing in Phase 4 needs revisiting.
-**Phase 5 progress:** the registry, the reusable effect primitives, `Shining Angel`, the
-**9 vanilla Normal Monsters** and the **first Special Summon batch** (`Monster Reborn`,
-`Silver's Cry`, `Kaibaman`, `Dragonic Tactics`, `One for One`) are implemented and
-tested — **15 / 77 implemented, 15 / 77 tested**.
+**Phase 5 progress:** batches 1-3 are complete — the registry and effect primitives,
+`Shining Angel`, the **9 vanilla Normal Monsters**, the **resolution-time Special Summon
+batch** (`Monster Reborn`, `Silver's Cry`, `Kaibaman`, `Dragonic Tactics`, `One for One`)
+and **batch 3**: the two Continuous-Trap revivals (`Birthright`, `Call of the Haunted`),
+the four summoning-procedure monsters (`Hieratic Dragon of Tefnuit`, `Inari Fire`,
+`Ranryu`, `Nefarious Archfiend Eater of Nefariousness`) and the first Equip-card group
+(`Gagagashield`, `Rider of the Storm Winds`) — **23 / 77 implemented, 23 / 77 tested**.
+**Nothing in batch 3 is partial, unverified or approximated:** every card listed above has
+its own suite and passes it in full. **54 unique playable cards remain.**
 **Overall status:** IN PROGRESS — **not** acceptance-complete.
-**HEAD at checkpoint:** `483f82f` (the Phase 5 batch-2 commit follows it)
-**Measured suite at checkpoint:** **1016 passed / 0 failed** across **21 suites**
-(630 core rules + 340 per-card + 46 interaction); SmokeCheck **PASS**.
+**HEAD at checkpoint:** `3c1cc40` (the Phase 5 batch-3 commit follows it)
+**Measured suite at checkpoint:** **1560 passed / 0 failed** across **30 suites**
+(713 core rules + 801 per-card + 46 interaction); SmokeCheck **PASS**.
 
 ---
 
@@ -177,7 +182,7 @@ Key research outputs:
 
 ## 4. Build/verification status
 
-Last verified run (2026-08-12, at commit `483f82f` plus the Phase 5 batch-2 work):
+Last verified run (2026-08-12, at commit `3c1cc40` plus the Phase 5 batch-3 work):
 
 ```
 powershell -File Tools\run_tests.ps1 SmokeCheck  -> SMOKE CHECK: PASS
@@ -188,20 +193,24 @@ powershell -File Tools\run_tests.ps1 RunTests
   SummonTests:         45/45      HiddenInfoTests:      76/76
   SpellTrapTests:      27/27      SpecialSummonTests:   54/54
   BattleTests:         72/72      RulesQuestionTests:   37/37
-                                  ReplayTests:          33/33
+  EquipTests:          83/83      ReplayTests:          33/33
   --- per-card (Phase 5) ---
-  ShiningAngelTests:   43/43      KaibamanTests:        47/47
-  NormalMonsterTests:  76/76      DragonicTacticsTests: 39/39
-  MonsterRebornTests:  48/48      OneForOneTests:       40/40
-  SilversCryTests:     47/47
+  ShiningAngelTests:   43/43      BirthrightTests:              59/59
+  NormalMonsterTests:  76/76      CallOfTheHauntedTests:        48/48
+  MonsterRebornTests:  48/48      HieraticDragonOfTefnuitTests: 67/67
+  SilversCryTests:     47/47      InariFireTests:               65/65
+  KaibamanTests:       47/47      RanryuTests:                  49/49
+  DragonicTacticsTests:39/39      NefariousArchfiendTests:      44/44
+  OneForOneTests:      40/40      GagagashieldTests:            63/63
+                                  RiderOfTheStormWindsTests:    66/66
   --- interaction (Phase 5) ---
   SpecialSummonInteractionTests: 46/46
-  TOTAL: 1016 passed, 0 failed (1016 assertions across 21 suites)
+  TOTAL: 1560 passed, 0 failed (1560 assertions across 30 suites)
   RESULT: PASS
 ```
 
-**1016 / 1016 passing. These numbers were actually produced by the command above; they
-are not estimates.** All 673 earlier assertions still pass unchanged — none was weakened,
+**1560 / 1560 passing. These numbers were actually produced by the command above; they
+are not estimates.** All 1016 earlier assertions still pass unchanged — none was weakened,
 retargeted or deleted. Per-suite detail and the honest not-yet-covered list live in
 `Reports/TEST_RESULTS.md`.
 
@@ -227,6 +236,23 @@ Two things it handles that cost real time to discover:
 2. A suite that fails to **compile** makes `RunTests._initialize()` throw before it can
    call `quit()`, so the headless SceneTree runs forever at near-zero CPU. The runner does
    a `--check-only` parse pass first, turning that hang into an immediate readable error.
+
+### Defects the Phase 5 batch-3 tests caught
+
+1. **`GameState.move_card()` read "was this card face-up?" AFTER the move rewrote the
+   position.** `_attach()` and the position-handling block turn a card sent to the GY
+   FACE_UP and one returned to the hand FACE_DOWN, so the new `last_move_was_face_up`
+   record answered a question about the DESTINATION. `Inari Fire`'s "after this **face-up
+   card on the field** was destroyed by card effect" depends on it entirely. Fixed by
+   capturing it at the top of `move_card()`, next to `was_on_field`, before `_detach()`.
+2. **`CARD_DESTROYED` was not emitted for `MoveReason.DESTROYED_BY_RULE`.** The new reason
+   was added to `Enums.is_destruction()` but not to the `match reason:` block that emits
+   the semantic event, so an Equip Card that lost its host went to the Graveyard with no
+   destruction event at all. Caught by `EquipTests` on its first run.
+3. **`_cleanup_resolved_spell_traps()` decided what stays on the field from the card KIND
+   alone.** Wrong in both directions once Equip Cards exist: a NORMAL Trap that equipped
+   (`Gagagashield`) must stay, and an Equip Spell that resolved WITHOUT equipping must not.
+   The equip relationship now takes precedence over `Enums.stays_on_field()`.
 
 ### Defects the Phase 4c tests caught
 
@@ -300,7 +326,7 @@ Two things it handles that cost real time to discover:
 | 2 | Per-card official text + rulings research (77 cards) | **COMPLETE** |
 | 3 | Architecture / scaffolding + Graphify index | **COMPLETE** |
 | 4 | Core rules engine | **COMPLETE** — 4b-1/4b-2/4b-3/4c done+tested |
-| 5 | Card effect library (77 cards) | **IN PROGRESS** — **15 / 77** implemented and tested (9 vanillas, `Shining Angel`, and the first Special Summon batch) |
+| 5 | Card effect library (77 cards) | **IN PROGRESS** — **23 / 77** implemented and tested (batches 1-3) |
 | 6 | Automated tests | NOT STARTED |
 | 7 | Basic playable UI | NOT STARTED |
 | 8 | Arena / presentation | NOT STARTED |
@@ -328,7 +354,7 @@ DuelArenaGame/
 ├── .gitignore  .graphifyignore
 ├── Research/
 │   ├── RULES_SOURCES.md               source register (S1-S4) + hashes
-│   ├── RULES_SPEC.md                  implementable rules contract
+│   ├── RULES_SPEC.md                  implementable rules contract (§1-§17)
 │   ├── CARD_RULINGS.md                card research, discrepancies, R1-R20
 │   └── sources/
 │       ├── SD_RuleBook_EN_10.pdf                  official Rulebook v10
@@ -368,7 +394,15 @@ DuelArenaGame/
 │   │       ├── SilversCry.gd          Quick-Play + hard once-per-turn on the name
 │   │       ├── Kaibaman.gd            Tribute-self COST + named-card Summon
 │   │       ├── DragonicTactics.gd     two-Tribute COST + Deck Summon
-│   │       └── OneForOne.gd           send-from-hand COST + hand-or-Deck Summon
+│   │       ├── OneForOne.gd           send-from-hand COST + hand-or-Deck Summon
+│   │       ├── Birthright.gd          Continuous Trap revival; mutual link on LEAVES FIELD
+│   │       ├── CallOfTheHaunted.gd    the same shape, third clause on IS DESTROYED
+│   │       ├── HieraticDragonOfTefnuit.gd  summon procedure + "this way" + Tribute trigger
+│   │       ├── InariFire.gd           control limit + procedure + delayed Standby revival
+│   │       ├── Ranryu.gd              control limit + procedure + optional targeting revival
+│   │       ├── NefariousArchfiendEaterOfNefariousness.gd  opponent's End Phase GY effect
+│   │       ├── Gagagashield.gd        Trap that equips + COUNTED destruction prevention
+│   │       └── RiderOfTheStormWinds.gd  monster that equips itself + piercing + replacement
 │   ├── rules/
 │   │   ├── ChainLink.gd               one chain link
 │   │   ├── ChainManager.gd            chain build / negate / reverse resolve
@@ -386,6 +420,7 @@ DuelArenaGame/
 ├── Tests/
 │   ├── support/TestFixtures.gd        synthetic cards, duel builder, engine drivers
 │   └── rules/
+│       ├── EquipTests.gd        83 assertions (the Equip gate)
 │       ├── ChainTests.gd        27 assertions
 │       ├── TimingTests.gd       37 assertions
 │       ├── TurnFlowTests.gd     40 assertions
@@ -407,6 +442,14 @@ DuelArenaGame/
 │   ├── KaibamanTests.gd                  47
 │   ├── DragonicTacticsTests.gd           39
 │   ├── OneForOneTests.gd                 40
+│   ├── BirthrightTests.gd                59
+│   ├── CallOfTheHauntedTests.gd          48
+│   ├── HieraticDragonOfTefnuitTests.gd   67
+│   ├── InariFireTests.gd                 65
+│   ├── RanryuTests.gd                    49
+│   ├── NefariousArchfiendTests.gd        44
+│   ├── GagagashieldTests.gd              63
+│   ├── RiderOfTheStormWindsTests.gd      66
 │   └── SpecialSummonInteractionTests.gd  46   (no card-under-test marker, on purpose)
 ├── Tools/                             Python research + data pipeline (dev only)
 │   ├── run_tests.ps1                  headless test runner (parse-check + no pipe stall)
@@ -416,7 +459,7 @@ DuelArenaGame/
 │   ├── dump_official_text.py          human-readable card text dump
 │   ├── build_card_db.py               -> Data/cards/cards.json + deck lists
 │   └── build_matrix.py                -> Reports/CARD_IMPLEMENTATION_MATRIX.csv
-├── Reports/CARD_IMPLEMENTATION_MATRIX.csv   77 rows, text verified, 15 implemented
+├── Reports/CARD_IMPLEMENTATION_MATRIX.csv   77 rows, text verified, 23 implemented
 └── graphify-out/graph.json            dev index (git-ignored)
 ```
 
@@ -473,6 +516,10 @@ Legend: **DONE+TESTED** = implemented and covered by passing assertions ·
 | **Piercing battle damage** | **DONE+TESTED** — required after all by `Rider of the Storm Winds` | `BattleRules.step_damage_calculation()` | RulesQuestionTests |
 | **Player-level continuous restrictions** | **DONE+TESTED** | `ContinuousEffects.restrict_player()` consumed by `TurnFlow.can_enter_battle_phase()` | RulesQuestionTests |
 | `PlayerController` abstraction | **DONE+TESTED** (`ScriptedController`); no UI implementation yet | `Scripts/engine/PlayerController.gd` | used by every suite |
+| **Equip Cards (equip / unequip, zone occupancy, host leaves, host flipped face-down, granted continuous effects, battle recalculation)** | **DONE+TESTED** | `GameState.equip_to()` / `_detach_equips()`, `DuelEngine._cleanup_resolved_spell_traps()` | EquipTests (83) |
+| **Destruction prevention (uncounted and COUNTED) and destruction REPLACEMENT** | **DONE+TESTED** | `GameState.destruction_prevented()` / `carry_out_destruction()` / `destroy()` | EquipTests, GagagashieldTests, RiderOfTheStormWindsTests |
+| **Per-card facts that outlive the field (`last_move_*`, `card_memory`)** | **DONE+TESTED** | `GameState.move_card()`, `GameState.remember/recall/forget` | InariFireTests, BirthrightTests, CallOfTheHauntedTests |
+| **"You can only control 1 …" on every route onto the field** | **DONE+TESTED** | `SummonRules.control_limit_satisfied()`, consumed by `can_normal_summon_or_set`, `begin_special_summon`, `ActivationRules.can_use_summon_procedure` | InariFireTests, RanryuTests, NefariousArchfiendTests |
 | **Duel log / replay payload** | **DONE+TESTED** — a payload now round-trips to an identical event stream | `Scripts/engine/DuelLog.gd`, `DuelAction.from_dict()` | ReplayTests |
 
 ### Design decisions a future session must not silently reverse
@@ -566,6 +613,43 @@ Legend: **DONE+TESTED** = implemented and covered by passing assertions ·
     replay, and `ReplayTests` will catch it (it compares the recorded count against what
     the controllers were actually asked).
 
+18. **A fact that must survive a card leaving the field does NOT live in
+    `CardInstance.flags`.** `on_leave_field()` clears `flags` during the very move that
+    makes such a clause relevant. Two engine facilities exist instead and neither may be
+    replaced by a per-card hack: `CardInstance.last_move_*` (the last completed move,
+    recorded AFTER `on_leave_field()`, with `was_face_up` captured BEFORE the move) and
+    `GameState.card_memory` (a persistent link between two instances). `RULES_SPEC.md §15`.
+19. **There is ONE destruction entry point.** `GameState.destroy()` = prevention check then
+    carry-out; `carry_out_destruction()` alone is for a destruction whose prevention was
+    already asked. Battle asks prevention at DAMAGE CALCULATION (a monster that cannot be
+    destroyed was never determined to be destroyed, so it must not appear in
+    `DAMAGE_CALCULATED`) and replacement at the END OF THE DAMAGE STEP (that is when it
+    "would be destroyed"). Do not merge the two steps. `RULES_SPEC.md §17`.
+20. **A clause that answers a rules-layer QUESTION is found by effect id, never by reading
+    card text.** `SummonRules.TRIBUTE_VALUE_EFFECT_ID`, `SummonRules.CONTROL_LIMIT_EFFECT_ID`,
+    `GameState.DESTRUCTION_PREVENTION_EFFECT_ID`, `GameState.DESTRUCTION_REPLACEMENT_EFFECT_ID`,
+    listed in `CardRegistry.RULES_QUERY_EFFECT_IDS`. Such a clause is CONTINUOUS with no
+    `apply_continuous()`, and the registry still rejects one that answers nothing. The query
+    itself is PURE — a counted clause declares `EffectDef.uses_per_turn` and the rules layer
+    spends the use, so the card never has a side effect inside a condition.
+21. **An Equip Card is not "an Equip Spell".** [S1 p.53] includes equipped Traps and monsters
+    equipped to monsters, and the V1 pool's only two equippers are exactly those. Whether a
+    card stays on the field after resolving is decided by the **equip relationship first** and
+    the card kind second — a `Gagagashield` that equipped stays despite being a Normal Trap,
+    and an Equip Spell that equipped nothing leaves despite `Enums.stays_on_field()`.
+22. **`Birthright` and `Call of the Haunted` are NOT one implementation.** They share clauses 1
+    and 2 (via `EffectPrimitives.revive_target_in_attack_position` /
+    `destroy_linked_monster`) and disagree on clause 3: `Birthright` destroys itself when the
+    revived monster **leaves the field**, `Call of the Haunted` only when it **is destroyed**.
+    Banish or bounce the monster and the two behave differently. Each writes its own trigger
+    condition, and `CallOfTheHauntedTests :: the clause shape` asserts directly that the two
+    listen to different events. Do not "simplify" this.
+23. **"Special Summoned THIS WAY" is narrower than "Special Summoned".**
+    `CardInstance.summoned_by_procedure_id` records which summoning PROCEDURE a monster used on
+    itself, written by `SummonRules.complete_summon()` from the pending record. A
+    `Hieratic Dragon of Tefnuit` revived by `Monster Reborn` may attack; one that used its own
+    procedure may not. CARD_RULINGS.md §2.1.
+
 ---
 
 ## 7. Blockers
@@ -589,24 +673,24 @@ Everything previously listed here is now done and tested; see §6a and
 
 ### Genuinely still open (carried through Phase 5, not hidden)
 
-* **62 of 77 cards are not implemented yet.** They are honestly `NOT_IMPLEMENTED` in the
+* **54 of 77 cards are not implemented yet.** They are honestly `NOT_IMPLEMENTED` in the
   matrix; see §8 for the next batch.
-* **Equip mechanics still have no assertions.** `GameState._unequip_all()` runs but
-  nothing tests it. `Rider of the Storm Winds`, `Gagagashield` and `Castle of Dragon
-  Souls` will force this, and the generic mechanic must be built and tested **before**
-  the first Equip card is marked complete.
-* **Simultaneous-LP-zero (a draw) is unexercised.**
-* **No Continuous Trap card is implemented yet.** `Birthright` and `Call of the Haunted`
-  are the first, and they need the "when this card leaves the field, destroy that
-  monster / when that monster leaves the field, destroy this card" mutual link, which no
-  existing primitive covers.
-* **No card yet uses a summoning PROCEDURE.** The engine path is tested
-  (`SpecialSummonTests`) but no real card drives it; `Hieratic Dragon of Tefnuit`,
-  `Inari Fire`, `Ranryu` and `Nefarious Archfiend` will.
-* **34241 leaked ObjectDB instances at exit** (measured on this run, up from ~24500 —
-  it grows with the number of duels the suite builds) — RefCounted cycles between `GameState`,
-  the `DuelLog` signal and test closures. Harmless to rules outcomes, but it must be
-  cleaned up before the UI keeps one duel alive for a long session.
+* **Simultaneous-LP-zero (a draw) is unexercised.** This is now the ONLY item left on the
+  core-rules "not yet covered" list in `Reports/TEST_RESULTS.md`.
+* **`Castle of Dragon Souls` was mis-grouped as an Equip card** in the previous checkpoint's
+  §8 plan. Its official text is *"Once per turn: You can banish 1 Dragon monster from your GY,
+  then target 1 monster you control; it gains 700 ATK until the end of this turn (even if this
+  card leaves the field) …"* — it is a **Continuous Trap with a temporary ATK boost**, not an
+  Equip Card, and it equips nothing. It was therefore deliberately NOT included in the Equip
+  group and is queued with the other Continuous Traps (see §8). This is a correction to the
+  plan, not an omission from the batch.
+* **`Kunai with Chain` and `Fairy Tail - Rella` still exercise Equip mechanics** and are not
+  implemented yet. The generic subsystem they need now exists and is tested; they still need
+  their own per-card work.
+* **50075 leaked ObjectDB instances at exit** (measured on this run, up from 34241 — it grows
+  with the number of duels the suite builds) — RefCounted cycles between `GameState`, the
+  `DuelLog` signal and test closures. Harmless to rules outcomes, but it must be cleaned up
+  before the UI keeps one duel alive for a long session.
 
 ---
 
@@ -614,60 +698,77 @@ Everything previously listed here is now done and tested; see §6a and
 
 ### How to resume in one paragraph
 
-**Phase 4 is complete and Gate B is MET; Phase 5 is 15 / 77 of the way through.** The
-generic rules engine is tested end to end (Fast Effect Timing, the `DuelEngine`
-legal-action API, trigger collection and ordering, Normal/Tribute/Flip **and Special**
-Summons including summon negation on both paths, turn/phase flow, the Spell/Trap
-framework, the Battle Phase, the Damage Step and its activation restriction, damage
-calculation including piercing, battle destruction semantics, continuous effects, the
-counter engine, hidden-information filtering and the DuelLog replay payload). On top of
-it, the card library now has the 9 vanillas, `Shining Angel`, and the first Special
-Summon batch — **1016 assertions across 21 suites, 0 failures**, SmokeCheck PASS. Read
-§6a for per-subsystem status and the **seventeen** design decisions that must not be
-reversed, and §7 for what is genuinely still open. Do **not** re-read the whole
-repository, re-run research, or re-derive rules.
+**Phase 4 is complete and Gate B is MET; Phase 5 is 23 / 77 of the way through.** The generic
+rules engine is tested end to end (Fast Effect Timing, the `DuelEngine` legal-action API,
+trigger collection and ordering, Normal/Tribute/Flip **and Special** Summons including summon
+negation on both paths, turn/phase flow, the Spell/Trap framework, the Battle Phase, the Damage
+Step and its activation restriction, damage calculation including piercing, battle destruction
+semantics, continuous effects, the counter engine, hidden-information filtering, the DuelLog
+replay payload, and — new in batch 3 — **Equip Cards, destruction prevention/replacement,
+per-card facts that outlive the field, and the "you can only control 1" limit**). On top of it
+the card library has the 9 vanillas, `Shining Angel`, the resolution-time Special Summon batch
+and all of batch 3 — **1560 assertions across 30 suites, 0 failures**, SmokeCheck PASS. Read
+§6a for per-subsystem status and the **twenty-three** design decisions that must not be
+reversed, and §7 for what is genuinely still open. Do **not** re-read the whole repository,
+re-run research, or re-derive rules.
 
-### The NEXT batch (batch 3) — start here
+### Batch 3 — COMPLETE (nothing partial, nothing unverified)
 
-**Continuous-Trap revival, then the summoning procedures, then Equip.** In order:
+| Card | Clauses | Suite | Result |
+|---|---:|---|---|
+| `Birthright` | 3 | `BirthrightTests` | 59/59 |
+| `Call of the Haunted` | 3 | `CallOfTheHauntedTests` | 48/48 |
+| `Hieratic Dragon of Tefnuit` | 3 | `HieraticDragonOfTefnuitTests` | 67/67 |
+| `Inari Fire` | 3 | `InariFireTests` | 65/65 |
+| `Ranryu` | 3 | `RanryuTests` | 49/49 |
+| `Nefarious Archfiend Eater of Nefariousness` | 3 | `NefariousArchfiendTests` | 44/44 |
+| `Gagagashield` | 2 | `GagagashieldTests` | 63/63 |
+| `Rider of the Storm Winds` | 3 | `RiderOfTheStormWindsTests` | 66/66 |
 
-1. **`Birthright` and `Call of the Haunted`** — the two Continuous Traps that revive.
-   They are one coherent batch because they share a shape no existing primitive covers:
-   *"Activate this card by targeting 1 … in your GY; Special Summon that target. When
-   this card leaves the field, destroy that monster. When that monster leaves the field /
-   is destroyed, destroy this card."* Three things to get right, and the two cards differ
-   on the third:
-   * the target is chosen **at activation** (`targeting(1)`) and the card **stays on the
-     field** (`Enums.stays_on_field(CONTINUOUS_TRAP)` is already true, and
-     `_cleanup_resolved_spell_traps` already leaves it there);
-   * `Birthright` reaches only a **Normal Monster** in your GY, `Call of the Haunted` any
-     monster — reuse `monster_filter(..., normal_only)` and `revivable_monster()`;
-   * the **mutual link** is asymmetric: `Birthright` destroys itself when the monster
-     *leaves the field*, `Call of the Haunted` only when the monster *is destroyed*.
-     Do not collapse them. Both directions need a TRIGGER effect keyed on the right
-     event with `MoveReason` discrimination, plus a link between the two instances (the
-     Trap needs to remember which monster it Summoned — put it in `link.params` /
-     `CardInstance.flags`, and note that `flags` is cleared by `on_leave_field()`).
-   A new primitive for "destroy the card this one is linked to" belongs in
-   `EffectPrimitives`, not duplicated per card.
-2. **The summoning-procedure monsters** — `Hieratic Dragon of Tefnuit`, `Inari Fire`,
-   `Ranryu`, `Nefarious Archfiend Eater of Nefariousness`. These use
-   `Enums.EffectType.SUMMON_PROCEDURE` and the `SPECIAL_SUMMON_PROCEDURE` action, **not**
-   the resolution-time path — design decision 9. Three of them also carry "You can only
-   control 1 …", which nothing implements yet. `Tefnuit` additionally has a
-   "cannot attack the turn it was Special Summoned this way" restriction and a
-   "when this card is Tributed" trigger; `Inari Fire` and `Nefarious Archfiend` are
-   Standby/End Phase self-revivals. Check `Research/CARD_RULINGS.md` R17 and R18 first.
-3. **Equip** — `Rider of the Storm Winds`, `Gagagashield`, `Castle of Dragon Souls`.
-   **Equip mechanics still have NO assertions** (§7). Build and test the generic mechanic
-   — equipping, `CardInstance.equipped_to_id` / `equipped_card_ids`, the
-   `CARD_EQUIPPED` / `CARD_UNEQUIPPED` events, and the `GameState._unequip_all()` path
-   that destroys an Equip Card when its host leaves the field [S1 p.28] — **before**
-   marking the first Equip card complete. `Rider of the Storm Winds` also grants
-   piercing, which the engine already supports and tests.
-4. Then the remaining **Spells/Traps by kind**, then the **counter** cards
-   (`Apprentice Magician`, `Wonder Balloons`), then the **negation** cards
-   (`Champion's Vigilance`) last — they exercise the most machinery.
+Generic mechanics completed and tested in this batch — none is left UNVERIFIED:
+
+* **Equip Cards** — `GameState.equip_to()` / `_detach_equips()` / `equipped_cards()`, the
+  `CARD_EQUIPPED` / `CARD_UNEQUIPPED` events, Spell & Trap Zone occupancy, host leaves the
+  field, host flipped face-down, an Equip Spell that equipped nothing, and battle
+  recalculation from the equipped ATK. `EquipTests` (83). **This was the Equip gate and it was
+  written and passing BEFORE either Equip card was implemented.**
+* **Destruction** — one entry point (`destroy()` = `destruction_prevented()` then
+  `carry_out_destruction()`), uncounted and COUNTED prevention, and destruction REPLACEMENT,
+  with `Enums.MoveReason.DESTROYED_BY_RULE` for a rules destruction. `RULES_SPEC.md §17`.
+* **Facts that outlive the field** — `CardInstance.last_move_*` and `GameState.card_memory`.
+  `RULES_SPEC.md §15`.
+* **"You can only control 1 …"** — `SummonRules.control_limit_satisfied()`, enforced on every
+  route onto the field.
+* **"Special Summoned this way"** — `CardInstance.summoned_by_procedure_id`.
+
+Cards started but unfinished: **none.** Mechanics still unverified from this batch: **none.**
+
+### The NEXT batch (batch 4) — start here
+
+**The remaining Continuous Traps and Continuous Spell, then counters, then negation.** In
+order:
+
+1. **`Castle of Dragon Souls`** (Continuous Trap) — corrected out of the Equip group, see §7.
+   Three things it needs that nothing implements yet: **banish as a COST** from the GY, an ATK
+   boost that survives its own source leaving the field ("even if this card leaves the field",
+   so `until = "end_of_turn"` rather than the continuous duration), and a
+   "when this face-up card **is sent to the GY**" trigger that fires for **any** reason.
+   `Research/CARD_RULINGS.md` R19. Also carries "You can only control 1", which
+   `SummonRules.CONTROL_LIMIT_EFFECT_ID` already covers — but note it is a TRAP, so the limit
+   has to be checked where a Spell/Trap reaches the field, which `SummonRules` does NOT do
+   today. That gap is real and must be closed before the card is marked implemented.
+2. **The remaining Continuous Traps and the Continuous Spell**, reusing
+   `ContinuousEffects` and the `activation_unresolved()` start-timing rule already tested by
+   `RulesQuestionTests`.
+3. **The counter cards** — `Apprentice Magician` (Spell Counter) and `Wonder Balloons`
+   (Balloon Counter). The counter engine is built and tested (`CounterTests`, 44); these are
+   the first real cards to drive it. `Apprentice Magician` also Special Summons in **face-down
+   Defense Position**, which is the one case `EffectPrimitives.choose_face_up_position()`
+   deliberately does not offer — it must pass the position explicitly.
+4. **`Kunai with Chain` and `Fairy Tail - Rella`** — the second Equip group. The generic
+   subsystem now exists and is tested, so these are ordinary per-card work.
+5. **The negation cards** (`Champion's Vigilance`) **last** — they exercise the most machinery,
+   including `negate_pending_summon()` on both Summon paths.
 
 ### Phase 5 — how the card library is built (the pattern is now established)
 
@@ -703,14 +804,29 @@ Cards are done in **mechanic** groups, not alphabetically. Batches completed so 
   `Silver's Cry`, `Kaibaman`, `Dragonic Tactics`, `One for One`. Between them they
   introduced targeting at activation, "either GY", the self-Tribute cost, the two-Tribute
   cost, the send-from-hand cost, Deck Summons, and player-chosen summon positions.
+* **Batch 3 — Continuous-Trap revival, summoning procedures, and the first Equip group**:
+  `Birthright`, `Call of the Haunted`, `Hieratic Dragon of Tefnuit`, `Inari Fire`, `Ranryu`,
+  `Nefarious Archfiend Eater of Nefariousness`, `Gagagashield`, `Rider of the Storm Winds`.
+  Between them they introduced the Equip subsystem, destruction prevention and replacement,
+  the "control limit", persistent per-card facts, and the first real use of the summoning
+  procedure path.
 
-The batch to do next is spelled out under **"The NEXT batch (batch 3)"** above.
+The batch to do next is spelled out under **"The NEXT batch (batch 4)"** above.
 
 Primitives added by batch 2, in `Scripts/cards/EffectPrimitives.gd` — reuse these rather
 than re-inventing them: `cards_in()`, `cards_in_either_graveyard()`, `monster_of_level()`,
 `monster_named()`, `revivable_monster()`, `choose_n()`, `choose_face_up_position()`,
 `special_summon_one_any_position()`, `special_summon_target()`, `surviving_target()`,
 `pay_tribute_cost()`, `pay_send_to_gy_cost()`, `record_cost()`.
+
+Primitives added by batch 3: `monster_with_stats()`, `event_is_leaving_the_field()`,
+`event_is_destruction_of()`, `event_is_phase_change_to()`, `link_revived_monster()`,
+`revived_monster()`, `clear_revival_link()`, `revive_target_in_attack_position()`,
+`destroy_linked_monster()`, `destroy_self()`, `controls_no_other_copy()`,
+`controls_face_up_monster_of_race()`, `summoned_this_way_this_turn()`,
+`special_summon_self()`, `set_atk_and_def()`, `equip_source_to_target()`,
+`equipped_host()`. Test-side: `TestFixtures.interferer()` and
+`TestFixtures.activate_card()`.
 
 No placeholders, and never silently drop a clause: `ChainManager` fails loudly on a
 missing `resolve()` and `CardRegistry` rejects a chain-starting effect that has none.

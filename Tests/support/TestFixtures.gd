@@ -93,6 +93,42 @@ static func trigger_effect(effect_id: String, events: Array, order_log: Array,
 	return e
 
 
+## A Spell Speed 2 Trap that does exactly one thing to one named card when it resolves.
+##
+## Tests need this more often than it looks. The engine does not pause when nobody holds a
+## legal response — it auto-passes and resolves a whole Chain inside one `submit_action()`
+## — so a real fast effect is the only way to change the board BETWEEN an activation and
+## its resolution. It is also the only way to make a destruction travel through the timing
+## machine, which is what a trigger effect needs in order to be collected at all: a test
+## that calls `GameState.destroy()` directly changes the board without ever reaching a
+## trigger check.
+##
+## `mode` is "destroy" | "banish" | "bounce" | "flip_face_down".
+static func interferer(card_name: String, victim: CardInstance, mode: String) -> CardDef:
+	var d := trap(card_name)
+	var e := EffectDef.new("interfere", "Test: %s one specific card." % mode)
+	e.of_type(Enums.EffectType.CARD_ACTIVATION)
+	e.spell_speed = Enums.SpellSpeed.SS2
+	e.activation_locations = [Enums.ActivationLocation.FIELD_FACE_DOWN]
+	e.resolve = func(ctx: EffectContext) -> void:
+		match mode:
+			"destroy":
+				ctx.state.destroy(victim, Enums.MoveReason.DESTROYED_BY_EFFECT,
+					ctx.source.id)
+			"banish":
+				ctx.state.move_card(victim, Enums.Zone.BANISHED,
+					Enums.MoveReason.BANISHED, {"source_id": ctx.source.id})
+			"bounce":
+				ctx.state.move_card(victim, Enums.Zone.HAND,
+					Enums.MoveReason.RETURNED_TO_HAND, {"source_id": ctx.source.id})
+			"flip_face_down":
+				ctx.state.set_battle_position(victim, Enums.Position.FACE_DOWN_DEFENSE,
+					true, ctx.source.id)
+			_:
+				push_error("TestFixtures.interferer: unknown mode '%s'" % mode)
+	return with_effect(d, e)
+
+
 # ---------------------------------------------------------------------------
 # Decks and engines
 # ---------------------------------------------------------------------------
@@ -183,6 +219,23 @@ static func find_action(actions: Array, kind: Enums.ActionKind, card_id: int = -
 static func has_action(actions: Array, kind: Enums.ActionKind, card_id: int = -1,
 		effect_id: String = "") -> bool:
 	return find_action(actions, kind, card_id, effect_id) != null
+
+
+## Activate a card through the public legal-action API and let the whole Chain finish.
+## Returns false when the activation was not offered or was rejected.
+static func activate_card(engine: DuelEngine, pid: int, card: CardInstance,
+		target_ids: Array = []) -> bool:
+	var offered = find_action(engine.get_legal_actions(pid),
+		Enums.ActionKind.ACTIVATE_CARD, card.id)
+	if offered == null:
+		return false
+	var action = offered
+	if not target_ids.is_empty():
+		action = offered.with_choices({"target_ids": target_ids})
+	if not engine.submit_action(action):
+		return false
+	pass_until_open(engine)
+	return true
 
 
 ## Everyone who is asked to respond passes, until the engine leaves the response windows.

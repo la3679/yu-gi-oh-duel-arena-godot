@@ -23,6 +23,17 @@ extends RefCounted
 
 const REGISTRY_DIR := "res://Scripts/cards/registry"
 
+## CONTINUOUS clauses that answer a QUESTION the rules layer asks instead of applying a
+## modifier to the board. They are keyed by effect id so the rules layer can find them
+## without interpreting card text, and they legitimately have no `apply_continuous()`.
+## Each still has to answer something, which is what the validation below insists on.
+const RULES_QUERY_EFFECT_IDS := [
+	SummonRules.TRIBUTE_VALUE_EFFECT_ID,
+	SummonRules.CONTROL_LIMIT_EFFECT_ID,
+	GameState.DESTRUCTION_PREVENTION_EFFECT_ID,
+	GameState.DESTRUCTION_REPLACEMENT_EFFECT_ID,
+]
+
 ## Errors found during the last load. Non-empty means the library is not trustworthy.
 var errors: Array = []
 ## card name -> Array[EffectDef]
@@ -94,9 +105,16 @@ func _load_one(path: String) -> void:
 				% [card_name, effect.effect_id])
 			return
 		if effect.is_continuous() and not effect.apply_continuous.is_valid():
-			errors.append("'%s' effect '%s' is continuous but has no apply_continuous()"
-				% [card_name, effect.effect_id])
-			return
+			if not RULES_QUERY_EFFECT_IDS.has(effect.effect_id):
+				errors.append("'%s' effect '%s' is continuous but has no apply_continuous()"
+					% [card_name, effect.effect_id])
+				return
+			# A rules-query clause applies nothing, but it must still ANSWER something,
+			# or the rules layer would silently read it as "no opinion".
+			if not (effect.condition.is_valid() or effect.destruction_substitute.is_valid()):
+				errors.append("'%s' effect '%s' is a rules query but answers nothing"
+					% [card_name, effect.effect_id])
+				return
 
 	by_card_name[card_name] = effects
 

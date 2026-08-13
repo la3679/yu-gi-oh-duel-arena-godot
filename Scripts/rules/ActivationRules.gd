@@ -269,6 +269,10 @@ static func can_use_summon_procedure(state: GameState, card: CardInstance,
 		return false
 	if not state.player(controller_id).has_free_monster_zone():
 		return false
+	# "You can only control 1 …" is checked here as well as in SummonRules, so the action
+	# is never even OFFERED when the limit already forbids it.
+	if not SummonRules.control_limit_satisfied(state, card, controller_id):
+		return false
 	var ctx := make_context(state, card, effect, controller_id, null)
 	if not condition_ok(ctx):
 		return false

@@ -19,6 +19,17 @@ func _initialize() -> void:
 		DragonicTacticsTests.run(),
 		OneForOneTests.run(),
 		SpecialSummonInteractionTests.run(),
+		BirthrightTests.run(),
+		CallOfTheHauntedTests.run(),
+		HieraticDragonOfTefnuitTests.run(),
+		InariFireTests.run(),
+		RanryuTests.run(),
+		NefariousArchfiendTests.run(),
+		GagagashieldTests.run(),
+		RiderOfTheStormWindsTests.run(),
+		# A rules suite, but Reports/TEST_RESULTS.md quotes its per-test counts too, and
+		# they have to be measured for the same reason.
+		EquipTests.run(),
 	]
 	print("")
 	for suite in suites:

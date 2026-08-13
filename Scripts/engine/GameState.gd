@@ -14,6 +14,23 @@ signal event_emitted(event: GameEvent)
 
 const PLAYER_COUNT := 2
 
+## Effect id convention for a counted destruction PREVENTION clause, e.g. `Gagagashield`'s
+## "Twice per turn, it cannot be destroyed by battle or card effects". The clause is a
+## CONTINUOUS EffectDef whose `condition` is a PURE query — it is called with
+## `ctx.params = {"card": <would-be-destroyed card>, "reason": <MoveReason>}` and returns
+## whether it prevents that destruction. `EffectDef.uses_per_turn` bounds how often it may
+## apply; the rules layer, not the card, spends the use.
+const DESTRUCTION_PREVENTION_EFFECT_ID := "destruction_prevention"
+
+## Effect id convention for a destruction REPLACEMENT clause, e.g. `Rider of the Storm
+## Winds`'s "If a monster equipped with this card would be destroyed, destroy this card
+## instead". The clause is a CONTINUOUS EffectDef whose `destruction_substitute` callable
+## receives the same params and returns the card to destroy instead, or null.
+const DESTRUCTION_REPLACEMENT_EFFECT_ID := "destruction_replacement"
+
+## Guard against a replacement chain that never terminates (A replaces B replaces A).
+const MAX_DESTRUCTION_REPLACEMENTS := 8
+
 var players: Array = []          # [PlayerState, PlayerState]
 var rng: Rng = null
 
@@ -45,6 +62,14 @@ var attack_is_direct: bool = false
 # --- Instance registry ---
 var _next_instance_id: int = 1
 var _instances: Dictionary = {}       # id -> CardInstance
+
+## Per-card facts that must OUTLIVE the card leaving the field, keyed "<key>::<card_id>".
+##
+## `CardInstance.flags` cannot express this: on_leave_field() clears it during the very
+## move that makes the fact relevant. `Birthright` and `Call of the Haunted` both need to
+## know which monster they Summoned at the moment they *leave* the field, which is exactly
+## when `flags` is already gone. RULES_SPEC.md 15.
+var card_memory: Dictionary = {}
 
 # --- Event log ---
 var events: Array = []
@@ -249,6 +274,11 @@ func move_card(card: CardInstance, to_zone: Enums.Zone, reason: Enums.MoveReason
 	var from_zone := card.zone
 	var from_player := card.controller_id
 	var was_on_field := card.is_on_field()
+	# Captured BEFORE the move: `_attach` and the position handling below overwrite
+	# `card.position` (a card sent to the GY becomes FACE_UP, one returned to the hand
+	# becomes FACE_DOWN), so asking afterwards answers about the destination rather than
+	# about where the card came from. RULES_SPEC.md 15.
+	var was_face_up := card.is_face_up()
 
 	_detach(card)
 
@@ -278,9 +308,20 @@ func move_card(card: CardInstance, to_zone: Enums.Zone, reason: Enums.MoveReason
 		card.revealed_to.clear()
 
 	# Leaving the field resets per-instance effect state. Master prompt 48.
+	# The Equip Cards that lose their host are collected FIRST — on_leave_field() clears
+	# `equipped_card_ids` — but destroyed only after this card's own events are emitted,
+	# so the log reads in causal order: the monster left, therefore its Equip Cards died.
+	var orphaned_equips: Array = []
 	if was_on_field and not card.is_on_field():
-		_unequip_all(card)
+		orphaned_equips = _detach_equips(card)
 		card.on_leave_field()
+
+	# Recorded after on_leave_field() precisely so it survives it. RULES_SPEC.md 15.
+	card.last_move_reason = reason
+	card.last_move_from_zone = from_zone
+	card.last_move_was_face_up = was_face_up
+	card.last_move_turn = turn_number
+	card.last_move_turn_player_id = turn_player_id
 
 	var payload := {
 		"card_id": card.id,
@@ -297,7 +338,11 @@ func move_card(card: CardInstance, to_zone: Enums.Zone, reason: Enums.MoveReason
 	# Specific semantic events so presentation can use distinct animations
 	# (master prompt 60) and triggers can subscribe precisely.
 	match reason:
-		Enums.MoveReason.DESTROYED_BY_BATTLE, Enums.MoveReason.DESTROYED_BY_EFFECT:
+		Enums.MoveReason.DESTROYED_BY_BATTLE, Enums.MoveReason.DESTROYED_BY_EFFECT, \
+		Enums.MoveReason.DESTROYED_BY_RULE:
+			# All three ARE destructions [S1 p.52]; which one it was stays in the payload,
+			# so a clause worded "destroyed by battle or card effect" can still tell them
+			# apart while a clause worded "is destroyed" sees all of them.
 			emit(GameEvent.Kind.CARD_DESTROYED, payload)
 		Enums.MoveReason.BANISHED:
 			emit(GameEvent.Kind.CARD_BANISHED, payload)
@@ -316,23 +361,230 @@ func move_card(card: CardInstance, to_zone: Enums.Zone, reason: Enums.MoveReason
 			and from_zone != Enums.Zone.BANISHED:
 		emit(GameEvent.Kind.CARD_SENT_TO_GY, payload)
 
+	# "If the equipped monster is destroyed, flipped face-down, or removed from the field,
+	# its Equip Cards are destroyed." [S1 p.29, p.55] This is a RULES destruction, not a
+	# card effect, which is why it carries its own MoveReason.
+	for entry in orphaned_equips:
+		var orphan: CardInstance = entry
+		if orphan.is_on_field():
+			move_card(orphan, Enums.Zone.GRAVEYARD, Enums.MoveReason.DESTROYED_BY_RULE,
+				{"source_id": card.id})
+
 	return true
 
 
-func _unequip_all(card: CardInstance) -> void:
-	# Equip Cards are destroyed when the equipped monster leaves the field. [S1 p.28]
+# ---------------------------------------------------------------------------
+# Equip Cards. RULES_SPEC.md 16 [S1 p.29, p.53, p.55]
+#
+# "The term 'Equip Card' includes all 3 kinds (standard Equip Spells, equipped Traps, and
+# monsters equipped to other monsters)" [S1 p.53], so this subsystem is deliberately not
+# written in terms of Equip Spells: the V1 pool's only two equippers are a Trap
+# (`Gagagashield`) and a monster that equips itself (`Rider of the Storm Winds`).
+# ---------------------------------------------------------------------------
+
+## Equip `equip` to `host`. Returns false and changes nothing when the equip is illegal.
+##
+## The Equip Card "affects only 1 monster (called the equipped monster), but still occupies
+## one of your Spell & Trap Zones" [S1 p.29], so a card equipping from anywhere other than
+## the Spell & Trap Zone needs a free one. The host must be a FACE-UP monster on the
+## field — an Equip Card gives its effect to "1 face-up monster of your choice" [S1 p.29].
+func equip_to(equip: CardInstance, host: CardInstance, source_id: int = -1) -> bool:
+	if equip == null or host == null or equip == host:
+		return false
+	if host.zone != Enums.Zone.MONSTER_ZONE or not host.is_face_up():
+		return false
+	if equip.equipped_to_id != -1:
+		# A card is equipped to exactly one monster and cannot be moved. [S1 p.53]
+		return false
+
+	var pid := equip.controller_id
+	if equip.zone != Enums.Zone.SPELL_TRAP_ZONE:
+		if not player(pid).has_free_spell_trap_zone():
+			return false
+		if not move_card(equip, Enums.Zone.SPELL_TRAP_ZONE, Enums.MoveReason.RULE,
+				{"to_player": pid, "position": Enums.Position.FACE_UP}):
+			return false
+	else:
+		equip.position = Enums.Position.FACE_UP
+
+	equip.equipped_to_id = host.id
+	if not host.equipped_card_ids.has(equip.id):
+		host.equipped_card_ids.append(equip.id)
+	emit(GameEvent.Kind.CARD_EQUIPPED, {
+		"card_id": equip.id, "card_name": equip.card_name(),
+		"equipped_to_id": host.id, "equipped_to_name": host.card_name(),
+		"player": pid, "source_id": source_id,
+	})
+	return true
+
+
+## Every Equip Card currently equipped to `host`, in the order they were equipped.
+func equipped_cards(host: CardInstance) -> Array:
+	var out: Array = []
+	if host == null:
+		return out
+	for eid in host.equipped_card_ids:
+		var equip = instance(int(eid))
+		if equip != null:
+			out.append(equip)
+	return out
+
+
+## Break every equip relationship `card` takes part in and announce it. Returns the Equip
+## Cards that have just lost their host and are therefore now destroyed by the rules —
+## the caller decides when that destruction happens, because ordering matters.
+func _detach_equips(card: CardInstance) -> Array:
+	var orphaned: Array = []
 	for eid in card.equipped_card_ids.duplicate():
-		var equip = instance(eid)
-		if equip != null and equip.is_on_field():
-			equip.equipped_to_id = -1
-			move_card(equip, Enums.Zone.GRAVEYARD, Enums.MoveReason.DESTROYED_BY_EFFECT,
-				{"source_id": card.id})
+		var equip = instance(int(eid))
+		if equip == null:
+			continue
+		equip.equipped_to_id = -1
+		emit(GameEvent.Kind.CARD_UNEQUIPPED, {
+			"card_id": equip.id, "card_name": equip.card_name(),
+			"equipped_to_id": card.id, "equipped_to_name": card.card_name(),
+			"player": equip.controller_id, "lost_host": true,
+		})
+		if equip.is_on_field():
+			orphaned.append(equip)
 	card.equipped_card_ids.clear()
+
 	if card.equipped_to_id != -1:
 		var host = instance(card.equipped_to_id)
 		if host != null:
 			host.equipped_card_ids.erase(card.id)
+		emit(GameEvent.Kind.CARD_UNEQUIPPED, {
+			"card_id": card.id, "card_name": card.card_name(),
+			"equipped_to_id": card.equipped_to_id,
+			"equipped_to_name": host.card_name() if host != null else "",
+			"player": card.controller_id, "lost_host": false,
+		})
 		card.equipped_to_id = -1
+	return orphaned
+
+
+# ---------------------------------------------------------------------------
+# Destruction. RULES_SPEC.md 17.
+#
+# One entry point, so a "cannot be destroyed" and a "destroy this card instead" are
+# honoured no matter who asked for the destruction. Both are found through the effect-id
+# conventions declared at the top of this file, never by reading card text.
+# ---------------------------------------------------------------------------
+
+## Face-up, un-negated cards on the field that declare `effect_id` as a rules query.
+func _query_sources(effect_id: String) -> Array:
+	var out: Array = []
+	for p in players:
+		for card in p.controlled_cards():
+			if card == null or card.definition == null:
+				continue
+			if not card.is_face_up() or card.effects_negated:
+				continue
+			for effect in card.definition.effects:
+				if effect.effect_id == effect_id:
+					out.append({"card": card, "effect": effect})
+	return out
+
+
+## Would this destruction be PREVENTED? A counted prevention spends one of its uses here,
+## because the use is spent by the destruction it stops, not by anything the player does.
+func destruction_prevented(card: CardInstance, reason: Enums.MoveReason) -> bool:
+	if card == null:
+		return false
+	# The uncounted continuous flags, owned by ContinuousEffects and rebuilt every recompute.
+	if reason == Enums.MoveReason.DESTROYED_BY_BATTLE \
+			and bool(card.flags.get("cannot_be_destroyed_by_battle", false)):
+		return true
+	if reason != Enums.MoveReason.DESTROYED_BY_BATTLE \
+			and bool(card.flags.get("cannot_be_destroyed_by_effect", false)):
+		return true
+
+	for entry in _query_sources(DESTRUCTION_PREVENTION_EFFECT_ID):
+		var source: CardInstance = entry["card"]
+		var effect: EffectDef = entry["effect"]
+		if not effect.condition.is_valid():
+			continue
+		if effect.uses_per_turn > 0 \
+				and source.uses_this_turn(effect.effect_id, turn_number) >= effect.uses_per_turn:
+			continue
+		var ctx := EffectContext.new(self, source, effect)
+		ctx.controller_id = source.controller_id
+		ctx.params = {"card": card, "reason": reason}
+		if not bool(effect.condition.call(ctx)):
+			continue
+		if effect.uses_per_turn > 0:
+			source.record_use_this_turn(effect.effect_id, turn_number)
+		return true
+	return false
+
+
+## Carry out a destruction whose prevention check has already been made, applying any
+## REPLACEMENT effect. Returns true when SOMETHING was destroyed (possibly the substitute).
+func carry_out_destruction(card: CardInstance, reason: Enums.MoveReason,
+		source_id: int = -1, depth: int = 0) -> bool:
+	if card == null or not card.is_on_field():
+		return false
+	if depth < MAX_DESTRUCTION_REPLACEMENTS:
+		for entry in _query_sources(DESTRUCTION_REPLACEMENT_EFFECT_ID):
+			var replacer: CardInstance = entry["card"]
+			var effect: EffectDef = entry["effect"]
+			if not effect.destruction_substitute.is_valid():
+				continue
+			var ctx := EffectContext.new(self, replacer, effect)
+			ctx.controller_id = replacer.controller_id
+			ctx.params = {"card": card, "reason": reason}
+			var substitute = effect.destruction_substitute.call(ctx)
+			if substitute == null or substitute == card:
+				continue
+			# The substitute is destroyed in the original card's place, and it gets its
+			# own prevention/replacement check — it is a real destruction.
+			return destroy(substitute, reason, source_id, depth + 1)
+	return move_card(card, Enums.Zone.GRAVEYARD, reason, {"source_id": source_id})
+
+
+## Destroy `card`. The single entry point every card effect and the battle rules use.
+## Returns true when the card (or a substitute) was actually destroyed.
+func destroy(card: CardInstance, reason: Enums.MoveReason = Enums.MoveReason.DESTROYED_BY_EFFECT,
+		source_id: int = -1, depth: int = 0) -> bool:
+	if card == null or not card.is_on_field():
+		return false
+	if destruction_prevented(card, reason):
+		return false
+	return carry_out_destruction(card, reason, source_id, depth)
+
+
+# ---------------------------------------------------------------------------
+# Per-card memory that outlives the field. RULES_SPEC.md 15.
+# ---------------------------------------------------------------------------
+
+func _memory_key(card: CardInstance, key: String) -> String:
+	return "%s::%d" % [key, card.id]
+
+
+func remember(card: CardInstance, key: String, value) -> void:
+	if card == null:
+		return
+	card_memory[_memory_key(card, key)] = value
+
+
+func recall(card: CardInstance, key: String, fallback = null):
+	if card == null:
+		return fallback
+	return card_memory.get(_memory_key(card, key), fallback)
+
+
+func forget(card: CardInstance, key: String) -> void:
+	if card == null:
+		return
+	card_memory.erase(_memory_key(card, key))
+
+
+## The card `card` remembers under `key` as an instance id, or null.
+func recall_card(card: CardInstance, key: String):
+	var value = recall(card, key, null)
+	if value == null:
+		return null
+	return instance(int(value))
 
 
 # ---------------------------------------------------------------------------
@@ -401,6 +653,14 @@ func set_battle_position(card: CardInstance, new_position: Enums.Position,
 	if was_face_up and not card.is_face_up():
 		# Flipping face-down resets per-instance effect state. Master prompt 48.
 		card.on_flipped_face_down()
+		# "If the equipped monster is destroyed, FLIPPED FACE-DOWN, or removed from the
+		# field, its Equip Cards are destroyed." [S1 p.29, p.55] The monster is still on
+		# the field, so move_card() never sees this case — it has to be handled here.
+		for orphan in _detach_equips(card):
+			var equip: CardInstance = orphan
+			if equip.is_on_field():
+				move_card(equip, Enums.Zone.GRAVEYARD, Enums.MoveReason.DESTROYED_BY_RULE,
+					{"source_id": card.id})
 	elif not was_face_up and card.is_face_up():
 		card.turn_flipped = turn_number
 		emit(GameEvent.Kind.CARD_FLIPPED_FACE_UP, {

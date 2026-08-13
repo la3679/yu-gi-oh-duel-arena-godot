@@ -316,10 +316,17 @@ func step_damage_calculation() -> void:
 	last_damage = result
 
 
+## Whether damage calculation may DETERMINE that this monster is destroyed.
+##
+## Prevention is asked here rather than in sub-step 5 because a monster that cannot be
+## destroyed by battle was never determined to be destroyed at all — nothing about it
+## should appear in the DAMAGE_CALCULATED payload. A COUNTED prevention
+## (`Gagagashield`: "Twice per turn, it cannot be destroyed by battle or card effects")
+## spends one of its uses here for the same reason. RULES_SPEC.md 17.
 func _can_be_destroyed_by_battle(card: CardInstance) -> bool:
 	if card == null:
 		return false
-	return not bool(card.flags.get("cannot_be_destroyed_by_battle", false))
+	return not state.destruction_prevented(card, Enums.MoveReason.DESTROYED_BY_BATTLE)
 
 
 ## Sub-step 4: battle triggers, and the Flip effects of monsters flipped in sub-step 2.
@@ -336,10 +343,12 @@ func step_end_of_damage_step() -> void:
 	_enter_substep(Enums.DamageSubStep.END_OF_DAMAGE_STEP)
 	for card in pending_destroyed:
 		if card != null and card.zone == Enums.Zone.MONSTER_ZONE:
-			state.move_card(card, Enums.Zone.GRAVEYARD,
-				Enums.MoveReason.DESTROYED_BY_BATTLE,
-				{"source_id": state.current_attacker.id
-					if state.current_attacker != null else -1})
+			# `carry_out_destruction`, not `destroy`: prevention was already asked (and a
+			# counted use already spent) at damage calculation. What is still outstanding
+			# is the REPLACEMENT check — "destroy this card instead" applies at the moment
+			# the destruction is actually carried out. RULES_SPEC.md 17.
+			state.carry_out_destruction(card, Enums.MoveReason.DESTROYED_BY_BATTLE,
+				state.current_attacker.id if state.current_attacker != null else -1)
 	pending_destroyed = []
 	# "Until the end of the Damage Step" modifiers expire here.
 	for card in state.all_instances():

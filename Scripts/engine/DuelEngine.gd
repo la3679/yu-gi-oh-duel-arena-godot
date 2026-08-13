@@ -587,6 +587,10 @@ func _apply_open_action(action: DuelAction) -> void:
 				card.id, action.zone_index)
 			if ss_pending.is_empty():
 				return
+			# Which procedure was used is carried through to completion: a card that
+			# restricts what it may do "the turn it is Special Summoned this way" has to
+			# tell its own procedure apart from every other Special Summon.
+			ss_pending["procedure_effect_id"] = effect.effect_id
 			_pending_summon = ss_pending
 			_open_window_from_events(_events_since(_event_mark))
 
@@ -783,7 +787,16 @@ func _cleanup_resolved_spell_traps(links: Array) -> void:
 			continue
 		if not card.is_on_field():
 			continue
+		# An Equip Card that found its monster stays on the field whatever kind of card it
+		# is: "Equipped Traps remain Trap Cards" but they are Equip Cards now [S1 p.53].
+		# `Gagagashield` is a NORMAL Trap and must not be swept away after equipping.
+		if card.equipped_to_id != -1:
+			continue
 		if Enums.stays_on_field(card.definition.st_kind):
+			# …and an Equip Spell that resolved WITHOUT equipping has no monster to give
+			# its effect to, so it does not stay either [S1 p.29].
+			if card.definition.st_kind == Enums.STKind.EQUIP_SPELL:
+				state.move_card(card, Enums.Zone.GRAVEYARD, Enums.MoveReason.RESOLVED_TO_GY)
 			continue
 		state.move_card(card, Enums.Zone.GRAVEYARD, Enums.MoveReason.RESOLVED_TO_GY)
 

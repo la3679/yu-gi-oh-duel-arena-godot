@@ -22,6 +22,16 @@ extends RefCounted
 ## card counts as 2 Tributes for that specific Summon.
 const TRIBUTE_VALUE_EFFECT_ID := "counts_as_two_tributes"
 
+## Effect id convention for a card-count limit on the field: "You can only control 1
+## '<name>'" (`Inari Fire`, `Ranryu`, `Nefarious Archfiend Eater of Nefariousness`).
+##
+## The card declares a CONTINUOUS EffectDef with this id whose `condition` is a PURE
+## query, called with `ctx.params["summoning_card"]` set to the copy that is about to
+## reach the field, and returning whether that is allowed. It is checked on EVERY route
+## onto the field — Normal Summon, Set, summoning procedure and Special Summon — because
+## the limit is on what you may CONTROL [S1 p.53], not on how the copy got there.
+const CONTROL_LIMIT_EFFECT_ID := "only_control_one"
+
 var state: GameState = null
 
 
@@ -58,6 +68,33 @@ func tribute_value(material: CardInstance, summoned: CardInstance) -> int:
 		if bool(effect.condition.call(ctx)):
 			return 2
 	return 1
+
+
+## May `card` reach `controller_id`'s field at all, given its own control limit?
+##
+## Returns true for every card that declares no limit, which is all but three of the V1
+## pool. A negated card applies no effects, so its limit does not apply either.
+## Static so the legality gate in ActivationRules can ask the same question without
+## needing a SummonRules instance. There is deliberately only one implementation.
+static func control_limit_satisfied(p_state: GameState, card: CardInstance,
+		controller_id: int) -> bool:
+	if card == null or card.definition == null or card.effects_negated:
+		return true
+	for effect in card.definition.effects:
+		if effect.effect_id != CONTROL_LIMIT_EFFECT_ID:
+			continue
+		if not effect.condition.is_valid():
+			continue
+		var ctx := EffectContext.new(p_state, card, effect)
+		ctx.controller_id = controller_id
+		ctx.params = {"summoning_card": card}
+		if not bool(effect.condition.call(ctx)):
+			return false
+	return true
+
+
+func control_limit_ok(card: CardInstance, controller_id: int) -> bool:
+	return control_limit_satisfied(state, card, controller_id)
 
 
 ## Monsters this player may Tribute. Face-up and face-down both count [S1 p.53].
@@ -107,6 +144,8 @@ func can_normal_summon_or_set(card: CardInstance, controller_id: int) -> bool:
 		return false
 	var p := state.player(controller_id)
 	if not p.can_normal_summon():
+		return false
+	if not control_limit_ok(card, controller_id):
 		return false
 
 	var need := tributes_required(card)
@@ -276,6 +315,10 @@ func begin_special_summon(card: CardInstance, controller_id: int,
 		return {}
 	if not state.player(controller_id).has_free_monster_zone():
 		return {}
+	# "You can only control 1 …" applies to a Special Summon just as much as to a Normal
+	# Summon: the limit is on what you CONTROL, not on how the copy arrived.
+	if not control_limit_ok(card, controller_id):
+		return {}
 	var from_zone := card.zone
 	state.move_card(card, Enums.Zone.IN_TRANSIT, Enums.MoveReason.RULE,
 		{"to_player": controller_id})
@@ -313,6 +356,11 @@ func complete_summon(pending: Dictionary) -> bool:
 	card.summoned_by = kind
 	if kind == Enums.SummonKind.SPECIAL:
 		card.properly_special_summoned = true
+	# "Special Summoned THIS WAY" — recorded only for a summoning PROCEDURE, i.e. a monster
+	# that Special Summoned itself. A monster revived by `Monster Reborn` was Special
+	# Summoned, but not "this way", and `Hieratic Dragon of Tefnuit`'s attack restriction
+	# depends on the difference (CARD_RULINGS.md §2.1).
+	card.summoned_by_procedure_id = str(pending.get("procedure_effect_id", ""))
 
 	var payload := {
 		"card_id": card.id, "card_name": card.card_name(),

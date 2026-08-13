@@ -1,6 +1,6 @@
 # TEST_RESULTS
 
-**Last run:** 2026-08-12
+**Last run:** 2026-08-12 (Phase 5 batch 3)
 **Engine:** Godot 4.7.1.stable.official.a13da4feb (headless)
 
 Command:
@@ -32,11 +32,11 @@ The raw command still works and produces the same numbers:
 
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
-| Core rules tests | 13 | 630 | **630** | 0 |
-| Per-card tests | 7 | 340 | **340** | 0 |
+| Core rules tests | 14 | 713 | **713** | 0 |
+| Per-card tests | 15 | 801 | **801** | 0 |
 | Interaction tests | 1 | 46 | **46** | 0 |
 | Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **21** | **1016** | **1016** | **0** |
+| **TOTAL** | **30** | **1560** | **1560** | **0** |
 
 Per-test assertion counts in this file are **measured**, not counted by hand from source:
 `TestCase` records them per test and `Scripts/tests/DumpAssertionCounts.gd` prints them.
@@ -44,7 +44,7 @@ A suite that loops over nine cards runs many more assertions than it has `t.` ca
 and the earlier hand-written `ShiningAngelTests` breakdown was wrong for exactly that
 reason — it has been corrected against the measurement.
 
-Card library: **15 / 77 implemented, 15 / 77 tested** — computed by `Tools/build_matrix.py`
+Card library: **23 / 77 implemented, 23 / 77 tested** — computed by `Tools/build_matrix.py`
 from `Scripts/cards/registry/*.gd`, the card database's `is_normal` flag and
 `Tests/cards/*.gd`, never by hand.
 
@@ -76,6 +76,7 @@ removed.
 | `SpecialSummonTests` | 54 | `RULES_SPEC.md §5.5` |
 | `RulesQuestionTests` | 37 | `RULES_SPEC.md §8.1, §12.1`, `§6/§7`, `§2.3` |
 | `ReplayTests` | 33 | master prompt §8 / §70 |
+| `EquipTests` | 83 | `RULES_SPEC.md §16, §17` [S1 p.29, p.53, p.55] |
 | `ShiningAngelTests` | 43 | per-card |
 | `NormalMonsterTests` | 76 | per-card (9 cards) |
 | `MonsterRebornTests` | 48 | per-card |
@@ -83,6 +84,14 @@ removed.
 | `KaibamanTests` | 47 | per-card |
 | `DragonicTacticsTests` | 39 | per-card |
 | `OneForOneTests` | 40 | per-card |
+| `BirthrightTests` | 59 | per-card |
+| `CallOfTheHauntedTests` | 48 | per-card |
+| `HieraticDragonOfTefnuitTests` | 67 | per-card |
+| `InariFireTests` | 65 | per-card |
+| `RanryuTests` | 49 | per-card |
+| `NefariousArchfiendTests` | 44 | per-card |
+| `GagagashieldTests` | 63 | per-card |
+| `RiderOfTheStormWindsTests` | 66 | per-card |
 | `SpecialSummonInteractionTests` | 46 | interaction |
 
 ### ChainTests — 27/27
@@ -179,6 +188,29 @@ a Continuous Spell staying on the field, and a new Field Spell replacing the old
 | no trigger without battle destruction | 6 | a real activation sends the same card to the GY by effect; the destroyed-by-battle trigger does not fire and its controller is never asked |
 | battle damage to 0 LP ends the Duel | 6 | LP floored at 0, result, end reason, timing machine, no further legal action [S1 p.33] |
 
+### EquipTests — 83/83
+`Tests/rules/EquipTests.gd`. Rules: `RULES_SPEC.md §16, §17` [S1 p.29, p.53, p.55].
+
+This suite is the **Equip gate**: before it existed, equip mechanics had **zero** assertions
+while `GameState._unequip_all()` quietly ran on every field departure. It is a RULES suite
+built from synthetic cards, so what it proves is that the ENGINE is right rather than that one
+printed card happens to work. `Gagagashield` and `Rider of the Storm Winds` were only written
+once it passed.
+
+| Test | Asserts | Rule verified |
+|---|---:|---|
+| equipping attaches to one face-up monster | 10 | both sides of the relationship, a real Spell & Trap Zone slot, one `CARD_EQUIPPED` event [S1 p.29] |
+| only a legal host can be equipped | 8 | face-down / off-field / itself all rejected; an equipped card "cannot be moved to a different target" [S1 p.53] |
+| the granted effect follows the host | 7 | the modifier applies to the host, the printed and **original** ATK are untouched, five recomputes equal one [S1 p.55] |
+| **the host leaving the field destroys the Equip Card** | 8 | destroyed with `MoveReason.DESTROYED_BY_RULE`, **not** `DESTROYED_BY_EFFECT`, plus a `CARD_UNEQUIPPED` event [S1 p.29] |
+| **the host flipped face-down destroys it** | 5 | the monster never moves, so `move_card()` never sees this — it is handled in `set_battle_position()` [S1 p.29, p.55] |
+| the Equip Card leaving takes its effect with it | 6 | the monster survives, with no stale modifier and no stale relationship |
+| **battle is recalculated from the equipped ATK** | 7 | a 1000 ATK attacker that would lose beats a 1500 ATK defender once equipped, for 200 damage [S1 p.42] |
+| an Equip Spell that resolves without equipping | 8 | no host, so it does not stay on the field, and no `CARD_EQUIPPED` was ever emitted [S1 p.29] |
+| a target that became illegal | 8 | still on the field but no longer face-up so it is not equipped to |
+| **a counted destruction prevention** | 9 | exactly N destructions per turn are stopped, the N+1th lands, uncovered cards were never protected, and the count returns next turn |
+| **a destruction replacement** | 7 | the substitute is destroyed instead — a replacement is not a prevention — and with the substitute gone the next destruction lands |
+
 ### ContinuousTests — 52/52
 `Tests/rules/ContinuousTests.gd`. Rules: `RULES_SPEC.md §4.2/§8`, master prompt §25.
 
@@ -272,7 +304,52 @@ guessed, each now decided against an official source and pinned down.
 
 ## Defects found and fixed by these tests
 
-### This milestone (Phase 5 batch 1+2 — vanillas and the Special Summon family)
+### This milestone (Phase 5 batch 3 — Continuous-Trap revival, summoning procedures, Equip)
+
+Three defects, two of them in engine code written during this batch and caught before the
+cards that depend on it were written, one a genuine gap in the pre-existing engine.
+
+1. **`GameState.move_card()` captured "was this card face-up?" AFTER the move had already
+   rewritten the position.** The new `last_move_was_face_up` record (RULES_SPEC.md §15.1) was
+   read after `_attach()` and the position-handling block, and those overwrite
+   `card.position`: a card sent to the Graveyard is turned FACE_UP by the move itself, and one
+   returned to the hand is turned FACE_DOWN. So the flag answered a question about the
+   DESTINATION rather than about where the card came from — it would have read `true` for every
+   card sent to the GY, including one destroyed while face-down, and `false` for a face-up card
+   bounced to the hand. `Inari Fire`'s "after this **face-up card on the field** was destroyed
+   by card effect" depends entirely on it. Fixed by capturing `was_face_up` at the top of
+   `move_card()` alongside `was_on_field`, before `_detach()`. Covered by
+   `InariFireTests :: the Standby revival`.
+2. **`CARD_DESTROYED` was not emitted for a rules destruction.** `Enums.MoveReason` gained
+   `DESTROYED_BY_RULE` this batch (an Equip Card losing its host is destroyed by the game rules,
+   not by a card effect [S1 p.29, p.55]), and `Enums.is_destruction()` was updated — but the
+   `match reason:` block in `move_card()` that emits the semantic event was not, so an Equip
+   Card was silently sent to the Graveyard with no `CARD_DESTROYED` event at all. Any future
+   "when a card is destroyed" trigger would have missed it. Caught by
+   `EquipTests :: the host leaving the field destroys the Equip Card` on its first run.
+3. **`DuelEngine._cleanup_resolved_spell_traps()` decided what stays on the field from the card
+   KIND alone.** That is wrong in both directions once Equip Cards exist: a NORMAL Trap that
+   equipped (`Gagagashield`) must stay, and an Equip Spell that resolved without equipping must
+   not. The equip relationship now takes precedence over `Enums.stays_on_field()`. Covered by
+   `GagagashieldTests :: a Normal Trap that stays on the field` and
+   `EquipTests :: an Equip Spell that resolves without equipping`.
+
+**No pre-existing rules defect was found by the 544 new assertions beyond item 3**, and that is
+reported as-is. All 1016 assertions from the previous milestone still pass unchanged; none was
+weakened, retargeted or deleted.
+
+Two test-authoring mistakes are worth recording because they cost a cycle and will recur:
+
+* A test that mutates the board by calling `GameState.move_card()` / `destroy()` directly does
+  **not** reach a trigger check — those events never enter `_pending_events`. A trigger effect
+  can only be observed if the change travels through the timing machine, i.e. through a real
+  card effect resolving. `TestFixtures.interferer()` exists for exactly this.
+* The engine resolves a whole Chain inside one `submit_action()` when nobody holds a legal
+  response, so a test that needs to change the board BETWEEN an activation and its resolution
+  must give the opponent a real Spell Speed 2 effect. Two `EquipTests` cases were written
+  without one and silently tested nothing until they failed.
+
+### Previous milestone (Phase 5 batch 1+2)
 
 **No rules-engine defect was found by this batch, and that is reported as-is rather than
 dressed up.** Every one of the 343 new assertions passed against the engine as Gate B
@@ -305,7 +382,7 @@ positive control was added — adding a Level 8 Dragon to the same Deck makes th
 activatable — which turns the negative from "something blocked it" into "the filter
 blocked it".
 
-### Previous milestone (Phase 4c — the generic-engine gate)
+### Earlier milestone (Phase 4c — the generic-engine gate)
 
 1. **`SummonRules.begin_special_summon()` was unreachable from the engine.** It existed and
    compiled, but no engine path called it, so "Special Summon" was not a capability the
@@ -377,7 +454,7 @@ No test expectation was weakened to make the implementation pass.
 
 ## Known issues in the harness (not rules defects)
 
-* The run reports `34241 ObjectDB instances were leaked at exit`. These are RefCounted
+* The run reports `50075 ObjectDB instances were leaked at exit`. These are RefCounted
   reference cycles between `GameState`, `DuelLog` (connected signal) and the closures the
   tests capture. The count grows with the number of duels the suite builds. It does not
   affect any rules outcome and does not fail the suite, but it must be cleaned up before
@@ -393,16 +470,20 @@ No test expectation was weakened to make the implementation pass.
 
 ## Not yet covered (required by master prompt §64 — tracked, not claimed)
 
-**A. Core rules** — still missing: GY-activated effects beyond the destroyed-by-battle
-shape, equip mechanics (the `MoveReason.RULE` unequip path runs but nothing asserts it),
-and simultaneous-LP-zero draws. Special Summon execution, piercing battle damage and the
-duel log / replay payload were the other three and are now covered.
+**A. Core rules** — still missing: **simultaneous-LP-zero draws**. Equip mechanics were
+on this list and are now covered end to end by `EquipTests` (83 assertions), together with
+destruction prevention and destruction replacement. GY-activated effects were on it too and
+are now exercised by `Inari Fire`, `Ranryu` and `Nefarious Archfiend Eater of
+Nefariousness`. Special Summon execution, piercing battle damage and the duel log / replay
+payload were covered in the previous milestone.
 
-**B. Per-card** — **15 of 77** cards implemented and tested: the 9 vanilla Normal
-Monsters, `Shining Angel`, and the first Special Summon batch (`Monster Reborn`,
-`Silver's Cry`, `Kaibaman`, `Dragonic Tactics`, `One for One`). The other 62 are honestly
-reported as `NOT_IMPLEMENTED` / `NOT_TESTED` in
-`Reports/CARD_IMPLEMENTATION_MATRIX.csv`.
+**B. Per-card** — **23 of 77** cards implemented and tested: the 9 vanilla Normal
+Monsters, `Shining Angel`, the first Special Summon batch (`Monster Reborn`,
+`Silver's Cry`, `Kaibaman`, `Dragonic Tactics`, `One for One`) and batch 3 (`Birthright`,
+`Call of the Haunted`, `Hieratic Dragon of Tefnuit`, `Inari Fire`, `Ranryu`,
+`Nefarious Archfiend Eater of Nefariousness`, `Gagagashield`,
+`Rider of the Storm Winds`). The other 54 are honestly reported as `NOT_IMPLEMENTED` /
+`NOT_TESTED` in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`.
 
 ### ShiningAngelTests — 43/43
 `Tests/cards/ShiningAngelTests.gd`. The first per-card suite, and the shape every later
@@ -504,6 +585,126 @@ from becoming a way to over-report an unimplemented Effect Monster.
 | a full Monster Zone | 2 | unlike Kaibaman, nothing here frees a zone |
 | **paying away the last Level 1 monster** | 7 | the activation is legal because the candidate check precedes the cost; the card then legitimately resolves for nothing |
 
+---
+
+## Phase 5 batch 3 — per-card suites
+
+### BirthrightTests — 59/59
+`Tests/cards/BirthrightTests.gd`. The first Continuous Trap in the library.
+
+| Test | Asserts | What it proves |
+|---|---:|---|
+| the clause shape | 14 | three EffectDefs, Spell Speed 2, targets 1, Set-card activation, two MANDATORY triggers, the third keyed on `CARD_MOVED` |
+| revives in Attack Position | 9 | the position is FIXED by the card, so **nobody is asked** — unlike `Monster Reborn`; the Trap stays on the field and remembers what it Summoned |
+| the target filter | 6 | "1 **Normal** Monster" excludes an Effect Monster and a Spell; a hand-built activation on the Effect Monster is rejected |
+| only your own Graveyard | 2 | with a positive control, so the negative is not vacuous |
+| not the turn it was Set | 2 | [S1 p.30] |
+| a full Monster Zone | 2 | nothing here frees a zone |
+| **this card leaving destroys the monster** | 6 | mandatory, by card effect, and the link is cleared so nothing fires twice |
+| **the monster LEAVING THE FIELD destroys this card** | 5 | **banished counts** — the clause says "leaves the field", and this is where `Call of the Haunted` disagrees |
+| destruction also triggers it | 4 | destruction is one way of leaving the field; exactly one Special Summon in the whole duel, so nothing looped |
+| a failed revival links nothing | 9 | a Chain Link 2 removes the target; the Trap resolves, stays on the field, and is linked to nothing |
+
+### CallOfTheHauntedTests — 48/48
+`Tests/cards/CallOfTheHauntedTests.gd`.
+
+| Test | Asserts | What it proves |
+|---|---:|---|
+| the clause shape | 12 | three EffectDefs; the third listens for `CARD_DESTROYED`, and the suite asserts directly that the two cards' third clauses listen to **different events** |
+| revives in Attack Position | 5 | fixed position, Continuous Trap stays, link recorded |
+| an Effect Monster is a legal target | 7 | and the same board offers `Birthright` only **one** of the two monsters — the two filters are genuinely different |
+| only your own Graveyard | 2 | with a positive control |
+| this card leaving destroys the monster | 4 | the clause shared verbatim with `Birthright` |
+| **the monster being DESTROYED destroys this card** | 3 | |
+| **the monster being BANISHED does NOT** | 8 | the single most important difference from `Birthright`; the link survives and the banished monster is not dragged back |
+| destruction by battle | 7 | fires inside the Damage Step, and battle damage is inflicted normally [S1 p.41-42] |
+
+### HieraticDragonOfTefnuitTests — 67/67
+`Tests/cards/HieraticDragonOfTefnuitTests.gd`. The first card to use a summoning PROCEDURE.
+
+| Test | Asserts | What it proves |
+|---|---:|---|
+| the clause shape | 11 | `SUMMON_PROCEDURE` + `CONTINUOUS` + `TRIGGER`; the procedure starts no Chain |
+| the procedure Summons from the hand | 8 | properly Special Summoned, `summoned_by_procedure_id` recorded, Normal Summon untouched |
+| **the procedure is not an activation** | 6 | never offered as `ACTIVATE_CARD` / `ACTIVATE_EFFECT` / a response; **no Chain Link created**, but the Summon IS declared so a negation can still answer it |
+| "only your opponent controls a monster" | 6 | both halves; a face-down monster still counts as one they control; a forged action naming a non-existent effect is rejected |
+| **cannot attack the turn Summoned this way** | 8 | the restriction applies, another monster attacks freely as a positive control, a hand-built attack is refused, and it lifts next turn |
+| **a copy Summoned another way may attack** | 7 | revived by `Monster Reborn` it has no `summoned_by_procedure_id`, so "this way" does not apply — CARD_RULINGS.md §2.1 |
+| the Tribute trigger | 9 | a Tribute is not a destruction; the Dragon arrives with ATK/DEF 0 while the **printed** and **original** ATK stay 3000 [S1 p.55] |
+| the Tribute trigger filter | 7 | hand + Deck + GY all reachable; a Dragon Effect Monster, a Normal **Wyrm** and a card the opponent holds are all excluded |
+| destroyed rather than Tributed | 5 | no `CARD_TRIBUTED`, no Special Summon [S1 p.53] |
+
+### InariFireTests — 65/65
+`Tests/cards/InariFireTests.gd`. Research/CARD_RULINGS.md R18.
+
+| Test | Asserts | What it proves |
+|---|---:|---|
+| the clause shape | 14 | a control-limit rules query, a procedure, and a once-per-turn mandatory Standby trigger traced to R18 |
+| the procedure needs a face-up Spellcaster | 8 | the opponent's Spellcaster, another race, and a **face-down** Spellcaster all fail; flipping the same monster face-up enables it |
+| you can only control 1 | 7 | a second copy's procedure is refused and a hand-built one rejected; a copy the OPPONENT controls does not restrict you |
+| **the limit applies to every route** | 6 | Normal Summon and Normal Set are both refused, and `Monster Reborn` activates but Special Summons nothing |
+| **the Standby revival** | 12 | the `last_move_*` record survives `on_leave_field()`; the **opponent's** Standby Phase does not count; your own does |
+| destroyed by battle does not revive | 6 | "destroyed by **card effect**" is narrower [S1 p.52-53] |
+| Tributed does not revive | 6 | |
+| **only the NEXT Standby Phase** | 6 | blocked once by a full field, the window is gone — a later Standby Phase does not resurrect it |
+
+### RanryuTests — 49/49
+`Tests/cards/RanryuTests.gd`.
+
+| Test | Asserts | What it proves |
+|---|---:|---|
+| the clause shape | 12 | optional, targets, activates from the GY, Damage Step timing permitted, and **no invented once-per-turn** |
+| the procedure and the control limit | 8 | a face-up Spellcaster is required; a second copy is refused by both the procedure and a Normal Summon |
+| destroyed by battle | 8 | the controller is asked exactly once, and the 1500/200 monster arrives |
+| destroyed by card effect | 4 | both branches of "by battle or card effect" are live |
+| declining | 4 | asked, said no, nothing Summoned |
+| **the target filter** | 8 | exact printed 1500/200; a 1900/500 monster excluded; **another copy of `Ranryu` excluded BY NAME**; the opponent's GY out of reach |
+| Tributed does not fire | 5 | and the controller is never asked a question with no basis |
+
+### NefariousArchfiendTests — 44/44
+`Tests/cards/NefariousArchfiendTests.gd`. Research/CARD_RULINGS.md R17.
+
+| Test | Asserts | What it proves |
+|---|---:|---|
+| the clause shape | 11 | optional, once per turn, End Phase only, targets, activates from the GY |
+| the procedure and the control limit | 5 | |
+| **the opponent's End Phase revival** | 8 | its controller acts on a turn that is **not theirs**: it destroys its own face-up monster and Special Summons itself |
+| not during your own End Phase | 5 | the controller is never asked |
+| declining | 4 | your own monster is NOT destroyed |
+| no face-up monster to target | 5 | a face-down monster of yours and a face-up one of theirs are both illegal targets |
+| **"and if you do"** | 6 | with the target protected from destruction, the effect activates, destroys nothing, and Summons nothing — the two halves are not independent |
+
+### GagagashieldTests — 63/63
+`Tests/cards/GagagashieldTests.gd`. Research/CARD_RULINGS.md R10.
+
+| Test | Asserts | What it proves |
+|---|---:|---|
+| the clause shape | 12 | a **NORMAL Trap**, Spell Speed 2, targets 1; the protection declares `uses_per_turn = 2` |
+| a Normal Trap that stays on the field | 6 | its card KIND alone would have sent it to the GY — the equip is what keeps it [S1 p.30, p.53] |
+| the target filter | 7 | Spellcaster, yours, face-up; the opponent's is rejected even hand-built |
+| **twice per turn vs card effects** | 7 | two prevented, the third lands, and the shield follows its host to the GY |
+| the count resets next turn | 7 | |
+| **battle destruction is prevented too** | 7 | the monster survives while battle damage is still inflicted, and one use is still left that turn |
+| the equipped monster leaving | 4 | `DESTROYED_BY_RULE` [S1 p.29, p.55] |
+| the shield leaving | 5 | the card is not protected by its own clause; the monster is then destroyed normally |
+| resolving without equipping | 8 | the target is banished by Chain Link 2; nothing equips and the Normal Trap goes to the GY |
+
+### RiderOfTheStormWindsTests — 66/66
+`Tests/cards/RiderOfTheStormWindsTests.gd`. Research/CARD_RULINGS.md R9. The pool's only
+monster that equips **itself**.
+
+| Test | Asserts | What it proves |
+|---|---:|---|
+| the clause shape | 13 | an Ignition effect (Spell Speed 1, never a fast effect, Main Phases only) from **hand or field**, plus a continuous grant and a destruction replacement |
+| equips itself from the hand | 8 | it lands in a **Spell & Trap Zone**, occupies no Monster Zone, was never Summoned, and cannot be re-equipped [S1 p.53] |
+| equips itself from the field | 7 | it vacates its Monster Zone and nothing is destroyed on the way |
+| the target filter | 8 | "Dragon **Normal** Monster you control": a Dragon Effect Monster, a non-Dragon vanilla, a face-down one and the opponent's are all excluded |
+| no free Spell & Trap Zone | 5 | not offered, hand-built rejected, and it never leaves the hand [S1 p.29] |
+| **it grants piercing** | 6 | the flag is on the EQUIPPED monster, not on the Equip Card; 1900 − 1000 pierces through [S1 p.42] |
+| **destruction replacement by card effect** | 9 | exactly one card is destroyed and it is Rider, carrying the ORIGINAL reason; the piercing goes with it; the next destruction then lands |
+| **destruction replacement in battle** | 6 | the equipped monster survives a losing battle and the battle damage is still inflicted |
+| the host leaving the field | 4 | banished host ⇒ Rider destroyed by `DESTROYED_BY_RULE`, not by the replacement clause |
+
 **C. Interaction** — `SpecialSummonInteractionTests` (46). Everything else, not yet.
 
 ### SpecialSummonInteractionTests — 46/46
@@ -538,5 +739,5 @@ purpose: a card is only counted as TESTED because it has its own suite.
   `Rider of the Storm Winds` grants piercing. Both branches are now tested.
 
 Coverage is reported honestly here and in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`
-(**1 / 77 implemented, 1 / 77 tested**). No test result in this file is estimated or
+(**23 / 77 implemented, 23 / 77 tested**). No test result in this file is estimated or
 projected.

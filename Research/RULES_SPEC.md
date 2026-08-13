@@ -483,3 +483,97 @@ can be added later without architectural change (master prompt §49).
 
 This is **not** a universal Yu-Gi-Oh engine. Scope statement:
 **all current core TCG rules and card interactions required to play these exact two decks correctly.**
+
+---
+
+## 15. Facts that must outlive a card leaving the field
+
+Per-instance state (`CardInstance.flags`, `effect_usage`, counters, modifiers) is cleared by
+`on_leave_field()` [S1 p.28 model; master prompt §48]. Two families of clause in the V1 pool
+need information that is destroyed by exactly the movement that makes the clause relevant, so
+the engine carries it elsewhere:
+
+**15.1 The last completed move.** `GameState.move_card()` records
+`last_move_reason` / `last_move_from_zone` / `last_move_was_face_up` / `last_move_turn` /
+`last_move_turn_player_id` on the instance **after** `on_leave_field()` runs, and captures the
+face-up state **before** the move (a card sent to the GY is turned face-up by the move itself,
+so asking afterwards answers about the destination). `Inari Fire` reads all five: "during your
+next Standby Phase after this **face-up card on the field** was **destroyed by card effect**
+and sent to the GY".
+
+*"Your next Standby Phase"* is computed from `last_move_turn` and `last_move_turn_player_id`:
+turns strictly alternate between two players in V1, so the qualifying turn number is
+`last_move_turn + 2` when the card left on its controller's own turn and `+ 1` otherwise. If
+that Standby Phase passes without the effect resolving, the window is gone — the clause names
+one Standby Phase, not any later one.
+
+**15.2 Links between two cards.** `GameState.card_memory` holds `"<key>::<card_id>" -> value`
+and is not touched by any zone change. `Birthright` and `Call of the Haunted` both need to know
+which monster they Special Summoned **at the moment they leave the field**, which is when
+`flags` has already been cleared. `EffectPrimitives.REVIVED_MONSTER_KEY` is the key; the link is
+written when the revival resolves and cleared by whichever of the two mutual triggers fires
+first, so neither can fire twice off a stale reference.
+
+---
+
+## 16. Equip Cards [S1 p.29, p.53, p.55]
+
+> "These cards give an extra effect to 1 **face-up** monster of your choice … The Equip Spell
+> Card affects only 1 monster (called the equipped monster), but **still occupies one of your
+> Spell & Trap Zones**. If the equipped monster is **destroyed, flipped face-down, or removed
+> from the field**, its Equip Cards are destroyed." [S1 p.29]
+
+> "The term 'Equip Card' includes all 3 kinds (standard Equip Spells, equipped Traps, and
+> monsters equipped to other monsters). If a Monster Card is equipped to another monster, it
+> remains equipped to that monster and **cannot be moved to a different target**." [S1 p.53]
+
+Implemented in `GameState.equip_to()` / `_detach_equips()`:
+
+| Rule | Where |
+|---|---|
+| The host must be a **face-up monster on the field** | `equip_to()` rejects anything else |
+| The Equip Card occupies a **Spell & Trap Zone**, whatever kind of card it is | `equip_to()` moves it there face-up; no free zone ⇒ the equip fails |
+| It equips to exactly one monster and **cannot be moved** | `equip_to()` refuses an already-equipped card |
+| Host **leaves the field** ⇒ its Equip Cards are destroyed | `move_card()`, after the host's own events, so the log reads in causal order |
+| Host **flipped face-down** ⇒ same | `set_battle_position()` — the host never moves, so `move_card()` never sees this case |
+| That destruction is by the **rules**, not by a card | `Enums.MoveReason.DESTROYED_BY_RULE`, so a clause worded "destroyed by battle or card effect" does not see it |
+| An **Equip Spell that resolves without equipping** does not stay on the field | `DuelEngine._cleanup_resolved_spell_traps()` |
+| An Equip **Trap** that DID equip stays, despite its card kind | same place — the equip relationship wins over `Enums.stays_on_field()` |
+| An Equip Card's granted effect is a **continuous** effect of the Equip Card, applied to the host | ordinary `ContinuousEffects` recompute; it ends with the Equip Card |
+| "Original ATK … does not include an increase from an Equip Spell Card" [S1 p.55] | modifiers, never `base_atk` |
+
+---
+
+## 17. Destruction: prevention and replacement
+
+One entry point, `GameState.destroy()`, so that "cannot be destroyed" and "destroy this card
+instead" are honoured no matter who asked. It is two separable steps:
+
+1. **`destruction_prevented(card, reason)`** — the uncounted continuous flags
+   (`cannot_be_destroyed_by_battle` / `cannot_be_destroyed_by_effect`, owned by
+   `ContinuousEffects`), then any **counted** prevention clause. A counted clause declares
+   `EffectDef.uses_per_turn`; the rules layer spends the use, so the card's own query stays a
+   pure function. `Gagagashield`: "**Twice per turn**, it cannot be destroyed by battle or card
+   effects".
+2. **`carry_out_destruction(card, reason, source_id)`** — any **replacement** clause, which
+   returns a substitute to destroy instead. `Rider of the Storm Winds`: "If a monster equipped
+   with this card would be destroyed, **destroy this card instead**." A replacement is not a
+   prevention: something is still destroyed, and the substitute gets its own full check.
+
+**Where each is asked during battle.** Destruction by battle is *determined* during damage
+calculation and *carried out* at the end of the Damage Step [S3]. Prevention is asked at
+**determination**, because a monster that cannot be destroyed was never determined to be
+destroyed at all and must not appear in the `DAMAGE_CALCULATED` payload. Replacement is asked
+at **carry-out**, because that is the moment the card "would be destroyed". Battle damage is
+computed from the ATK/DEF and is unaffected by either.
+
+Clauses that answer a rules-layer question rather than applying a modifier are recognised by
+**effect id**, never by reading card text: `SummonRules.TRIBUTE_VALUE_EFFECT_ID`,
+`SummonRules.CONTROL_LIMIT_EFFECT_ID`, `GameState.DESTRUCTION_PREVENTION_EFFECT_ID` and
+`GameState.DESTRUCTION_REPLACEMENT_EFFECT_ID`, listed in
+`CardRegistry.RULES_QUERY_EFFECT_IDS`. Such a clause legitimately has no `apply_continuous()`,
+but the registry still rejects one that answers nothing.
+
+**"You can only control 1 …"** is enforced on **every** route onto the field — Normal Summon,
+Normal Set, a summoning procedure and a Special Summon by another card — because the limit is
+on what you *control* [S1 p.53], not on how the copy arrived.

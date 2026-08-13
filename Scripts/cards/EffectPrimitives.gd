@@ -10,6 +10,12 @@ extends RefCounted
 ##
 ## Every primitive takes the EffectContext, so nothing reaches for global state.
 
+## Memory key used by a Continuous Trap that Special Summoned a monster and stays linked
+## to it (`Birthright`, `Call of the Haunted`). It lives in `GameState.card_memory`, not in
+## `CardInstance.flags`, because the link has to be readable at the exact moment the Trap
+## LEAVES the field — which is when `flags` has already been cleared. RULES_SPEC.md 15.
+const REVIVED_MONSTER_KEY := "revived_monster"
+
 
 # ---------------------------------------------------------------------------
 # Searching zones
@@ -95,6 +101,20 @@ static func monster_filter(attribute: String = "", max_atk: int = -1,
 		if normal_only and not def.is_normal_monster:
 			return false
 		return true
+
+
+## "1 monster with 1500 ATK/200 DEF in your GY, except 'Ranryu'" — an exact printed
+## ATK/DEF pair, optionally excluding one card name.
+static func monster_with_stats(atk: int, def_value: int,
+		except_name: String = "") -> Callable:
+	return func(card: CardInstance) -> bool:
+		if not card.is_monster():
+			return false
+		var d := card.definition
+		# The PRINTED values: a monster in the GY carries no modifiers. Master prompt 35.
+		if d.base_atk != atk or d.base_def != def_value:
+			return false
+		return except_name == "" or d.name != except_name
 
 
 ## "1 Level 1 monster", "1 Level 8 Dragon monster" — an exact Level rather than a cap.
@@ -384,3 +404,197 @@ static func destroyed_by_battle_condition() -> Callable:
 		if int(ev.data.get("card_id", -1)) != ctx.source.id:
 			return false
 		return ev.data.get("reason") == Enums.MoveReason.DESTROYED_BY_BATTLE
+
+
+## Did `event` report `card_id` LEAVING the field? "Leaves the field" is about the zones
+## the card moved between, not about why, so this deliberately ignores the MoveReason:
+## destroyed, banished, returned to the hand and Tributed all leave the field.
+static func event_is_leaving_the_field(event: GameEvent, card_id: int) -> bool:
+	if event == null or event.kind != GameEvent.Kind.CARD_MOVED:
+		return false
+	if int(event.data.get("card_id", -1)) != card_id:
+		return false
+	var from_zone: Enums.Zone = event.data.get("from_zone", Enums.Zone.DECK)
+	var to_zone: Enums.Zone = event.data.get("to_zone", Enums.Zone.DECK)
+	return Enums.is_on_field_zone(from_zone) and not Enums.is_on_field_zone(to_zone)
+
+
+## Did `event` report `card_id` being DESTROYED (by battle or by a card effect)?
+## Strictly narrower than leaving the field: a banished or Tributed monster is not
+## destroyed [S1 p.52-53], and neither is an Equip Card that lost its host
+## (`MoveReason.DESTROYED_BY_RULE`), which is a rules destruction rather than a card's.
+static func event_is_destruction_of(event: GameEvent, card_id: int) -> bool:
+	if event == null or event.kind != GameEvent.Kind.CARD_DESTROYED:
+		return false
+	if int(event.data.get("card_id", -1)) != card_id:
+		return false
+	var reason = event.data.get("reason", null)
+	return reason == Enums.MoveReason.DESTROYED_BY_BATTLE \
+		or reason == Enums.MoveReason.DESTROYED_BY_EFFECT
+
+
+# ---------------------------------------------------------------------------
+# Continuous-Trap revival links. RULES_SPEC.md 15.
+#
+# `Birthright` and `Call of the Haunted` share the first two of their three clauses and
+# differ on the third, so what is shared lives here and the difference stays in the two
+# registry files. Nothing here decides WHICH event breaks the link.
+# ---------------------------------------------------------------------------
+
+## Record that this card Special Summoned `monster` and is now linked to it.
+static func link_revived_monster(ctx: EffectContext, monster: CardInstance) -> void:
+	ctx.state.remember(ctx.source, REVIVED_MONSTER_KEY, monster.id)
+
+
+## The monster this card Special Summoned, or null. Readable after the card left the field.
+static func revived_monster(ctx: EffectContext) -> CardInstance:
+	var linked = ctx.state.recall_card(ctx.source, REVIVED_MONSTER_KEY)
+	return linked as CardInstance if linked != null else null
+
+
+static func clear_revival_link(ctx: EffectContext) -> void:
+	ctx.state.forget(ctx.source, REVIVED_MONSTER_KEY)
+
+
+## "Activate this card by targeting 1 <...> in your GY; Special Summon that target in
+## Attack Position." — the resolution shared by both Continuous Traps.
+##
+## The position is FIXED by the card text, so unlike `Monster Reborn` nobody is asked.
+static func revive_target_in_attack_position(ctx: EffectContext) -> CardInstance:
+	var target := surviving_target(ctx, Enums.Zone.GRAVEYARD)
+	if target == null:
+		ctx.log_note("the target is no longer in the Graveyard")
+		return null
+	if not ctx.me().has_free_monster_zone():
+		ctx.log_note("no free Monster Zone")
+		return null
+	if ctx.engine == null:
+		push_error("EffectPrimitives.revive_target_in_attack_position: no engine attached")
+		return null
+	if not ctx.engine.special_summon(target, ctx.controller_id,
+			Enums.Position.FACE_UP_ATTACK, ctx.source.id):
+		ctx.log_note("the Special Summon did not happen")
+		return null
+	link_revived_monster(ctx, target)
+	return target
+
+
+## "When this card leaves the field, destroy that monster." — shared verbatim by both
+## Continuous Traps, so it is one implementation rather than two.
+static func destroy_linked_monster(ctx: EffectContext) -> bool:
+	var monster := revived_monster(ctx)
+	clear_revival_link(ctx)
+	if monster == null or not monster.is_on_field():
+		ctx.log_note("the monster it Summoned is no longer on the field")
+		return false
+	var destroyed := ctx.state.destroy(monster, Enums.MoveReason.DESTROYED_BY_EFFECT,
+		ctx.source.id)
+	ctx.log_note("destroyed %s" % monster.card_name())
+	return destroyed
+
+
+## "…destroy this card." — the other half of the mutual link, from the monster's side.
+static func destroy_self(ctx: EffectContext) -> bool:
+	clear_revival_link(ctx)
+	if not ctx.source.is_on_field():
+		return false
+	return ctx.state.destroy(ctx.source, Enums.MoveReason.DESTROYED_BY_EFFECT, ctx.source.id)
+
+
+# ---------------------------------------------------------------------------
+# Summoning procedures
+# ---------------------------------------------------------------------------
+
+## "You can only control 1 '<name>'." A hard limit on how many copies may be on the field
+## at once, checked as part of the summoning procedure's condition [S1 p.53 "Control"].
+## Face-down copies count: they are still cards you control.
+static func controls_no_other_copy(ctx: EffectContext) -> bool:
+	for entry in ctx.me().controlled_cards():
+		var card: CardInstance = entry
+		if card != ctx.source and card.card_name() == ctx.source.card_name():
+			return false
+	return true
+
+
+## "If you control a <race> monster, you can Special Summon this card (from your hand)."
+## A face-DOWN monster's race is not something either player may act on, so the monster
+## must be face-up — the clause describes a board state that is public.
+static func controls_face_up_monster_of_race(ctx: EffectContext, race: String) -> bool:
+	for entry in ctx.me().face_up_monsters():
+		var card: CardInstance = entry
+		if card.definition != null and card.definition.race == race:
+			return true
+	return false
+
+
+## Special Summon the effect's OWN source from `required_zone`, in the position its
+## controller picks. The shape of every "Special Summon it/this card" self-revival.
+static func special_summon_self(ctx: EffectContext,
+		required_zone: Enums.Zone) -> bool:
+	if ctx.engine == null:
+		push_error("EffectPrimitives.special_summon_self: no engine attached")
+		return false
+	if ctx.source.zone != required_zone:
+		ctx.log_note("this card is no longer where the clause needs it")
+		return false
+	if not ctx.me().has_free_monster_zone():
+		ctx.log_note("no free Monster Zone")
+		return false
+	var position := choose_face_up_position(ctx,
+		"Special Summon %s in which position?" % ctx.source.card_name())
+	return ctx.engine.special_summon(ctx.source, ctx.controller_id, position, ctx.source.id)
+
+
+## "…and make its ATK/DEF 0." An OVERRIDE of the printed values rather than a modifier:
+## the printed ATK stays what it is, which is what "original ATK" reads [S1 p.55].
+static func set_atk_and_def(card: CardInstance, value: int) -> void:
+	if card == null:
+		return
+	card.atk_override = value
+	card.def_override = value
+
+
+## Did the phase just change to `phase`, on the turn of `turn_player_id`?
+static func event_is_phase_change_to(event: GameEvent, phase: Enums.Phase,
+		turn_player_id: int) -> bool:
+	if event == null or event.kind != GameEvent.Kind.PHASE_CHANGED:
+		return false
+	if event.data.get("to", null) != phase:
+		return false
+	return int(event.data.get("turn_player", -1)) == turn_player_id
+
+
+## Was this monster Special Summoned by its OWN procedure `effect_id` this turn?
+## "Special Summoned this way" is narrower than "Special Summoned" (CARD_RULINGS.md §2.1).
+static func summoned_this_way_this_turn(ctx: EffectContext, effect_id: String) -> bool:
+	var card := ctx.source
+	return card.summoned_by_procedure_id == effect_id \
+		and card.turn_summoned == ctx.state.turn_number
+
+
+# ---------------------------------------------------------------------------
+# Equipping. RULES_SPEC.md 16 [S1 p.29, p.53, p.55]
+# ---------------------------------------------------------------------------
+
+## "…equip this card to that target." Equips the effect's SOURCE to its target, which is
+## the shape both `Gagagashield` and `Rider of the Storm Winds` use.
+##
+## Returns the monster it was equipped to, or null. A target that is no longer a face-up
+## monster on the field at resolution is not equipped to — the card simply fails to equip.
+static func equip_source_to_target(ctx: EffectContext) -> CardInstance:
+	var target := surviving_target(ctx, Enums.Zone.MONSTER_ZONE)
+	if target == null or not target.is_face_up():
+		ctx.log_note("the target is no longer a face-up monster on the field")
+		return null
+	if not ctx.state.equip_to(ctx.source, target, ctx.source.id):
+		ctx.log_note("the equip did not happen")
+		return null
+	return target
+
+
+## The monster this Equip Card is currently equipped to, or null.
+static func equipped_host(ctx: EffectContext) -> CardInstance:
+	if ctx.source.equipped_to_id == -1:
+		return null
+	var host = ctx.state.instance(ctx.source.equipped_to_id)
+	return host as CardInstance if host != null else null

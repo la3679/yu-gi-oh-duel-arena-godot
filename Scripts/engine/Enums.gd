@@ -158,6 +158,13 @@ enum MoveReason {
 	RESOLVED_TO_GY,
 	## End Phase hand-size discard. [S1 p.40]
 	HAND_SIZE_DISCARD,
+	## Destroyed by the game RULES rather than by battle or by a card effect. The only
+	## case in the V1 pool is an Equip Card losing its equipped monster: "If the equipped
+	## monster is destroyed, flipped face-down, or removed from the field, its Equip Cards
+	## are destroyed" [S1 p.29, p.55]. It IS a destruction and it IS "sent to the GY", but
+	## it is deliberately distinct from DESTROYED_BY_EFFECT so that a clause worded
+	## "destroyed by battle or card effect" (`Ranryu`, `Inari Fire`) does not see it.
+	DESTROYED_BY_RULE,
 }
 
 ## Summon kinds. RULES_SPEC.md 5.
@@ -271,7 +278,8 @@ static func spell_speed_for_effect(effect_type: EffectType) -> int:
 ## A card is "destroyed" only for these reasons. [S1 p.52]
 static func is_destruction(reason: MoveReason) -> bool:
 	return reason == MoveReason.DESTROYED_BY_BATTLE \
-		or reason == MoveReason.DESTROYED_BY_EFFECT
+		or reason == MoveReason.DESTROYED_BY_EFFECT \
+		or reason == MoveReason.DESTROYED_BY_RULE
 
 
 ## Destroy, discard and Tribute all count as "sent to the Graveyard". [S1 p.53]
@@ -279,6 +287,7 @@ static func is_destruction(reason: MoveReason) -> bool:
 static func is_sent_to_gy(reason: MoveReason) -> bool:
 	return reason == MoveReason.DESTROYED_BY_BATTLE \
 		or reason == MoveReason.DESTROYED_BY_EFFECT \
+		or reason == MoveReason.DESTROYED_BY_RULE \
 		or reason == MoveReason.SENT_TO_GY_BY_EFFECT \
 		or reason == MoveReason.SENT_AS_COST \
 		or reason == MoveReason.TRIBUTED \

@@ -53,6 +53,23 @@ var summoned_by: Enums.SummonKind = Enums.SummonKind.NORMAL
 ## True once the monster has been properly Special Summoned (Extra Deck rule; unused in V1
 ## but modelled so it can be enforced later).
 var properly_special_summoned: bool = false
+## The effect_id of the SUMMON_PROCEDURE this monster Special Summoned ITSELF with, or "".
+## PSCT distinguishes "Special Summoned **this way**" from "Special Summoned" — a
+## `Hieratic Dragon of Tefnuit` revived by `Monster Reborn` is not restricted, one that
+## used its own procedure is. Written by SummonRules.complete_summon() and cleared by
+## on_leave_field(), because a monster that left and came back was not Summoned this way.
+var summoned_by_procedure_id: String = ""
+
+# --- The last completed zone change of this card ---
+## Recorded AFTER on_leave_field() so it survives the card leaving the field. Clauses like
+## `Inari Fire`'s "after this face-up card on the field was destroyed by card effect and
+## sent to the GY" need exactly this and cannot use `flags`, which the very move that
+## makes the clause relevant has already cleared.
+var last_move_reason: Enums.MoveReason = Enums.MoveReason.RULE
+var last_move_from_zone: Enums.Zone = Enums.Zone.DECK
+var last_move_was_face_up: bool = false
+var last_move_turn: int = -1
+var last_move_turn_player_id: int = -1
 
 var has_attacked_this_turn: bool = false
 var attacks_declared_this_turn: int = 0
@@ -61,6 +78,10 @@ var battled_this_turn: bool = false
 
 ## Per-instance once-per-turn usage: {effect_id: turn_number}
 var effect_usage: Dictionary = {}
+## Per-instance COUNTED per-turn usage, for clauses that allow more than one use in a
+## turn: `Gagagashield`'s "Twice per turn, it cannot be destroyed by battle or card
+## effects". {effect_id: {"turn": n, "count": k}}
+var effect_use_counts: Dictionary = {}
 ## Free-form per-instance temporary flags, cleared on zone change unless whitelisted.
 var flags: Dictionary = {}
 
@@ -220,6 +241,21 @@ func was_effect_used_this_turn(effect_id: String, turn: int) -> bool:
 	return effect_usage.get(effect_id, -1) == turn
 
 
+## How many times this clause has already been used THIS turn. A record from an earlier
+## turn reads as 0, so the count self-expires without a separate reset pass.
+func uses_this_turn(effect_id: String, turn: int) -> int:
+	var record = effect_use_counts.get(effect_id, null)
+	if record == null or int((record as Dictionary).get("turn", -1)) != turn:
+		return 0
+	return int((record as Dictionary).get("count", 0))
+
+
+func record_use_this_turn(effect_id: String, turn: int) -> void:
+	effect_use_counts[effect_id] = {
+		"turn": turn, "count": uses_this_turn(effect_id, turn) + 1,
+	}
+
+
 func reset_turn_state() -> void:
 	has_attacked_this_turn = false
 	attacks_declared_this_turn = 0
@@ -232,6 +268,8 @@ func reset_turn_state() -> void:
 ## movement unless the specific card text says otherwise. Master prompt 48.
 func on_leave_field() -> void:
 	effect_usage.clear()
+	effect_use_counts.clear()
+	summoned_by_procedure_id = ""
 	atk_modifiers.clear()
 	def_modifiers.clear()
 	atk_override = -1
@@ -255,6 +293,7 @@ func on_leave_field() -> void:
 ## Flipping face-down also resets per-instance effect state. Master prompt 48.
 func on_flipped_face_down() -> void:
 	effect_usage.clear()
+	effect_use_counts.clear()
 	effects_negated = false
 	unaffected_by_effects = false
 
