@@ -200,6 +200,7 @@ func _unordered_zone_array(pid: int, zone: Enums.Zone):
 		Enums.Zone.BANISHED: return p.banished
 		Enums.Zone.EXTRA_DECK: return p.extra_deck
 		Enums.Zone.IN_TRANSIT: return p.in_transit
+		Enums.Zone.EXCAVATED: return p.excavated
 		_: return null
 
 
@@ -274,6 +275,10 @@ func _attach(card: CardInstance, pid: int, zone: Enums.Zone, index: int,
 			p.extra_deck.append(card)
 		Enums.Zone.IN_TRANSIT:
 			p.in_transit.append(card)
+		Enums.Zone.EXCAVATED:
+			# Order matters: "place the other on the bottom" and "return them in any order"
+			# are both statements about the excavated SEQUENCE, so it is kept as excavated.
+			p.excavated.append(card)
 		_:
 			return false
 	card.zone = zone
@@ -298,13 +303,19 @@ func move_card(card: CardInstance, to_zone: Enums.Zone, reason: Enums.MoveReason
 
 	var to_player: int = int(opts.get("to_player", card.controller_id))
 	var index: int = int(opts.get("index", -1))
+	# The end of the Deck comes from the REASON, never from a separate option that could
+	# disagree with it. `deck_position` remains accepted only for a move whose reason does
+	# not itself name an end (a RULE-driven placement). RULES_SPEC.md 8.2.
 	var deck_position: String = str(opts.get("deck_position", "top"))
+	if Enums.is_return_to_deck(reason):
+		deck_position = Enums.deck_position_for(reason)
 	var new_position = opts.get("position", null)
 	var source_id: int = int(opts.get("source_id", -1))
 
-	# Owner-bound zones. [S1 p.52]
+	# Owner-bound zones. [S1 p.52] A card is only ever excavated from its own Deck, so the
+	# excavation holding area is owner-bound for the same reason the Deck is.
 	if to_zone in [Enums.Zone.GRAVEYARD, Enums.Zone.HAND, Enums.Zone.DECK,
-			Enums.Zone.BANISHED, Enums.Zone.EXTRA_DECK]:
+			Enums.Zone.BANISHED, Enums.Zone.EXTRA_DECK, Enums.Zone.EXCAVATED]:
 		to_player = card.owner_id
 
 	var from_zone := card.zone
@@ -333,15 +344,21 @@ func move_card(card: CardInstance, to_zone: Enums.Zone, reason: Enums.MoveReason
 		card.position = new_position
 	elif to_zone in [Enums.Zone.GRAVEYARD, Enums.Zone.BANISHED]:
 		card.position = Enums.Position.FACE_UP
-	elif to_zone in [Enums.Zone.DECK, Enums.Zone.EXTRA_DECK, Enums.Zone.HAND]:
+	elif to_zone in [Enums.Zone.DECK, Enums.Zone.EXTRA_DECK, Enums.Zone.HAND,
+			Enums.Zone.EXCAVATED]:
 		card.position = Enums.Position.FACE_DOWN
 
-	# A card SHUFFLED into the Deck stops being identifiable [S1 p.5, p.28]. This is keyed
-	# on the shuffle rather than on the Deck on purpose: a card placed on top of or on the
-	# bottom of the Deck without a shuffle keeps what the players legally saw, because its
-	# position is still known. RULES_SPEC.md 9.3.
+	# "Shuffle it into the Deck" is one instruction, so the shuffle happens HERE rather than
+	# being left to the caller to remember. Before this, a card moved with
+	# `SHUFFLED_INTO_DECK` was placed deterministically on top and the Deck was never
+	# shuffled — the reason said one thing and the state did another.
+	#
+	# A card SHUFFLED into the Deck also stops being identifiable [S1 p.5, p.28]. That is
+	# keyed on the shuffle rather than on the Deck on purpose: a card placed on top of or on
+	# the bottom of the Deck WITHOUT a shuffle keeps what the players legally saw, because
+	# its position is still known. RULES_SPEC.md 12.1, design decision 11.
 	if to_zone == Enums.Zone.DECK and reason == Enums.MoveReason.SHUFFLED_INTO_DECK:
-		card.revealed_to.clear()
+		shuffle_deck(to_player)
 
 	# Leaving the field resets per-instance effect state. Master prompt 48.
 	# The Equip Cards that lose their host are collected FIRST — on_leave_field() clears
@@ -388,6 +405,12 @@ func move_card(card: CardInstance, to_zone: Enums.Zone, reason: Enums.MoveReason
 			emit(GameEvent.Kind.CARD_BANISHED, payload)
 		Enums.MoveReason.RETURNED_TO_HAND:
 			emit(GameEvent.Kind.CARD_RETURNED_TO_HAND, payload)
+		Enums.MoveReason.ADDED_TO_HAND:
+			# "Add to your hand" is not "return to the hand" and must not fire a bounce
+			# trigger. RULES_SPEC.md 8.
+			emit(GameEvent.Kind.CARD_ADDED_TO_HAND, payload)
+		Enums.MoveReason.EXCAVATED:
+			emit(GameEvent.Kind.CARD_EXCAVATED, payload)
 		Enums.MoveReason.RETURNED_TO_DECK_TOP, Enums.MoveReason.RETURNED_TO_DECK_BOTTOM, \
 		Enums.MoveReason.SHUFFLED_INTO_DECK:
 			emit(GameEvent.Kind.CARD_RETURNED_TO_DECK, payload)
@@ -973,6 +996,87 @@ func shuffle_deck(pid: int) -> void:
 
 
 # ---------------------------------------------------------------------------
+# Revealing and excavating. RULES_SPEC.md 8.2, 12.1.
+#
+# These are four different things and the engine keeps them four different things:
+#
+#   * DRAW      — Deck -> hand, private, and a failed draw loses the Duel.
+#   * REVEAL    — a hidden card is SHOWN to somebody; it does not move.
+#   * EXCAVATE  — cards come OFF the Deck into a holding area and are revealed to both
+#                 players; they are not in the Deck, not in the hand and not on the field,
+#                 and where each of them goes next is stated by the card that excavated.
+#   * SEARCH    — looking THROUGH the Deck for a card, which is private and ends in a
+#                 shuffle [S1 p.5]. Nothing here does that; `shuffle_deck()` is its tail.
+#
+# Collapsing any pair of them would be wrong in an observable way: an excavate that used
+# `draw()` would deck a player out and would leak nothing to the opponent, and one that
+# used a private peek would hide information both players are entitled to.
+# ---------------------------------------------------------------------------
+
+## Show a hidden card's identity to `viewers`. The card does not move.
+##
+## `revealed_to` is additive: a card seen by a player stays seen until something ends that
+## knowledge, which in this engine is exactly a shuffle. RULES_SPEC.md 12.1.
+func reveal(card: CardInstance, viewers: Array, source_id: int = -1) -> void:
+	if card == null or viewers.is_empty():
+		return
+	for entry in viewers:
+		var pid := int(entry)
+		if not card.revealed_to.has(pid):
+			card.revealed_to.append(pid)
+	var payload := {
+		"card_id": card.id, "card_name": card.card_name(),
+		"zone": card.zone, "owner": card.owner_id,
+		"to": card.revealed_to.duplicate(), "source_id": source_id,
+	}
+	# An event that names a card only one player may see is private to that player, exactly
+	# like CARD_DRAWN. A reveal to BOTH players is public.
+	if card.revealed_to.size() < PLAYER_COUNT:
+		payload["private_to"] = card.revealed_to.duplicate()
+	emit(GameEvent.Kind.CARD_REVEALED, payload)
+
+
+## The cards `pid` currently has excavated, top of the Deck first.
+func excavated_cards(pid: int) -> Array:
+	return player(pid).excavated.duplicate()
+
+
+## "Excavate the top N cards of your Deck." Returns the cards actually taken, in Deck order
+## (the card that was on top first).
+##
+## Takes as many as are there when the Deck holds fewer than N — an excavate is not a draw,
+## so a Deck that runs out does NOT lose the Duel [S1 p.35 applies to drawing only]. The
+## caller sees the short array and follows its own card's text.
+func excavate(pid: int, count: int, source_id: int = -1) -> Array:
+	var taken: Array = []
+	if count <= 0:
+		return taken
+	var p := player(pid)
+	var n: int = mini(count, p.deck.size())
+	for i in range(n):
+		var card: CardInstance = p.deck[0]
+		if not move_card(card, Enums.Zone.EXCAVATED, Enums.MoveReason.EXCAVATED,
+				{"source_id": source_id}):
+			break
+		taken.append(card)
+	if taken.is_empty():
+		return taken
+	# Excavated cards are revealed to both players, which is what separates an excavate from
+	# a private look at the top of the Deck. CARD_RULINGS.md R27.
+	var names: Array = []
+	for entry in taken:
+		var card: CardInstance = entry
+		reveal(card, [0, 1], source_id)
+		names.append(card.card_name())
+	emit(GameEvent.Kind.CARD_EXCAVATED, {
+		"player": pid, "count": taken.size(),
+		"card_ids": taken.map(func(c: CardInstance) -> int: return c.id),
+		"card_names": names, "requested": count, "source_id": source_id,
+	})
+	return taken
+
+
+# ---------------------------------------------------------------------------
 # Duel end. RULES_SPEC.md 13.
 # ---------------------------------------------------------------------------
 
@@ -1050,6 +1154,9 @@ func _visible_player(p: PlayerState, viewer_id: int) -> Dictionary:
 			func(c): return null if c == null else _visible_card(c, viewer_id, false)),
 		"field_zone": null if p.field_zone == null \
 			else _visible_card(p.field_zone, viewer_id, false),
+		# Excavated cards go through the same `revealed_to` gate as everything else, so an
+		# excavate that revealed to both players is visible to both and nothing else is.
+		"excavated": p.excavated.map(func(c): return _visible_card(c, viewer_id, false)),
 	}
 	# Only the owner sees their own hand contents. Deck order is never exposed.
 	#

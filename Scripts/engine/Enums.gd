@@ -21,6 +21,14 @@ enum Zone {
 	EXTRA_MONSTER_ZONE,
 	## Transient holding area while a card is mid-Summon or mid-activation.
 	IN_TRANSIT,
+	## Cards taken off the top of the Deck by an EXCAVATE and not yet placed anywhere.
+	##
+	## Deliberately NOT `IN_TRANSIT`: that zone means "mid-Summon / mid-activation" and is
+	## what `GameState._is_destroyable_zone()` lets a Summon-negation destroy. An excavated
+	## card is not being Summoned, is not on the field, and cannot be destroyed — conflating
+	## the two would make a negation card able to reach into an excavation.
+	## RULES_SPEC.md 8.2.
+	EXCAVATED,
 }
 
 ## Turn phases. RULES_SPEC.md 2.
@@ -165,6 +173,14 @@ enum MoveReason {
 	## it is deliberately distinct from DESTROYED_BY_EFFECT so that a clause worded
 	## "destroyed by battle or card effect" (`Ranryu`, `Inari Fire`) does not see it.
 	DESTROYED_BY_RULE,
+	## "**Add** 1 of them to your hand" — a card reaching the hand from the Deck, the
+	## Graveyard or an excavation. Deliberately distinct from `RETURNED_TO_HAND`: PSCT
+	## separates "add to your hand" from "return to the hand", and a card that was never on
+	## the field was not *returned* anywhere. `Crystal Seer` needs the first, every bounce
+	## card in the pool needs the second. RULES_SPEC.md 8.
+	ADDED_TO_HAND,
+	## Taken off the top of the Deck by an EXCAVATE, pending placement. RULES_SPEC.md 8.2.
+	EXCAVATED,
 }
 
 ## Summon kinds. RULES_SPEC.md 5.
@@ -310,6 +326,24 @@ static func is_sent_to_gy(reason: MoveReason) -> bool:
 		or reason == MoveReason.DISCARDED \
 		or reason == MoveReason.HAND_SIZE_DISCARD \
 		or reason == MoveReason.RESOLVED_TO_GY
+
+
+## The three ways a card reaches the Deck. They are three different rules, not one
+## "return to Deck" with a flag: only the third shuffles, and only the third ends what the
+## players legally know about where the card is. RULES_SPEC.md 8.2, 12.1.
+static func is_return_to_deck(reason: MoveReason) -> bool:
+	return reason == MoveReason.RETURNED_TO_DECK_TOP \
+		or reason == MoveReason.RETURNED_TO_DECK_BOTTOM \
+		or reason == MoveReason.SHUFFLED_INTO_DECK
+
+
+## Which end of the Deck a return-to-Deck reason places the card at.
+##
+## Derived from the REASON rather than passed alongside it, so the two can never disagree.
+## Before this existed, `move_card(card, DECK, RETURNED_TO_DECK_BOTTOM)` silently placed the
+## card on TOP unless the caller also remembered an unrelated `deck_position` option.
+static func deck_position_for(reason: MoveReason) -> String:
+	return "bottom" if reason == MoveReason.RETURNED_TO_DECK_BOTTOM else "top"
 
 
 static func is_face_up(pos: Position) -> bool:

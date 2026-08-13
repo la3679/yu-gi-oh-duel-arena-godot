@@ -1169,3 +1169,154 @@ static func place_counter_on_target(ctx: EffectContext, kind: String,
 		ctx.log_note("the counter was not placed")
 		return null
 	return target
+
+
+# ---------------------------------------------------------------------------
+# Movement. RULES_SPEC.md 8, 8.2, 9, 12.1.
+#
+# Five destinations that are NOT interchangeable, one primitive each:
+#
+#   return to hand · place on TOP of the Deck · place on the BOTTOM of the Deck ·
+#   SHUFFLE into the Deck · add to hand
+#
+# Two rules run through all of them and are the reason they live here rather than being
+# open-coded per card:
+#
+#   1. **A card always goes to its OWNER's hand or Deck** [S1 p.52], including a card the
+#      opponent had taken control of. `GameState.move_card()` forces this; these primitives
+#      must therefore never pass a `to_player`.
+#   2. **A target is re-checked at RESOLUTION.** Activation legality is never carried
+#      forward — a target that left the field, or left the zone the clause names, is
+#      dropped rather than chased. Design decision 16, master prompt 44.
+#
+# "Bounce" is deliberately not one primitive with a destination argument: an effect that
+# says "return to the hand" and one that says "shuffle into the Deck" differ in what the
+# players are still allowed to know afterwards, and a single helper invites exactly the
+# collapse RULES_SPEC.md 12.1 forbids.
+# ---------------------------------------------------------------------------
+
+## Every zone a card can legally be "on the field" in, for a clause worded "1 card on the
+## field" / "1 monster on the field". Both players' sides.
+static func cards_on_field(ctx: EffectContext, monsters_only: bool = false) -> Array:
+	var out: Array = []
+	for entry in ctx.state.all_field_cards():
+		var card: CardInstance = entry
+		if card == null or card.definition == null:
+			continue
+		if monsters_only and not card.is_monster():
+			continue
+		out.append(card)
+	return out
+
+
+## "1 card your opponent controls" — the candidate set `Phoenix Wing Wind Blast` and
+## `Spiritual Wind Art - Miyabi` publish. Face-down cards ARE legal: neither card names a
+## property of the target that a face-down card lacks, and both act on it without looking.
+static func opponent_field_cards(ctx: EffectContext) -> Array:
+	var out: Array = []
+	for entry in ctx.state.player(ctx.opponent_id()).controlled_cards():
+		var card: CardInstance = entry
+		if card != null and card.definition != null:
+			out.append(card)
+	return out
+
+
+## Move one card to its OWNER's hand as an effect ("return that target to the hand").
+##
+## Returns true only when the card actually moved. Not a destruction and not a send to the
+## GY: the reason is `RETURNED_TO_HAND`, so nothing keyed on either fires. [S1 p.52]
+static func return_to_hand(ctx: EffectContext, card: CardInstance) -> bool:
+	if card == null:
+		return false
+	return ctx.state.move_card(card, Enums.Zone.HAND, Enums.MoveReason.RETURNED_TO_HAND,
+		{"source_id": ctx.source.id})
+
+
+## "Target 1 …; return that target to the hand." Re-checks the target at resolution against
+## `required_zone` and does nothing if it has left. Returns the card that was returned.
+static func return_target_to_hand(ctx: EffectContext,
+		required_zone: Enums.Zone = Enums.Zone.MONSTER_ZONE) -> CardInstance:
+	var target := surviving_target(ctx, required_zone)
+	if target == null:
+		ctx.log_note("the target is no longer where the effect can return it from")
+		return null
+	if not return_to_hand(ctx, target):
+		ctx.log_note("the return to the hand did not happen")
+		return null
+	return target
+
+
+## "…place that target on the top of the Deck" / "…on the bottom of the Deck".
+##
+## `to_bottom` picks the end. There is no shuffle: the card's whereabouts stay known, which
+## is the whole difference between this and `shuffle_into_deck()`. RULES_SPEC.md 12.1.
+static func place_on_deck(ctx: EffectContext, card: CardInstance,
+		to_bottom: bool) -> bool:
+	if card == null:
+		return false
+	var reason := Enums.MoveReason.RETURNED_TO_DECK_BOTTOM if to_bottom \
+		else Enums.MoveReason.RETURNED_TO_DECK_TOP
+	return ctx.state.move_card(card, Enums.Zone.DECK, reason, {"source_id": ctx.source.id})
+
+
+## The targeting form of `place_on_deck()`. Returns the card that was placed.
+static func place_target_on_deck(ctx: EffectContext, to_bottom: bool,
+		required_zone: Enums.Zone = Enums.Zone.MONSTER_ZONE) -> CardInstance:
+	var target := surviving_target(ctx, required_zone)
+	if target == null:
+		ctx.log_note("the target is no longer where the effect can place it from")
+		return null
+	if not place_on_deck(ctx, target, to_bottom):
+		ctx.log_note("the placement on the Deck did not happen")
+		return null
+	return target
+
+
+## "Shuffle it into the Deck." The Deck is shuffled and the card stops being identifiable —
+## both are done by `move_card()` for this reason, so a card can never be "shuffled in"
+## without the shuffle actually happening. RULES_SPEC.md 12.1.
+static func shuffle_into_deck(ctx: EffectContext, card: CardInstance) -> bool:
+	if card == null:
+		return false
+	return ctx.state.move_card(card, Enums.Zone.DECK, Enums.MoveReason.SHUFFLED_INTO_DECK,
+		{"source_id": ctx.source.id})
+
+
+## "Add it to your hand." Distinct from returning a card to the hand — see
+## `Enums.MoveReason.ADDED_TO_HAND`.
+static func add_to_hand(ctx: EffectContext, card: CardInstance) -> bool:
+	if card == null:
+		return false
+	return ctx.state.move_card(card, Enums.Zone.HAND, Enums.MoveReason.ADDED_TO_HAND,
+		{"source_id": ctx.source.id})
+
+
+# ---------------------------------------------------------------------------
+# Excavation. RULES_SPEC.md 8.2.
+# ---------------------------------------------------------------------------
+
+## "Excavate the top N cards of your Deck." Returns them in Deck order, top first, already
+## revealed to both players and sitting in `Zone.EXCAVATED`.
+##
+## The caller MUST place every card it gets back — an excavate leaves nothing in limbo. A
+## short Deck returns a short array rather than failing, because "excavate 2" with 1 card
+## left excavates 1; it is not a draw and does not lose the Duel.
+static func excavate(ctx: EffectContext, count: int) -> Array:
+	return ctx.state.excavate(ctx.controller_id, count, ctx.source.id)
+
+
+## Place the excavated cards still in hand back on the Deck, in the order given.
+##
+## `to_bottom` picks the end; the FIRST card of `cards` is placed first, so placing on top
+## reverses the visible order exactly the way physically stacking them does. Nothing is
+## shuffled unless the card text says to, which is why there is no shuffle here.
+static func return_excavated(ctx: EffectContext, cards: Array,
+		to_bottom: bool) -> int:
+	var n := 0
+	for entry in cards:
+		var card: CardInstance = entry
+		if card == null or card.zone != Enums.Zone.EXCAVATED:
+			continue
+		if place_on_deck(ctx, card, to_bottom):
+			n += 1
+	return n

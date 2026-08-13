@@ -57,7 +57,14 @@ enum Kind {
 	CARD_SENT_TO_GY,
 	CARD_BANISHED,
 	CARD_RETURNED_TO_HAND,
+	## "Add … to your hand" — distinct from CARD_RETURNED_TO_HAND. See MoveReason.ADDED_TO_HAND.
+	CARD_ADDED_TO_HAND,
 	CARD_RETURNED_TO_DECK,
+	## A hidden card was shown to one or both players. Carries `to` (the viewers) and the
+	## card's identity, and is PUBLIC only when both players were shown it.
+	CARD_REVEALED,
+	## Cards were taken off the top of a Deck by an excavate. Distinct from CARD_DRAWN.
+	CARD_EXCAVATED,
 	CONTROL_CHANGED,
 	BATTLE_POSITION_CHANGED,
 	COUNTER_PLACED,

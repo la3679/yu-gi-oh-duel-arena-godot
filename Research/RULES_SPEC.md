@@ -336,7 +336,9 @@ The engine models a distinct `MoveReason` on every zone change (master prompt §
 | `SENT_AS_COST` | sent to GY to pay a cost | NO | YES |
 | `BANISHED` | separated from the field, not the GY | NO | **NO** |
 | `RETURNED_TO_HAND` | field/GY → hand | **NO** | NO |
-| `RETURNED_TO_DECK` | → Deck (top/bottom/shuffle) | **NO** | NO |
+| `ADDED_TO_HAND` | Deck/GY/excavation → hand, "**add** to your hand" | **NO** | NO |
+| `RETURNED_TO_DECK_TOP` / `_BOTTOM` / `SHUFFLED_INTO_DECK` | → Deck; see §8.2 | **NO** | NO |
+| `EXCAVATED` | top of Deck → excavation holding area; see §8.2 | **NO** | NO |
 | `RULE` | rules-driven move (e.g. Equip destroyed when its target leaves) | depends | depends |
 
 Key rulings encoded:
@@ -346,6 +348,53 @@ Key rulings encoded:
 * A **banished** card later moved to the GY is **NOT** "sent to the Graveyard". [S1 p.53]
 * "Leaves the field" triggers do **not** fire when a field monster is shuffled into the Main
   Deck or becomes material. [S1 p.51]
+
+### 8.2 Deck placement, revealing and excavating — **DECIDED** (Phase 5 batch 7)
+
+**The three ways a card reaches the Deck are three different rules, not one with a flag.**
+
+| Instruction | Where it lands | Shuffles? | `revealed_to` |
+|---|---|---|---|
+| "place it on the **top** of the Deck" | index 0, exactly | **no** | **kept** |
+| "place it on the **bottom** of the Deck" | last index, exactly | **no** | **kept** |
+| "**shuffle** it into the Deck" | unspecified | **yes** | **cleared** |
+
+The end of the Deck is derived from the `MoveReason` (`Enums.deck_position_for()`), never
+supplied as a separate option, so the two can never disagree. A top or bottom placement is
+**not** implemented as "insert, then shuffle": the Deck above and below the inserted card
+keeps its exact order, which is observable on the very next draw. See §12.1 for why only
+the shuffle ends what the players legally know.
+
+**Revealing** shows a hidden card without moving it (`GameState.reveal()`). A reveal to one
+player is a **private** event, exactly like a draw; a reveal to both is public.
+
+**Excavating** (`GameState.excavate()`) takes cards off the **top** of the Deck into
+`Zone.EXCAVATED` — not the hand, not the field, not the Deck — and reveals them to **both**
+players. It is deliberately none of the four things it resembles:
+
+* not a **draw** — nothing reaches the hand, no `CARD_DRAWN` is emitted, and a Deck with
+  fewer cards than asked simply yields fewer. An excavate can never deck a player out,
+  because the deck-out rule is written about *drawing* [S1 p.35].
+* not a **search** — a search looks *through* the Deck privately and ends in a shuffle
+  [S1 p.5]; an excavate takes from the top and reveals.
+* not a **reveal** on its own — the cards leave the Deck.
+* not a **mill** — nothing is sent to the Graveyard unless the card text says so.
+
+The excavating card's own text states where every excavated card goes, and in what order.
+Nothing is left in `Zone.EXCAVATED` when the effect finishes, and nothing is shuffled
+unless the text says "shuffle".
+
+`Zone.EXCAVATED` is deliberately separate from `Zone.IN_TRANSIT`: the latter means
+"mid-Summon / mid-activation" and is the one non-field zone
+`GameState._is_destroyable_zone()` accepts, so sharing it would let a Summon-negation card
+destroy a card sitting in somebody's excavation.
+
+*Engine:* `Enums.Zone.EXCAVATED`, `Enums.MoveReason.ADDED_TO_HAND` / `EXCAVATED`,
+`Enums.deck_position_for()`, `GameState.reveal()` / `excavate()` / `excavated_cards()`,
+`EffectPrimitives` movement + excavation sections.
+*Tests:* `MovementTests` (the movement gate), then `CrystalSeerTests`,
+`PhoenixWingWindBlastTests`, `SpiritualWindArtMiyabiTests`, `ChainDetonationTests`,
+`ChainHealingTests`.
 
 ### 8.1 When a Continuous Spell/Trap's continuous effect begins applying — **DECIDED**
 
