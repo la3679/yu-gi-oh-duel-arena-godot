@@ -1,6 +1,6 @@
 # TEST_RESULTS
 
-**Last run:** 2026-08-13 (Phase 5 batch 4)
+**Last run:** 2026-08-13 (Phase 5 batch 5)
 **Engine:** Godot 4.7.1.stable.official.a13da4feb (headless)
 
 Command:
@@ -33,10 +33,14 @@ The raw command still works and produces the same numbers:
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
 | Core rules tests | 14 | 713 | **713** | 0 |
-| Per-card tests | 20 | 1209 | **1209** | 0 |
+| Per-card tests | 24 | 1638 | **1638** | 0 |
 | Interaction tests | 1 | 46 | **46** | 0 |
 | Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **35** | **1968** | **1968** | **0** |
+| **TOTAL** | **39** | **2397** | **2397** | **0** |
+
+All **1968** assertions from the previous checkpoint still pass **unchanged** — none was
+weakened, retargeted or deleted. Batch 5 added **429**: `ApprenticeMagicianTests` 92,
+`KunaiWithChainTests` 117, `FairyTailRellaTests` 106, `ChampionsVigilanceTests` 114.
 
 Per-test assertion counts in this file are **measured**, not counted by hand from source:
 `TestCase` records them per test and `Scripts/tests/DumpAssertionCounts.gd` prints them.
@@ -44,7 +48,7 @@ A suite that loops over nine cards runs many more assertions than it has `t.` ca
 and the earlier hand-written `ShiningAngelTests` breakdown was wrong for exactly that
 reason — it has been corrected against the measurement.
 
-Card library: **28 / 77 implemented, 28 / 77 tested** — computed by `Tools/build_matrix.py`
+Card library: **32 / 77 implemented, 32 / 77 tested** — computed by `Tools/build_matrix.py`
 from `Scripts/cards/registry/*.gd`, the card database's `is_normal` flag and
 `Tests/cards/*.gd`, never by hand.
 
@@ -97,6 +101,10 @@ removed.
 | `FiveBrothersExplosionTests` | 67 | per-card |
 | `SealingCeremonyOfSuitonTests` | 73 | per-card |
 | `WonderBalloonsTests` | 85 | per-card |
+| `ApprenticeMagicianTests` | 92 | per-card |
+| `KunaiWithChainTests` | 117 | per-card |
+| `FairyTailRellaTests` | 106 | per-card |
+| `ChampionsVigilanceTests` | 114 | per-card |
 | `SpecialSummonInteractionTests` | 46 | interaction |
 
 ### ChainTests — 27/27
@@ -309,7 +317,96 @@ guessed, each now decided against an official source and pinned down.
 
 ## Defects found and fixed by these tests
 
-### This milestone (Phase 5 batch 4 — the remaining Continuous Traps and the Continuous Spell)
+### This milestone (Phase 5 batch 5 — the counter monster, the second Equip group, negation)
+
+Cards: `Apprentice Magician` (92), `Kunai with Chain` (117), `Fairy Tail - Rella` (106),
+`Champion's Vigilance` (114). All four are complete: every official clause implemented, every
+clause tested positively and negatively. **Nothing in this batch is partial or unverified.**
+
+**One pre-existing engine defect, and it is a real one.**
+
+1. **A "cannot be targeted" restriction was declared but consumed by NOTHING.**
+   `ContinuousEffects.RESTRICTION_FLAGS` has listed `"cannot_be_targeted"` since the continuous
+   system was written, and `_clear()` dutifully wiped and rebuilt it on every recompute — but a
+   repository-wide search found **zero readers**. Any card that had set it would have been
+   silently ignored, and the failure mode is the worst kind: the flag round-trips, the recompute
+   tests pass, and the restriction simply does not exist. `Fairy Tail - Rella` is the pool's only
+   source of one, so nothing had noticed. Fixed by reading it once in
+   `ActivationRules.legal_targets()` — the single funnel that both
+   `DuelEngine._activation_actions()` (which publishes candidates) and
+   `DuelEngine._choices_valid()` (which re-validates a submitted selection) already pass through,
+   so one read covers both the offering and the validation path. Covered by
+   `FairyTailRellaTests :: 'NEITHER player' …`, which asserts against a real targeting card
+   (`Fiendish Chain`) that the protected monsters vanish from the candidate list and that a
+   hand-built activation naming one is rejected.
+
+**Three test-authoring mistakes worth recording, because each cost a cycle and each will recur.**
+
+* **`pass_until_open()` passes for EVERYBODY**, including the opponent you wanted to respond. A
+  test that needs a Chain Link 2 in a window the engine opens *itself* (after a Summon completes
+  and a trigger becomes Chain Link 1, rather than after a submitted activation) has to loop:
+  pass while nobody may act, and submit the response the moment `get_legal_responses()` offers
+  it. `ApprenticeMagicianTests` and `ChampionsVigilanceTests` both needed this.
+* **Asserting a monster's `position` after a battle reads the Graveyard.** The engine resolves
+  the attack declaration window, the Damage Step and the destruction inside one
+  `submit_action()`, and `move_card()` turns a card in the Graveyard FACE_UP. An intermediate
+  battle position only survives in the EVENT LOG —
+  `KunaiWithChainTests._position_changes_to()` exists for exactly that.
+* **A negative control against a CONJUNCTION can pass for the wrong reason.**
+  `Champion's Vigilance`'s condition is "you control a Level 7+ Normal Monster **AND** a Summon
+  is pending". Four negatives calling `condition` directly on a board with no Summon declared all
+  returned false — correctly, but for the wrong half — and the positive control then failed and
+  exposed the whole group as vacuous. Rewritten to declare a real Summon and ask whether the
+  Counter Trap is actually offered, with the underlying card data (Level, Normal-vs-Effect)
+  asserted separately so a wrong negative cannot hide.
+
+**Generic mechanics added this batch** — each is generic, each has its own tests:
+
+* **Counter CAPACITY as a rules query** — `GameState.COUNTER_CAPACITY_EFFECT_ID`,
+  `can_place_counter()`, `cards_that_can_receive_counter()`, registered in
+  `CardRegistry.RULES_QUERY_EFFECT_IDS`. Deliberately not enforced by `place_counters()`; see
+  `CARD_RULINGS.md` R21.
+* **`cannot_be_targeted` is now consumed** in `ActivationRules.legal_targets()`, plus
+  `CardInstance.cannot_be_targeted()` as the single read point.
+* **`EffectDef.targets_valid`** — an optional per-clause validation of the SET of chosen targets,
+  checked by `DuelEngine._choices_valid()` via `ActivationRules.target_selection_ok()`. Needed
+  because `Kunai with Chain` in "both" mode has HETEROGENEOUS targets, where membership in the
+  candidate list plus the count is not enough to make a selection legal.
+* **`EffectPrimitives.pay_discard_cost()`** — "discard", distinct from `pay_send_to_gy_cost()`'s
+  "send from your hand to the GY" [S1 p.52-53].
+* **`GameState.destroy()` now accepts a card in `Zone.IN_TRANSIT`**, so "negate the Summon, and
+  if you do, destroy that card" goes through the ONE destruction entry point rather than a
+  card-specific move. Design decision 19 is preserved, not worked around.
+* **Negation primitives** — `summon_is_pending()`, `negate_summon_and_destroy()`,
+  `spell_trap_activation_below()`, `negate_activation_and_destroy()`, keeping the Summon path and
+  the Chain-Link path separate.
+* **Equipping in the other direction** — `equip_card_to_source()`, plus the
+  `EQUIPPED_BY_EFFECT_KEY` / `EQUIPPED_BY_EFFECT_TURN_KEY` memory so a delayed "return it during
+  the End Phase" clause knows WHICH card and WHICH turn.
+* **Test-side:** `TestFixtures.counter_holder()`, `equip_spell()`, `activation_negator()`.
+
+**Two pool facts discovered and reported rather than papered over.** Both are asserted directly
+against the real 77-card library so they cannot rot:
+
+* **No card in the V1 pool can have a Spell Counter placed on it**, so `Apprentice Magician`'s
+  first clause has no legal target in a real duel between these two Decks. Implemented in full,
+  tested against a synthetic card that declares the capacity. R21.
+* **The V1 pool contains no Equip Spells at all**, so `Fairy Tail - Rella`'s second clause is
+  never live in a real duel. Implemented in full, tested against synthetic Equip Spells. R23.
+
+**One planning error corrected against the official text.** The previous checkpoint's batch plan
+said `Fairy Tail - Rella` needs "targeting protection / **redirect**". The verified official text
+has no redirect. None was invented. R23.
+
+**One KNOWN GAP, honestly recorded and pinned by a test.** A **Flip Summon is a Summon**
+[S1 p.24], but `SummonRules.flip_summon()` applies the flip immediately instead of splitting into
+begin/complete like the Normal and Special Summon routes, so no declaration window opens and
+`Champion's Vigilance` cannot negate one. This is an ENGINE limitation, not a card one, and it is
+the one part of `Champion's Vigilance`'s printed text that is not reachable.
+`ChampionsVigilanceTests :: KNOWN GAP` asserts the current behaviour so it cannot be forgotten.
+Both Summon routes that DO open a declaration window are negated correctly and tested.
+
+### Previous milestone (Phase 5 batch 4 — the remaining Continuous Traps and the Continuous Spell)
 
 **Three engine defects, all of them pre-existing gaps rather than mistakes made this batch.**
 Each was found because a card in this batch is the first card in the pool that needs the
@@ -518,7 +615,10 @@ No test expectation was weakened to make the implementation pass.
 
 ## Known issues in the harness (not rules defects)
 
-* The run reports `61457 ObjectDB instances were leaked at exit`. These are RefCounted
+* The run reports `74049 ObjectDB instances were leaked at exit`, up from 61457 at the previous
+  checkpoint purely because the suite now builds more duels (429 more assertions across four new
+  per-card suites). No test fails, hangs, or becomes unreliable because of it, and no rules
+  outcome changes; measured again this milestone so the trend stays visible. These are RefCounted
   reference cycles between `GameState`, `DuelLog` (connected signal) and the closures the
   tests capture. The count grows with the number of duels the suite builds. It does not
   affect any rules outcome and does not fail the suite, but it must be cleaned up before
@@ -544,7 +644,14 @@ are now exercised by `Inari Fire`, `Ranryu` and `Nefarious Archfiend Eater of
 Nefariousness`. Special Summon execution, piercing battle damage and the duel log / replay
 payload were covered in the previous milestone.
 
-**B. Per-card** — **28 of 77** cards implemented and tested: the 9 vanilla Normal
+**B. Per-card** — **32 of 77** cards implemented and tested; **45 remain**, honestly reported as
+`NOT_IMPLEMENTED` / `NOT_TESTED` in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`. Batch 5 added
+`Apprentice Magician`, `Kunai with Chain`, `Fairy Tail - Rella` and `Champion's Vigilance`, which
+completes the pool's **Equip group** (all four equippers) and its **only Counter Trap**.
+
+The paragraph below describes the state at the end of batch 4 and is kept for the record.
+
+**B (batch 4 snapshot)** — **28 of 77** cards implemented and tested: the 9 vanilla Normal
 Monsters, `Shining Angel`, the first Special Summon batch (`Monster Reborn`, `Silver's Cry`,
 `Kaibaman`, `Dragonic Tactics`, `One for One`), batch 3 (`Birthright`, `Call of the Haunted`,
 `Hieratic Dragon of Tefnuit`, `Inari Fire`, `Ranryu`, `Nefarious Archfiend Eater of

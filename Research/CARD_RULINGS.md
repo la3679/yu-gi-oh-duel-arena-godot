@@ -229,6 +229,101 @@ continuous effect is state-derived and vanishes the moment its source stops appl
 precisely what the parenthesis forbids. `TurnFlow._end_of_turn_cleanup()` removes it from every
 instance at the turn transition, whoever's turn it was.
 
+### R21 — `Apprentice Magician`: what is "a card you can place a Spell Counter on"?
+
+**DECIDED: a card has that property only because some card TEXT grants it.** It is a property of
+the TARGET, not of `Apprentice Magician`, and it is not "any face-up card".
+
+Basis: the official text is "Target 1 face-up card on the field **that you can place a Spell
+Counter on**". The qualifier would be meaningless under the wide reading, and the wide reading
+would let the card put a Spell Counter on a `Blue-Eyes White Dragon`, which is not how Spell
+Counters work — a card holds counters because a card allows it.
+
+Implementation: `GameState.COUNTER_CAPACITY_EFFECT_ID`, a CONTINUOUS rules-query clause a card
+declares about itself, asked through `GameState.can_place_counter()`. Deliberately NOT enforced
+inside `place_counters()`: a clause that places a counter on one specific named card does so on
+its own authority, which is exactly what `Wonder Balloons` already does.
+
+**Consequence, reported rather than hidden: no card in the V1 pool declares Spell Counter
+capacity**, so this clause has no legal target in a real duel between these two Decks and is
+never activated. It is implemented in full and tested against a synthetic card that does declare
+the capacity — the same treatment R1 requires for `Runick Flashing Fire`'s unreachable Extra
+Deck branch.
+
+Confidence: high on the reading. The pool consequence is a measured fact, asserted by
+`ApprenticeMagicianTests :: NO card in the 77-card V1 pool declares Spell Counter capacity`.
+
+### R22 — `Kunai with Chain`: does changing the ATTACKING monster to Defense Position stop the attack?
+
+**DECIDED: no.** The attack continues, and damage calculation uses the attacking monster's ATK.
+
+Basis: `RULES_SPEC.md §6.2` and §7.4 [S1 p.39, p.42]. An attack is cancelled only when the
+ATTACKER leaves the field, and a Replay happens only when the set of monsters the opponent
+controls changes; a battle position change is neither. The rulebook's damage-calculation table
+is written as the attacker's ATK against the target's ATK or DEF, and the attacker's own battle
+position is not an input to any of its six rows.
+
+Also decided: the change is by a CARD EFFECT, so it neither spends nor is blocked by the
+once-per-turn manual position-change allowance [S1 p.26], and it applies to a monster that has
+already attacked.
+
+Confidence: **medium-high.** It follows from rules this project has already implemented and
+tested, not from a Konami ruling naming this card. It is isolated in one primitive and covered by
+`KunaiWithChainTests :: the attacking monster is changed to Defense Position and the attack
+CONTINUES`. Re-verify if a directly authoritative source becomes available.
+
+### R23 — `Fairy Tail - Rella`: targeting protection, NOT a redirect
+
+**DECIDED: the first clause is a flat CONTINUOUS restriction. There is no redirect mechanic.**
+
+Basis: the verified official text is "Neither player can target monsters on the field with Spell
+Cards or effects, except this one." The previous checkpoint's batch plan described this card as
+needing "targeting protection / **redirect**"; the official text contains no redirect and **the
+official text wins**. No redirect mechanic was invented.
+
+Four things the wording fixes: it binds **both** players, including Rella's own controller; it
+covers monsters **on the field** only, so "target 1 monster in either GY" is untouched; Rella
+herself remains targetable; and it is about **Spell Cards and effects**, not attacks — an attack
+is neither, and `BattleRules` builds its own target list [S1 p.38].
+
+Implementation: the pre-existing `cannot_be_targeted` flag, which `ContinuousEffects` already
+owned but which **nothing consumed**. It is now read once, in `ActivationRules.legal_targets()`,
+the single funnel every candidate list passes through.
+
+Also decided: the second clause cannot be activated with no Equip Spell in the hand, Deck or GY,
+following the reading already applied to `Shining Angel`, `Kaibaman` and `Dragonic Tactics`.
+**The V1 pool contains no Equip Spells at all**, so that clause is never live in a real duel; it
+is implemented in full and tested against synthetic Equip Spells.
+
+Confidence: high on the text; medium-high on the "cannot activate with nothing to fetch" reading,
+which is consistent with three cards already shipped.
+
+### R24 — `Champion's Vigilance`: two response categories, and the Flip Summon gap
+
+**DECIDED: the one printed clause is two EffectDefs**, because it has two disjoint activation
+timings resolved through two different engine paths. Negating a **Summon** answers a declaration
+that is not on the Chain (`Zone.IN_TRANSIT` + `DuelEngine.negate_pending_summon()`); negating a
+**Spell/Trap activation** answers a real Chain Link (`ChainManager.negate_activation()`). An
+activated effect that WOULD Special Summon is the second case, never the first — when the
+negation is activated, that effect has not resolved and no Summon has been declared.
+
+Also decided: "a Spell/Trap **Card** is activated" is narrower than "an effect is activated" and
+does not cover a monster's Ignition or Quick Effect, nor the activation of an effect of a
+Continuous Spell/Trap already face-up on the field. "Negate the **activation**" does not refund a
+cost the negated card already paid (`RULES_SPEC.md §10`). The field condition requires a
+**face-up** monster, on the same reasoning as `controls_face_up_monster_of_race()`.
+
+**KNOWN GAP, not resolved this batch:** a **Flip Summon is a Summon** [S1 p.24] and this card
+should be able to negate one, but `SummonRules.flip_summon()` applies the flip immediately
+instead of splitting into begin/complete like the other two Summon routes, so no declaration
+window opens and the card cannot answer it. This is an ENGINE limitation, not a card one. It is
+asserted as current behaviour by `ChampionsVigilanceTests :: KNOWN GAP` so it cannot be silently
+forgotten, and it is carried in `PROJECT_STATE.md §7`.
+
+"monster(s)": the plural exists because one Summon can place several monsters at once. Nothing in
+the V1 pool does, so there is one pending Summon record and negating it negates the whole Summon.
+Not exercised beyond that, and said so.
+
 ---
 
 ## 5. Banlist note (master prompt §51)

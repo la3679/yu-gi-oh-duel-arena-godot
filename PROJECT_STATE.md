@@ -6,7 +6,15 @@
 **Last updated:** 2026-08-13
 **Current phase:** **Phase 5 — the card effect library.** Phases 0–4 are complete and
 Gate B (the generic rules engine) is MET; nothing in Phase 4 needs revisiting.
-**Phase 5 progress:** batches 1-4 are complete — the registry and effect primitives,
+**Phase 5 progress:** batches 1-5 are complete. **Batch 5** added `Apprentice Magician`,
+`Kunai with Chain`, `Fairy Tail - Rella` and `Champion's Vigilance` — **32 / 77 implemented,
+32 / 77 tested, 45 remaining**. With batch 5 the pool's **Equip group is complete** (all four
+equippers) and its **single Counter Trap** is done. Nothing in batch 5 is partial or unverified;
+the one thing that is NOT reachable is recorded as an engine gap in §7 (Flip Summon negation).
+**Measured suite: 2397 passed / 0 failed across 39 suites; SmokeCheck PASS.**
+
+The description of batches 1-4 below is unchanged and kept for the record:
+batches 1-4 are complete — the registry and effect primitives,
 `Shining Angel`, the **9 vanilla Normal Monsters**, the **resolution-time Special Summon
 batch** (`Monster Reborn`, `Silver's Cry`, `Kaibaman`, `Dragonic Tactics`, `One for One`),
 **batch 3**: the two Continuous-Trap revivals (`Birthright`, `Call of the Haunted`),
@@ -21,9 +29,10 @@ its own suite and passes it in full. **49 unique playable cards remain.**
 With batch 4 the pool's **Continuous Spell/Trap group is complete** (all 6 Continuous Traps
 plus the single Continuous Spell).
 **Overall status:** IN PROGRESS — **not** acceptance-complete.
-**HEAD at checkpoint:** `565ae0c` (the Phase 5 batch-4 commit follows it)
-**Measured suite at checkpoint:** **1968 passed / 0 failed** across **35 suites**
-(713 core rules + 1209 per-card + 46 interaction); SmokeCheck **PASS**.
+**HEAD at checkpoint:** `389dc36` (the Phase 5 batch-5 commit follows it)
+**Measured suite at checkpoint:** **2397 passed / 0 failed** across **39 suites**
+(713 core rules + 1638 per-card + 46 interaction); SmokeCheck **PASS**.
+All 1968 assertions from the previous checkpoint still pass unchanged.
 
 ---
 
@@ -339,8 +348,11 @@ the pool that needs the behaviour. Full write-up in `Reports/TEST_RESULTS.md`.
 
 ### Known harness issues (not rules defects)
 
-* The run reports `~20000 ObjectDB instances were leaked at exit`, up from ~7265 simply
-  because the suite now builds far more duels. These are RefCounted reference cycles
+* The run reports **`74049 ObjectDB instances were leaked at exit`** (measured at the batch-5
+  checkpoint, up from 61457 at batch 4), growing purely with the number of duels the suite
+  builds. It causes **no** test failures, hangs, memory pressure or unreliable results, so it was
+  correctly not allowed to derail batch 5 — but it **must be characterised or fixed before Phase
+  7**, when the UI keeps a single duel alive for a long session. These are RefCounted
   between `GameState`, the `DuelLog` signal connection and test closures. It changes no
   rules outcome and fails nothing, but it must be cleaned up before the UI keeps a single
   duel alive for a long session.
@@ -362,7 +374,7 @@ the pool that needs the behaviour. Full write-up in `Reports/TEST_RESULTS.md`.
 | 2 | Per-card official text + rulings research (77 cards) | **COMPLETE** |
 | 3 | Architecture / scaffolding + Graphify index | **COMPLETE** |
 | 4 | Core rules engine | **COMPLETE** — 4b-1/4b-2/4b-3/4c done+tested |
-| 5 | Card effect library (77 cards) | **IN PROGRESS** — **28 / 77** implemented and tested (batches 1-4) |
+| 5 | Card effect library (77 cards) | **IN PROGRESS** — **32 / 77** implemented and tested (batches 1-5) |
 | 6 | Automated tests | NOT STARTED |
 | 7 | Basic playable UI | NOT STARTED |
 | 8 | Arena / presentation | NOT STARTED |
@@ -736,12 +748,60 @@ Legend: **DONE+TESTED** = implemented and covered by passing assertions ·
     its other clauses reachable. `Castle of Dragon Souls`, `Sealing Ceremony of Suiton` and
     `Wonder Balloons` each carry one, which is why their EffectDef counts exceed their printed
     clause counts. The per-card suites assert the count and say why.
+30. **A card can hold a counter only because some card TEXT says so, and that question belongs to
+    the rules layer.** `GameState.COUNTER_CAPACITY_EFFECT_ID` is a pure CONTINUOUS rules query
+    (design decision 20's shape), asked through `GameState.can_place_counter()`. It is
+    deliberately **not** enforced inside `place_counters()`: a clause that places a counter on one
+    specific named card does so on its own authority, which is what `Wonder Balloons` does and why
+    it needs no capacity declaration. Only a clause that SEARCHES for a legal recipient asks the
+    query. Widening `place_counters()` would break `Wonder Balloons`. `CARD_RULINGS.md` R21.
+31. **`ActivationRules.legal_targets()` is the ONE place a targeting restriction is applied.**
+    Both `DuelEngine._activation_actions()` (which publishes candidates) and `_choices_valid()`
+    (which re-validates a submitted selection) pass through it, so one filter covers the offering
+    and the validation path. `cannot_be_targeted` is read there and nowhere else, via
+    `CardInstance.cannot_be_targeted()`. It deliberately does **not** reach attack target
+    selection: an attack is neither a Spell Card nor an effect, and `BattleRules` builds its own
+    list [S1 p.38]. Do not scatter the check into the per-card `legal_targets` callables.
+32. **A heterogeneous target selection needs the clause's own validation.**
+    `EffectDef.targets_valid` exists because candidate membership plus a count cannot express
+    "exactly one of these two must be the attacking monster" — `Kunai with Chain` in "both" mode
+    would otherwise accept two of your own monsters. It is optional and unset on every other
+    card, which is the correct default.
+33. **"Activate 1 or both of these effects" is modelled as separate ACTIONS, not a hidden mode
+    flag.** `Kunai with Chain` declares three CARD_ACTIVATION EffectDefs — bullet 1, bullet 2, and
+    both simultaneously — because the engine publishes legal actions and re-validates the
+    submitted one (design decision 1). A mode that is not part of an action is a mode the engine
+    cannot check. The same reasoning splits `Champion's Vigilance` into two EffectDefs: its two
+    response categories have disjoint timings and resolve through different engine paths (a
+    declared Summon in `Zone.IN_TRANSIT` versus a Chain Link), and collapsing them would either
+    invent a Summon that has not happened or lose Summon negation. `CARD_RULINGS.md` R24.
 
 ---
 
 ## 7. Blockers
 
-None.
+None that stop work.
+
+### Open engine gap — Flip Summon cannot be negated (found in batch 5)
+
+A **Flip Summon is a Summon** [S1 p.24], so `Champion's Vigilance` ("when a monster(s) would be
+Summoned") should be able to negate one. It cannot, because `SummonRules.flip_summon()` applies
+the flip immediately and emits `FLIP_SUMMON_SUCCEEDED`, instead of splitting into
+begin/complete the way `begin_normal_summon()` and `begin_special_summon()` do. With no
+declaration there is no window, so no negation card is ever offered.
+
+This is an **engine** limitation, not a card one, and it is the only part of
+`Champion's Vigilance`'s printed text that is unreachable. Everything else about the card is
+implemented and tested, including negation on **both** Summon routes that do declare.
+
+The fix is contained: give `SummonRules` a `begin_flip_summon()` / `complete_flip_summon()` pair
+and branch on `SummonKind.FLIP` in `DuelEngine._close_window()`. It cannot reuse
+`complete_summon()` unchanged, because that calls `move_card()` into the Monster Zone and a
+flipping monster is already there. Care is needed around the Flip effects (`Aussa`, `Eria`,
+`Wynn`) that key on `FLIP_SUMMON_SUCCEEDED`, and around `SummonTests`.
+
+Pinned by `ChampionsVigilanceTests :: KNOWN GAP`, which asserts today's behaviour so this cannot
+be silently forgotten. Recorded in `CARD_RULINGS.md` R24.
 
 ### Phase 4 work — all closed (honest list)
 
@@ -760,8 +820,13 @@ Everything previously listed here is now done and tested; see §6a and
 
 ### Genuinely still open (carried through Phase 5, not hidden)
 
-* **49 of 77 cards are not implemented yet.** They are honestly `NOT_IMPLEMENTED` in the
+* **45 of 77 cards are not implemented yet.** They are honestly `NOT_IMPLEMENTED` in the
   matrix; see §8 for the next batch.
+* **Two clauses in the pool can never be live in a real duel**, both implemented in full and
+  tested against synthetic cards, both asserted against the real library so the fact cannot rot:
+  `Apprentice Magician`'s Spell Counter clause (no card in the pool can hold a Spell Counter —
+  R21) and `Fairy Tail - Rella`'s equip clause (the pool has no Equip Spells — R23). This is the
+  same situation as R1's unreachable Extra Deck branch.
 * **Simultaneous-LP-zero (a draw) is unexercised.** This is now the ONLY item left on the
   core-rules "not yet covered" list in `Reports/TEST_RESULTS.md`.
 * **`Castle of Dragon Souls` was mis-grouped as an Equip card** in an earlier checkpoint's
@@ -794,9 +859,11 @@ the card library has the 9 vanillas, `Shining Angel`, the resolution-time Specia
 all of batch 3, and all of batch 4 — which completes the pool's **Continuous Spell/Trap
 group** and adds continuous NEGATION, banish-as-a-cost, an ATK gain that outlives its source,
 effect damage, and the first real use of the counter engine — **1968 assertions across 35
-suites, 0 failures**, SmokeCheck PASS. Read §6a for per-subsystem status and the
-**twenty-nine** design decisions that must not be reversed, and §7 for what is genuinely still
-open. Do **not** re-read the whole repository,
+suites, 0 failures**, SmokeCheck PASS. **Batch 5 then added `Apprentice Magician`,
+`Kunai with Chain`, `Fairy Tail - Rella` and `Champion's Vigilance`, taking the measured suite to
+2397 assertions across 39 suites and the library to 32 / 77.** Read §6a for per-subsystem status
+and the **thirty-three** design decisions that must not be reversed, and §7 for what is genuinely
+still open — including the one engine gap batch 5 found (Flip Summon negation). Do **not** re-read the whole repository,
 re-run research, or re-derive rules.
 
 ### Batch 3 — COMPLETE (nothing partial, nothing unverified)
@@ -863,29 +930,76 @@ Generic mechanics completed and tested in this batch — none is left UNVERIFIED
 
 Cards started but unfinished: **none.** Mechanics still unverified from this batch: **none.**
 
-### The NEXT batch (batch 5) — start here
+### Batch 5 — COMPLETE (nothing partial, nothing unverified)
 
-**The counter monster, then the second Equip group, then negation.** Continue the
+**The counter monster, the second Equip group, and negation.** This batch completes the pool's
+**Equip group** (all four equippers) and its **single Counter Trap**.
+
+| Card | EffectDefs | Suite | Result |
+|---|---:|---|---|
+| `Apprentice Magician` | 2 | `ApprenticeMagicianTests` | 92/92 |
+| `Kunai with Chain` | 4 | `KunaiWithChainTests` | 117/117 |
+| `Fairy Tail - Rella` | 3 | `FairyTailRellaTests` | 106/106 |
+| `Champion's Vigilance` | 2 | `ChampionsVigilanceTests` | 114/114 |
+
+Per-card status, stated explicitly:
+
+* **`Apprentice Magician` — IMPLEMENTED + TESTED.** Both clauses. The Spell Counter clause has
+  **no legal target anywhere in the V1 pool** (R21) and is tested against a synthetic card that
+  declares the capacity; the face-down Defense Position recruit is tested on real cards.
+* **`Kunai with Chain` — IMPLEMENTED + TESTED.** All three legal activations ("1 or both") plus
+  the granted +500 ATK.
+* **`Fairy Tail - Rella` — IMPLEMENTED + TESTED.** Both clauses plus the delayed End Phase
+  return. The equip clause is **never live in the V1 pool** (no Equip Spells exist, R23) and is
+  tested against synthetic Equip Spells.
+* **`Champion's Vigilance` — IMPLEMENTED + TESTED**, with one part of its text unreachable for an
+  ENGINE reason recorded in §7: Flip Summon negation. Both Summon routes that open a declaration
+  window are negated correctly, as is a Spell/Trap card activation.
+
+Generic mechanics completed and tested in this batch — none is left UNVERIFIED:
+
+* **Counter CAPACITY as a rules query** — `GameState.COUNTER_CAPACITY_EFFECT_ID`,
+  `can_place_counter()`, `cards_that_can_receive_counter()`, in
+  `CardRegistry.RULES_QUERY_EFFECT_IDS`. Not enforced by `place_counters()` — see R21.
+* **`cannot_be_targeted` is finally CONSUMED** — read once in `ActivationRules.legal_targets()`
+  through `CardInstance.cannot_be_targeted()`. It had been declared and rebuilt by
+  `ContinuousEffects` with **zero readers**; that is the batch's one engine defect.
+* **`EffectDef.targets_valid`** — optional per-clause validation of the chosen target SET,
+  enforced by `DuelEngine._choices_valid()` via `ActivationRules.target_selection_ok()`. For
+  heterogeneous targets, where candidate membership plus a count is not enough.
+* **`EffectPrimitives.pay_discard_cost()`** — "discard", distinct from "send from hand to GY".
+* **`GameState.destroy()` accepts `Zone.IN_TRANSIT`** — so "negate the Summon, and if you do,
+  destroy that card" uses the ONE destruction entry point (design decision 19 preserved).
+* **Negation primitives** — `summon_is_pending()`, `negate_summon_and_destroy()`,
+  `spell_trap_activation_below()`, `negate_activation_and_destroy()`.
+* **`equip_card_to_source()`** plus `EQUIPPED_BY_EFFECT_KEY` / `EQUIPPED_BY_EFFECT_TURN_KEY`.
+* Test-side: `TestFixtures.counter_holder()`, `equip_spell()`, `activation_negator()`.
+
+Cards started but unfinished: **none.** Mechanics still unverified from this batch: **none.**
+
+### The NEXT batch (batch 6) — start here
+
+**Close the Flip Summon gap first, then the charmer control-change group.** Continue the
 mechanic-grouped ordering; do not switch to alphabetical.
 
-1. **`Apprentice Magician`** — the pool's remaining counter card (Spell Counter). The counter
-   engine is built and tested (`CounterTests`, 44) and now has one real consumer
-   (`Wonder Balloons`), so this is ordinary per-card work with one exception: it Special
-   Summons in **face-down Defense Position**, which is the one case
-   `EffectPrimitives.choose_face_up_position()` deliberately does not offer. It must pass the
-   position explicitly rather than widening that primitive.
-2. **`Kunai with Chain` and `Fairy Tail - Rella`** — the second Equip group. The generic Equip
-   subsystem exists and is tested (`EquipTests`, 83). `Fairy Tail - Rella` additionally needs
-   **targeting protection / redirect** (`Research/CARD_RULINGS.md` §3), which nothing implements
-   yet — expect that to be the real work, not the equipping.
-3. **The negation cards** (`Champion's Vigilance`) **last** — they exercise the most machinery,
-   including `negate_pending_summon()` on **both** Summon paths, and "negate the activation and
-   destroy that card", which is distinct from the continuous negation batch 4 added
-   (`ChainTests :: negate activation vs negate effect` already pins the distinction).
+1. **`SummonRules.flip_summon()` begin/complete split** — the engine gap in §7. Do this FIRST and
+   as its own unit: it is generic engine work, it completes `Champion's Vigilance` (already
+   implemented, already tested, already committed), and the three Charmers in step 2 are FLIP
+   effects whose suites will exercise the same code path. Add the generic assertions to
+   `SummonTests` / `TimingTests`, then flip `ChampionsVigilanceTests :: KNOWN GAP` from
+   "documents the gap" to "negates a Flip Summon".
+2. **The charmer control-change group** — `Aussa the Earth Charmer`, `Eria the Water Charmer`,
+   `Wynn the Wind Charmer`. All three now share identical wording modulo Attribute
+   (CARD_RULINGS.md §2.1), so they are one shared primitive plus three thin registry files. They
+   need **control change tied to a source staying face-up**, which nothing implements yet — that
+   is the real work, not the FLIP trigger. Note they now **target**, so they interact directly
+   with the `cannot_be_targeted` restriction batch 5 wired up.
+3. **`Enemy Controller`** — control change **until the End Phase**, a different lifetime from the
+   Charmers'. Do it with them so the two lifetimes are designed together, not retrofitted.
 
-After those, the remaining unimplemented cards are mostly Normal Spells/Traps with
-movement effects (return to hand, place on top/bottom of Deck, shuffle into Deck, excavate)
-and the charmer control-change group — group them by those mechanics, not by card type.
+After those, the remaining unimplemented cards are mostly Normal Spells/Traps with movement
+effects (return to hand, place on top/bottom of Deck, shuffle into Deck, excavate) — group them
+by those mechanics, not by card type.
 
 ### Phase 5 — how the card library is built (the pattern is now established)
 

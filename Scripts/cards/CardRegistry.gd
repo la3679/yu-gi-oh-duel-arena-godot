@@ -32,6 +32,7 @@ const RULES_QUERY_EFFECT_IDS := [
 	SummonRules.CONTROL_LIMIT_EFFECT_ID,
 	GameState.DESTRUCTION_PREVENTION_EFFECT_ID,
 	GameState.DESTRUCTION_REPLACEMENT_EFFECT_ID,
+	GameState.COUNTER_CAPACITY_EFFECT_ID,
 ]
 
 ## Errors found during the last load. Non-empty means the library is not trustworthy.

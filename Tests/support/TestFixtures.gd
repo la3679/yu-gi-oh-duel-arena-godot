@@ -137,6 +137,58 @@ static func interferer(card_name: String, victim: CardInstance, mode: String) ->
 	return with_effect(d, e)
 
 
+## A monster that declares it can hold `kind` counters — the `COUNTER_CAPACITY_EFFECT_ID`
+## rules query `GameState.can_place_counter()` asks.
+##
+## Synthetic on purpose: **no card in the V1 pool declares Spell Counter capacity**, so a
+## test that proves `Apprentice Magician`'s first clause works at all needs a card that does.
+## The negative direction is proved against the real pool instead.
+static func counter_holder(card_name: String, kind: String,
+		level: int = 4, atk: int = 1000) -> CardDef:
+	var d := monster(card_name, level, atk, 1000)
+	var e := EffectDef.new(GameState.COUNTER_CAPACITY_EFFECT_ID,
+		"Test: this card can have %s placed on it." % kind)
+	e.of_type(Enums.EffectType.CONTINUOUS)
+	e.condition = func(ctx: EffectContext) -> bool:
+		return str(ctx.params.get("counter", "")) == kind
+	return with_effect(d, e)
+
+
+## An Equip Spell that gives its equipped monster `atk_bonus` ATK. The V1 pool contains
+## **no Equip Spells at all**, so `Fairy Tail - Rella`'s second clause can only be exercised
+## against a synthetic one.
+static func equip_spell(card_name: String, atk_bonus: int = 0) -> CardDef:
+	var d := spell(card_name, Enums.STKind.EQUIP_SPELL)
+	if atk_bonus == 0:
+		return d
+	var e := EffectDef.new("equip_atk_bonus",
+		"Test: the equipped monster gains %d ATK." % atk_bonus)
+	e.of_type(Enums.EffectType.CONTINUOUS)
+	e.apply_continuous = func(ctx: EffectContext) -> void:
+		var host := EffectPrimitives.equipped_host(ctx)
+		if host != null:
+			ContinuousEffects.add_atk(ctx.source, host, atk_bonus)
+	return with_effect(d, e)
+
+
+## A synthetic Spell Speed 3 Counter Trap that negates the activation of the Chain Link
+## directly below it and destroys that card — the `Champion's Vigilance` shape, without the
+## dependency. A per-card suite that needs "and then it was negated" uses this so it tests
+## its own card rather than another one.
+static func activation_negator(card_name: String) -> CardDef:
+	var d := trap(card_name, Enums.STKind.COUNTER_TRAP)
+	var e := EffectDef.new("negate_activation", "Test: negate that activation and destroy it.")
+	e.of_type(Enums.EffectType.CARD_ACTIVATION)
+	e.with_spell_speed(Enums.SpellSpeed.SS3)
+	e.activation_locations = [Enums.ActivationLocation.FIELD_FACE_DOWN]
+	e.damage_step(Enums.DamageStepPermission.UNTIL_DAMAGE_CALC)
+	e.condition = func(ctx: EffectContext) -> bool:
+		return EffectPrimitives.spell_trap_activation_below(ctx) != null
+	e.resolve = func(ctx: EffectContext) -> void:
+		EffectPrimitives.negate_activation_and_destroy(ctx)
+	return with_effect(d, e)
+
+
 # ---------------------------------------------------------------------------
 # Decks and engines
 # ---------------------------------------------------------------------------

@@ -50,6 +50,10 @@ func _initialize() -> void:
 	suites.append(FiveBrothersExplosionTests.run())
 	suites.append(SealingCeremonyOfSuitonTests.run())
 	suites.append(WonderBalloonsTests.run())
+	suites.append(ApprenticeMagicianTests.run())
+	suites.append(KunaiWithChainTests.run())
+	suites.append(FairyTailRellaTests.run())
+	suites.append(ChampionsVigilanceTests.run())
 
 	# --- Interaction suites (Phase 5). Cross-card behaviour, no card-under-test. ---
 	suites.append(SpecialSummonInteractionTests.run())

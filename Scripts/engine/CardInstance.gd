@@ -139,6 +139,17 @@ func effects_are_negated() -> bool:
 	return effects_negated or bool(flags.get(ContinuousEffects.NEGATION_FLAG, false))
 
 
+## "Neither player can target monsters on the field with Spell Cards or effects, except this
+## one." [`Fairy Tail - Rella`] The flag is owned by `ContinuousEffects` and rebuilt on every
+## recompute, so it lifts by itself with its source. It is asked once, in
+## `ActivationRules.legal_targets()`, which every candidate list passes through.
+##
+## It deliberately does NOT cover attack target selection: an attack is not a Spell Card and
+## not an effect, and `BattleRules` builds its own target list [S1 p.38].
+func cannot_be_targeted() -> bool:
+	return bool(flags.get("cannot_be_targeted", false))
+
+
 func is_face_up() -> bool:
 	return Enums.is_face_up(position)
 

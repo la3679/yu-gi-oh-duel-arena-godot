@@ -545,7 +545,27 @@ func _choices_valid(template: DuelAction, action: DuelAction) -> bool:
 		for tid in action.target_ids:
 			if not template.target_candidates.has(tid):
 				return false
+		# A heterogeneous target selection needs the clause's own opinion: the candidate list
+		# and the count cannot express "one of these two must be the attacking monster".
+		if not _target_selection_ok(action):
+			return false
 	return true
+
+
+## Ask the activated effect whether the submitted SET of targets is legal for it.
+## True when the card declares no such rule, which is every card but `Kunai with Chain`.
+func _target_selection_ok(action: DuelAction) -> bool:
+	var card: CardInstance = state.instance(action.card_id)
+	var effect := _find_effect(card, action.effect_id)
+	if effect == null or not effect.targets_valid.is_valid():
+		return true
+	var ctx := ActivationRules.make_context(state, card, effect, action.player_id, null)
+	var chosen: Array = []
+	for tid in action.target_ids:
+		var c = state.instance(int(tid))
+		if c != null:
+			chosen.append(c)
+	return ActivationRules.target_selection_ok(ctx, chosen)
 
 
 static func _unique_count(arr: Array) -> int:

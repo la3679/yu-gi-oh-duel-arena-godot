@@ -80,6 +80,12 @@ var can_pay_cost: Callable = Callable()
 var pay_cost: Callable = Callable()
 ## func(ctx: EffectContext) -> Array — legal targets, evaluated at activation.
 var legal_targets: Callable = Callable()
+## func(ctx: EffectContext, chosen: Array) -> bool — is this SET of chosen targets legal?
+## Only needed by a clause whose targets are heterogeneous, where membership in
+## `legal_targets` plus the count is not enough. `Kunai with Chain` in "both effects" mode is
+## the pool's only such clause. Left unset by every other card. See
+## `ActivationRules.target_selection_ok()`.
+var targets_valid: Callable = Callable()
 ## func(ctx: EffectContext) -> void — resolve the effect.
 var resolve: Callable = Callable()
 ## func(ctx: EffectContext) -> void — apply/refresh a continuous effect.

@@ -179,17 +179,44 @@ static func cost_ok(ctx: EffectContext) -> bool:
 
 ## Legal targets evaluated at activation. An effect that targets and has fewer legal
 ## targets than it requires cannot be activated at all (master prompt 17).
+##
+## This is the SINGLE funnel for target candidates — `DuelEngine._activation_actions()`
+## publishes what it returns and `DuelEngine._choices_valid()` re-validates against the same
+## list — so a card that "cannot be targeted" is filtered out here, once, rather than in each
+## of the eighteen `legal_targets` callables. `Fairy Tail - Rella` is the pool's only source.
 static func legal_targets(ctx: EffectContext) -> Array:
 	if not ctx.effect.legal_targets.is_valid():
 		return []
 	var out = ctx.effect.legal_targets.call(ctx)
-	return out if out is Array else []
+	if not (out is Array):
+		return []
+	var kept: Array = []
+	for entry in (out as Array):
+		var card: CardInstance = entry
+		if card != null and card.cannot_be_targeted():
+			continue
+		kept.append(card)
+	return kept
 
 
 static func targets_ok(ctx: EffectContext) -> bool:
 	if not ctx.effect.targets:
 		return true
 	return legal_targets(ctx).size() >= ctx.effect.target_count_min
+
+
+## Is this specific SET of chosen targets legal for this effect?
+##
+## Membership in `legal_targets()` and the count are checked by the engine already. This is
+## the extra question a clause with HETEROGENEOUS targets has to answer: `Kunai with Chain`
+## activated in both modes targets the attacking monster AND a face-up monster you control,
+## and picking two of your own monsters satisfies both the candidate list and the count while
+## being an illegal selection. A clause that does not declare `targets_valid` is unrestricted
+## beyond the generic checks, which is the correct default for every other card in the pool.
+static func target_selection_ok(ctx: EffectContext, chosen: Array) -> bool:
+	if not ctx.effect.targets_valid.is_valid():
+		return true
+	return bool(ctx.effect.targets_valid.call(ctx, chosen))
 
 
 static func condition_ok(ctx: EffectContext) -> bool:

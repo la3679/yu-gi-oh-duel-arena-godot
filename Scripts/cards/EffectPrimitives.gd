@@ -25,6 +25,15 @@ const AFFLICTED_MONSTER_KEY := "afflicted_monster"
 ## what its cost consumed reads one well-known name. RULES_SPEC.md 10.
 const COST_CARDS_KEY := "cost_cards"
 
+## Memory keys used by a card that ATTACHED an Equip Card with its own effect and has to
+## undo that later ("…but return that Equip Spell to the hand during the End Phase" —
+## `Fairy Tail - Rella`). Two facts are needed and neither survives in `CardInstance.flags`:
+## WHICH card was equipped, so a second Equip Card attached by other means is not dragged
+## off, and on WHICH turn, so "during the End Phase" means the End Phase of that turn and
+## not of every later one. RULES_SPEC.md 15.
+const EQUIPPED_BY_EFFECT_KEY := "equipped_by_effect"
+const EQUIPPED_BY_EFFECT_TURN_KEY := "equipped_by_effect_turn"
+
 
 # ---------------------------------------------------------------------------
 # Searching zones
@@ -378,6 +387,34 @@ static func pay_send_to_gy_cost(ctx: EffectContext, candidates: Array, count: in
 		if not ctx.state.move_card(card, Enums.Zone.GRAVEYARD,
 				Enums.MoveReason.SENT_AS_COST, {"source_id": ctx.source.id}):
 			push_error("EffectPrimitives.pay_send_to_gy_cost: could not send %s"
+				% card.card_name())
+			return paid
+		paid.append(card)
+	return paid
+
+
+## "Discard 1 Spell" as an activation COST.
+##
+## `MoveReason.DISCARDED` rather than `SENT_AS_COST`, and the distinction is the one PSCT
+## already draws: "discard" is specifically a card leaving the HAND for the Graveyard, while
+## "send from your hand to the GY" is the wider wording `pay_send_to_gy_cost()` implements
+## [S1 p.52-53]. `One for One` says "send", `Fairy Tail - Rella` says "discard", and a future
+## card that triggers on one must not see the other. A cost is all-or-nothing.
+static func pay_discard_cost(ctx: EffectContext, candidates: Array, count: int,
+		prompt: String) -> Array:
+	var chosen := choose_n(ctx, candidates, count, Enums.DecisionKind.CHOOSE_DISCARD, prompt)
+	if chosen.size() != count:
+		return []
+	var paid: Array = []
+	for entry in chosen:
+		var card: CardInstance = entry
+		if card.zone != Enums.Zone.HAND:
+			push_error("EffectPrimitives.pay_discard_cost: %s is not in the hand"
+				% card.card_name())
+			return paid
+		if not ctx.state.move_card(card, Enums.Zone.GRAVEYARD, Enums.MoveReason.DISCARDED,
+				{"source_id": ctx.source.id}):
+			push_error("EffectPrimitives.pay_discard_cost: could not discard %s"
 				% card.card_name())
 			return paid
 		paid.append(card)
@@ -836,3 +873,197 @@ static func equipped_host(ctx: EffectContext) -> CardInstance:
 		return null
 	var host = ctx.state.instance(ctx.source.equipped_to_id)
 	return host as CardInstance if host != null else null
+
+
+## Record that this card attached `equip` with its own effect, on the current turn.
+static func link_equipped_by_effect(ctx: EffectContext, equip: CardInstance) -> void:
+	ctx.state.remember(ctx.source, EQUIPPED_BY_EFFECT_KEY, equip.id)
+	ctx.state.remember(ctx.source, EQUIPPED_BY_EFFECT_TURN_KEY, ctx.state.turn_number)
+
+
+## The Equip Card this card attached with its own effect, or null.
+static func equipped_by_effect(ctx: EffectContext) -> CardInstance:
+	var linked = ctx.state.recall_card(ctx.source, EQUIPPED_BY_EFFECT_KEY)
+	return linked as CardInstance if linked != null else null
+
+
+## The turn on which it did so, or -1.
+static func equipped_by_effect_turn(ctx: EffectContext) -> int:
+	var turn = ctx.state.recall(ctx.source, EQUIPPED_BY_EFFECT_TURN_KEY, -1)
+	return int(turn)
+
+
+static func clear_equipped_by_effect_link(ctx: EffectContext) -> void:
+	ctx.state.forget(ctx.source, EQUIPPED_BY_EFFECT_KEY)
+	ctx.state.forget(ctx.source, EQUIPPED_BY_EFFECT_TURN_KEY)
+
+
+## "…equip 1 Equip Spell from your hand, Deck, or GY to THIS CARD."
+##
+## The other direction from `equip_source_to_target()`: here the effect's source is the HOST
+## and some other card becomes the Equip Card. `Fairy Tail - Rella` is the pool's only such
+## clause. Returns the card that was equipped, or null.
+static func equip_card_to_source(ctx: EffectContext, equip: CardInstance) -> CardInstance:
+	if equip == null:
+		return null
+	if not ctx.source.is_on_field() or not ctx.source.is_face_up():
+		ctx.log_note("this card is no longer a face-up monster on the field")
+		return null
+	if not ctx.state.equip_to(equip, ctx.source, ctx.source.id):
+		ctx.log_note("the equip did not happen")
+		return null
+	return equip
+
+
+# ---------------------------------------------------------------------------
+# Negation. `Champion's Vigilance`. Master prompt 18 — the two kinds are different.
+#
+# The two response categories stay on separate timing paths on purpose. A Summon that has
+# been DECLARED is not on the Chain at all: the monster waits in `Zone.IN_TRANSIT` and the
+# negation goes through `DuelEngine.negate_pending_summon()`. An activated Spell/Trap IS a
+# Chain Link and is negated through `ChainManager.negate_activation()`. An activated effect
+# that WOULD Special Summon is the second case, never the first — its Summon has not been
+# declared yet when the negation is activated. PROJECT_STATE.md design decision 9.
+# ---------------------------------------------------------------------------
+
+## Is a Summon currently declared and waiting for its window to close?
+##
+## Read from the STATE rather than from the engine, because a condition is also evaluated in
+## pure-legality paths where `ctx.engine` is null. A monster in `Zone.IN_TRANSIT` is exactly
+## a monster that has been declared and has not yet reached a Monster Zone.
+static func summon_is_pending(ctx: EffectContext) -> CardInstance:
+	for p in ctx.state.players:
+		for entry in p.in_transit:
+			var card: CardInstance = entry
+			if card != null and card.is_monster():
+				return card
+	return null
+
+
+## "Negate the Summon, and if you do, destroy that card."
+##
+## The monster is in `Zone.IN_TRANSIT`, so it never occupied a Monster Zone and no
+## successful-summon event is emitted — `DuelEngine._close_window()` calls
+## `SummonRules.abort_summon()` instead. Destroying it goes through the one destruction
+## entry point; `abort_summon()` then finds nothing left in transit to send back.
+static func negate_summon_and_destroy(ctx: EffectContext) -> bool:
+	if ctx.engine == null:
+		push_error("EffectPrimitives.negate_summon_and_destroy: no engine attached")
+		return false
+	var negated = ctx.engine.negate_pending_summon(ctx.source.id)
+	if negated == null:
+		ctx.log_note("there is no Summon left to negate")
+		return false
+	var monster: CardInstance = negated
+	ctx.log_note("negated the Summon of %s" % monster.card_name())
+	# "and IF YOU DO" — the destruction is conditional on the negation having happened,
+	# which it has.
+	return ctx.state.destroy(monster, Enums.MoveReason.DESTROYED_BY_EFFECT, ctx.source.id)
+
+
+## The unresolved Chain Link this effect would be answering: the one immediately below it.
+##
+## `below_link_number` is the responding effect's own link number at resolution, or 0 while
+## merely testing legality — in which case the top link is the one being answered, since the
+## responder is not on the Chain yet. Returns null when that link is not a Spell/Trap CARD
+## activation, which is what makes "a Spell/Trap Card is activated" narrower than
+## "an effect is activated": a monster's Ignition or Quick Effect is neither.
+static func spell_trap_activation_below(ctx: EffectContext,
+		below_link_number: int = 0) -> ChainLink:
+	var wanted := below_link_number - 1 if below_link_number > 0 else ctx.state.chain.size()
+	if wanted < 1:
+		return null
+	for entry in ctx.state.chain:
+		var link: ChainLink = entry
+		if link.link_number != wanted:
+			continue
+		if link.resolved or link.activation_negated:
+			return null
+		if link.effect == null \
+				or link.effect.effect_type != Enums.EffectType.CARD_ACTIVATION:
+			return null
+		if link.source_card == null or link.source_card.is_monster():
+			return null
+		return link
+	return null
+
+
+## "Negate the activation, and if you do, destroy that card."
+##
+## Negating the ACTIVATION, not the effect: the card is treated as not having been
+## successfully activated, so a "when this card is activated" trigger has nothing to see.
+## What it does NOT undo is the cost — a cost is paid at activation and is never refunded
+## (RULES_SPEC.md 10), which is the same rule `KaibamanTests :: the Tribute is a COST` pins
+## down from the other side.
+static func negate_activation_and_destroy(ctx: EffectContext) -> bool:
+	var link_number := ctx.link.link_number if ctx.link != null else 0
+	var target_link := spell_trap_activation_below(ctx, link_number)
+	if target_link == null:
+		ctx.log_note("there is no Spell/Trap activation left to negate")
+		return false
+	if ctx.engine == null or ctx.engine.chain == null:
+		push_error("EffectPrimitives.negate_activation_and_destroy: no chain attached")
+		return false
+	if not ctx.engine.chain.negate_activation(target_link.link_number, ctx.source):
+		ctx.log_note("the activation could not be negated")
+		return false
+	var card: CardInstance = target_link.source_card
+	ctx.log_note("negated the activation of %s" % card.card_name())
+	# "and if you do, destroy that card" — a card activated from the hand is now face-up in
+	# a Spell & Trap Zone, so this is an ordinary field destruction. It can still legitimately
+	# fail (a prevention effect), and the negation stands either way.
+	return ctx.state.destroy(card, Enums.MoveReason.DESTROYED_BY_EFFECT, ctx.source.id)
+
+
+# ---------------------------------------------------------------------------
+# Predicates for Spell/Trap cards
+# ---------------------------------------------------------------------------
+
+## "1 Spell" — any Spell Card, whatever its subtype.
+static func spell_card() -> Callable:
+	return func(card: CardInstance) -> bool:
+		return card.definition != null \
+			and card.definition.category == Enums.Category.SPELL
+
+
+## "1 Equip Spell" — an exact subtype, not "a Spell that happens to equip". An equipped
+## TRAP (`Gagagashield`, `Kunai with Chain`) is an Equip CARD but is not an Equip SPELL
+## [S1 p.53], so this deliberately reads `st_kind` rather than the equip relationship.
+static func equip_spell_card() -> Callable:
+	return func(card: CardInstance) -> bool:
+		return card.definition != null \
+			and card.definition.st_kind == Enums.STKind.EQUIP_SPELL
+
+
+# ---------------------------------------------------------------------------
+# Counters. RULES_SPEC.md 14.
+# ---------------------------------------------------------------------------
+
+## "1 face-up card on the field that you can place a <kind> Counter on" — either side of
+## the field. The capacity question belongs to the rules layer
+## (`GameState.can_place_counter()`), because it is a property of the TARGET rather than of
+## the searching card.
+static func counter_recipients(ctx: EffectContext, kind: String) -> Array:
+	return ctx.state.cards_that_can_receive_counter(kind)
+
+
+## "…place 1 <kind> Counter on that target." Resolution-time, so the target is re-checked:
+## a card that is no longer a legal recipient simply does not receive one. Master prompt 44.
+static func place_counter_on_target(ctx: EffectContext, kind: String,
+		amount: int = 1) -> CardInstance:
+	var target := surviving_target(ctx, Enums.Zone.MONSTER_ZONE)
+	if target == null:
+		# The clause says "1 face-up CARD on the field", not "1 monster", so a Spell/Trap
+		# recipient is equally legal and lives in a different zone.
+		var chosen = ctx.first_target()
+		target = chosen as CardInstance if chosen != null else null
+		if target == null or not target.is_on_field():
+			ctx.log_note("the target is no longer on the field")
+			return null
+	if not ctx.state.can_place_counter(target, kind):
+		ctx.log_note("the target can no longer receive a %s" % kind)
+		return null
+	if not ctx.state.place_counters(target, kind, amount, ctx.source.id):
+		ctx.log_note("the counter was not placed")
+		return null
+	return target

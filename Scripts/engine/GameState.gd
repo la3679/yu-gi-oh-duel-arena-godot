@@ -28,6 +28,19 @@ const DESTRUCTION_PREVENTION_EFFECT_ID := "destruction_prevention"
 ## receives the same params and returns the card to destroy instead, or null.
 const DESTRUCTION_REPLACEMENT_EFFECT_ID := "destruction_replacement"
 
+## Effect id convention for a COUNTER CAPACITY clause: "this card can have Spell Counters
+## placed on it". `Apprentice Magician` reads it — "Target 1 face-up card on the field **that
+## you can place a Spell Counter on**" is a filter on a property of the TARGET, and a card
+## only has that property because some card text grants it. The clause is a CONTINUOUS
+## EffectDef whose `condition` is a PURE query, called with
+## `ctx.params = {"counter": <counter kind>}`.
+##
+## This is deliberately NOT enforced by `place_counters()`. A clause that places a counter on
+## a specific named card does so on its own authority — `Wonder Balloons`' "place 1 Balloon
+## Counter on this card" is exactly that, and needs no capacity declaration. The capacity
+## query exists only for clauses that SEARCH for a card able to receive a counter.
+const COUNTER_CAPACITY_EFFECT_ID := "counter_capacity"
+
 ## Guard against a replacement chain that never terminates (A replaces B replaces A).
 const MAX_DESTRUCTION_REPLACEMENTS := 8
 
@@ -518,11 +531,58 @@ func destruction_prevented(card: CardInstance, reason: Enums.MoveReason) -> bool
 	return false
 
 
+## Can `kind` counters be placed on this card at all?
+##
+## Two separate requirements. The first is the generic placement rule `place_counters()`
+## already enforces: counters go on a face-up card on the field. The second is that some card
+## text has to GRANT the card the ability to hold this kind of counter, declared as a
+## `COUNTER_CAPACITY_EFFECT_ID` clause. A card with no such clause cannot receive one, which
+## is why `Apprentice Magician`'s first clause has no legal target in a pool where nothing
+## declares Spell Counter capacity. RULES_SPEC.md 14.
+func can_place_counter(card: CardInstance, kind: String) -> bool:
+	if card == null or not card.is_on_field() or not card.is_face_up():
+		return false
+	if card.effects_are_negated():
+		return false
+	for entry in _query_sources(COUNTER_CAPACITY_EFFECT_ID):
+		if entry["card"] != card:
+			continue
+		var effect: EffectDef = entry["effect"]
+		if not effect.condition.is_valid():
+			continue
+		var ctx := EffectContext.new(self, card, effect)
+		ctx.controller_id = card.controller_id
+		ctx.params = {"counter": kind}
+		if bool(effect.condition.call(ctx)):
+			return true
+	return false
+
+
+## Every face-up card on the field, either side, that `kind` counters may be placed on.
+func cards_that_can_receive_counter(kind: String) -> Array:
+	var out: Array = []
+	for p in players:
+		for card in p.controlled_cards():
+			if can_place_counter(card, kind):
+				out.append(card)
+	return out
+
+
+## A card the destruction gate may act on. Normally that means "on the field", with one
+## deliberate exception: a monster whose Summon has just been negated waits in
+## `Zone.IN_TRANSIT`, and `Champion's Vigilance`'s "and if you do, destroy that card" refers
+## to exactly that monster. Routing it through the same entry point is what keeps design
+## decision 19 ("there is ONE destruction entry point") true.
+static func _is_destroyable_zone(card: CardInstance) -> bool:
+	return card != null \
+		and (card.is_on_field() or card.zone == Enums.Zone.IN_TRANSIT)
+
+
 ## Carry out a destruction whose prevention check has already been made, applying any
 ## REPLACEMENT effect. Returns true when SOMETHING was destroyed (possibly the substitute).
 func carry_out_destruction(card: CardInstance, reason: Enums.MoveReason,
 		source_id: int = -1, depth: int = 0) -> bool:
-	if card == null or not card.is_on_field():
+	if not _is_destroyable_zone(card):
 		return false
 	if depth < MAX_DESTRUCTION_REPLACEMENTS:
 		for entry in _query_sources(DESTRUCTION_REPLACEMENT_EFFECT_ID):
@@ -546,7 +606,7 @@ func carry_out_destruction(card: CardInstance, reason: Enums.MoveReason,
 ## Returns true when the card (or a substitute) was actually destroyed.
 func destroy(card: CardInstance, reason: Enums.MoveReason = Enums.MoveReason.DESTROYED_BY_EFFECT,
 		source_id: int = -1, depth: int = 0) -> bool:
-	if card == null or not card.is_on_field():
+	if not _is_destroyable_zone(card):
 		return false
 	if destruction_prevented(card, reason):
 		return false
