@@ -13,10 +13,12 @@ extends RefCounted
 ## so it is two EffectDefs. That split is deliberate and must not be collapsed:
 ##
 ##   * **Negating a Summon** answers something that is not on the Chain at all. The monster
-##     has been DECLARED and is waiting in `Zone.IN_TRANSIT`; the negation goes through
+##     has been DECLARED and is waiting for its window to close; the negation goes through
 ##     `DuelEngine.negate_pending_summon()` and the monster never reaches a Monster Zone,
 ##     so no successful-summon event is emitted and no successful-summon Trigger Effect is
-##     ever collected. PROJECT_STATE.md design decision 4.
+##     ever collected. PROJECT_STATE.md design decision 4. For a Normal or Special Summon
+##     the monster waits in `Zone.IN_TRANSIT`; for a **Flip Summon** it waits face-down in
+##     the Monster Zone it already occupies, and negating it leaves it face-down.
 ##   * **Negating a Spell/Trap activation** answers a real Chain Link, through
 ##     `ChainManager.negate_activation()`.
 ##
@@ -45,12 +47,12 @@ extends RefCounted
 ##   5. **Spell Speed 3.** Only another Spell Speed 3 effect may respond to it [S1 p.45];
 ##      `ChainManager.can_respond_with_spell_speed()` already enforces that generically.
 ##
-## KNOWN LIMITATION, recorded rather than hidden: the engine applies a **Flip Summon**
-## immediately instead of routing it through a declaration window, so this card cannot
-## currently answer one. A Flip Summon is a Summon [S1 p.24], so that is a real gap. It is
-## an engine-level change (`SummonRules.flip_summon()` needs a begin/complete split), not a
-## card-level one, and it is recorded in PROJECT_STATE.md §7 and CARD_RULINGS.md R24 with a
-## test that pins down the current behaviour so it cannot be forgotten.
+## CLOSED GAP (batch 6): a **Flip Summon** used to be applied immediately, with no
+## declaration window, so this card could not answer one even though a Flip Summon is a
+## Summon [S1 p.24]. `SummonRules` now has the same begin/complete split for it as for the
+## other two routes, and `ChampionsVigilanceTests :: it negates a Flip Summon` proves the
+## negation end to end: the monster stays FACE-DOWN, is destroyed face-down, and no
+## `FLIP_SUMMON_SUCCEEDED` event and no Flip effect ever occur.
 
 const CARD_NAME := "Champion's Vigilance"
 
@@ -96,11 +98,12 @@ func _as_counter_trap(e: EffectDef) -> EffectDef:
 
 func _negate_summon(field_condition: Callable) -> EffectDef:
 	var e := _as_counter_trap(EffectDef.new("negate_summon", CLAUSE_SUMMON))
-	# Both Summon routes that open a real declaration window. A Normal Set is not a Summon
-	# and emits no declaration, so it is correctly absent.
+	# All THREE Summon routes. Each one opens a real declaration window. A Normal Set is not
+	# a Summon [S1 p.24], emits no declaration, and is correctly absent.
 	e.trigger_events = [
 		GameEvent.Kind.NORMAL_SUMMON_DECLARED,
 		GameEvent.Kind.SPECIAL_SUMMON_DECLARED,
+		GameEvent.Kind.FLIP_SUMMON_DECLARED,
 	]
 
 	e.condition = func(ctx: EffectContext) -> bool:

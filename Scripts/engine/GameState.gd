@@ -67,6 +67,17 @@ var chain_is_resolving: bool = false
 ## Master prompt 45.
 var deferred_trigger_events: Array = []
 
+# --- Summon declaration state. RULES_SPEC.md 5.4 [S1 p.24]. ---
+## The monster of a Summon that has been DECLARED and has not yet completed or been negated,
+## i.e. a monster that "would be Summoned". Written by `SummonRules.begin_*_summon()` and
+## cleared by `complete_summon()` / `abort_summon()`.
+##
+## This lives in the authoritative state rather than only in `DuelEngine._pending_summon`
+## because a card's activation CONDITION is also evaluated on pure-legality paths where no
+## engine is attached, and because a **Flip Summon**'s monster never leaves its Monster Zone:
+## "is a monster in IN_TRANSIT?" answers the question for the Normal and Special routes only.
+var pending_summon_card_id: int = -1
+
 # --- Battle state ---
 var current_attacker = null           # CardInstance
 var current_attack_target = null      # CardInstance or null for a direct attack

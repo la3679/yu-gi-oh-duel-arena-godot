@@ -137,6 +137,30 @@ static func interferer(card_name: String, victim: CardInstance, mode: String) ->
 	return with_effect(d, e)
 
 
+## A monster whose FLIP effect draws 1 card when it is turned face-up.
+##
+## The draw is the observable: a test can assert on the owner's hand size to tell "the Flip
+## effect fired" from "the Flip effect did not fire", which is exactly the question a
+## negated Flip Summon raises. A FLIP effect keys on `CARD_FLIPPED_FACE_UP` rather than on
+## `FLIP_SUMMON_SUCCEEDED`, because being flipped by an attack or by a card effect triggers
+## it too. RULES_SPEC.md 5.4 [S1 p.28].
+static func flip_effect_monster(card_name: String, level: int = 4, atk: int = 1000,
+		def_: int = 1000) -> CardDef:
+	var d := monster(card_name, level, atk, def_)
+	var e := EffectDef.new("test_flip", "FLIP: Draw 1 card.")
+	e.of_type(Enums.EffectType.FLIP)
+	# MANDATORY, so the draw is a deterministic signal rather than a consent question the
+	# ScriptedController would answer "no" to by default. The V1 pool's real FLIP effects
+	# (the three Charmers) are mandatory too — none of them says "you can".
+	e.mandatory()
+	e.trigger_events = [GameEvent.Kind.CARD_FLIPPED_FACE_UP]
+	e.condition = func(ctx: EffectContext) -> bool:
+		return ctx.source.is_on_field() and ctx.source.is_face_up()
+	e.resolve = func(ctx: EffectContext) -> void:
+		ctx.state.draw(ctx.source.controller_id, 1)
+	return with_effect(d, e)
+
+
 ## A monster that declares it can hold `kind` counters — the `COUNTER_CAPACITY_EFFECT_ID`
 ## rules query `GameState.can_place_counter()` asks.
 ##
@@ -186,6 +210,32 @@ static func activation_negator(card_name: String) -> CardDef:
 		return EffectPrimitives.spell_trap_activation_below(ctx) != null
 	e.resolve = func(ctx: EffectContext) -> void:
 		EffectPrimitives.negate_activation_and_destroy(ctx)
+	return with_effect(d, e)
+
+
+## A Counter Trap that negates a pending Summon and does NOT destroy the monster.
+##
+## Deliberately weaker than `Champion's Vigilance`: "Negate the Summon" on its own is what
+## the RULES do, and "and if you do, destroy that card" is an extra the card adds. Keeping a
+## fixture without the destruction is what lets a test see where a negated monster ENDS UP
+## — back where it came from for a Normal/Special Summon, and still face-down in its Monster
+## Zone for a Flip Summon. RULES_SPEC.md 5.4.
+static func summon_negator(card_name: String) -> CardDef:
+	var d := trap(card_name, Enums.STKind.COUNTER_TRAP)
+	var e := EffectDef.new("negate_summon", "Test: negate that Summon.")
+	e.of_type(Enums.EffectType.CARD_ACTIVATION)
+	e.with_spell_speed(Enums.SpellSpeed.SS3)
+	e.activation_locations = [Enums.ActivationLocation.FIELD_FACE_DOWN]
+	e.trigger_events = [
+		GameEvent.Kind.NORMAL_SUMMON_DECLARED,
+		GameEvent.Kind.SPECIAL_SUMMON_DECLARED,
+		GameEvent.Kind.FLIP_SUMMON_DECLARED,
+	]
+	e.condition = func(ctx: EffectContext) -> bool:
+		return EffectPrimitives.summon_is_pending(ctx) != null
+	e.resolve = func(ctx: EffectContext) -> void:
+		if ctx.engine != null:
+			ctx.engine.negate_pending_summon(ctx.source.id)
 	return with_effect(d, e)
 
 
@@ -426,5 +476,16 @@ static func count_events(engine: DuelEngine, kind: GameEvent.Kind) -> int:
 	var n := 0
 	for e in engine.state.events:
 		if e.kind == kind:
+			n += 1
+	return n
+
+
+## The same count, restricted to one card. Needed whenever the event kind is raised by more
+## than the card under test: activating a Set Spell/Trap emits `CARD_FLIPPED_FACE_UP` too,
+## so a bare `count_events()` cannot answer "was this MONSTER flipped face-up?".
+static func count_events_for(engine: DuelEngine, kind: GameEvent.Kind, card_id: int) -> int:
+	var n := 0
+	for e in engine.state.events:
+		if e.kind == kind and int(e.data.get("card_id", -1)) == card_id:
 			n += 1
 	return n

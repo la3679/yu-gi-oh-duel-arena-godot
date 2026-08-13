@@ -247,6 +247,7 @@ func begin_normal_summon(card: CardInstance, controller_id: int, tributes: Array
 
 	var from_zone := card.zone
 	state.move_card(card, Enums.Zone.IN_TRANSIT, Enums.MoveReason.RULE)
+	state.pending_summon_card_id = card.id
 	state.emit(GameEvent.Kind.NORMAL_SUMMON_DECLARED, {
 		"card_id": card.id, "card_name": card.card_name(),
 		"player": controller_id, "summon_kind": kind,
@@ -322,6 +323,7 @@ func begin_special_summon(card: CardInstance, controller_id: int,
 	var from_zone := card.zone
 	state.move_card(card, Enums.Zone.IN_TRANSIT, Enums.MoveReason.RULE,
 		{"to_player": controller_id})
+	state.pending_summon_card_id = card.id
 	state.emit(GameEvent.Kind.SPECIAL_SUMMON_DECLARED, {
 		"card_id": card.id, "card_name": card.card_name(),
 		"player": controller_id, "position": position,
@@ -346,6 +348,10 @@ func complete_summon(pending: Dictionary) -> bool:
 	var controller_id: int = int(pending["controller"])
 	var kind: Enums.SummonKind = pending["kind"]
 	var position: Enums.Position = pending["position"]
+	state.pending_summon_card_id = -1
+
+	if kind == Enums.SummonKind.FLIP:
+		return _complete_flip_summon(card, controller_id)
 
 	if not state.move_card(card, Enums.Zone.MONSTER_ZONE, Enums.MoveReason.SUMMONED, {
 			"index": int(pending["zone_index"]), "to_player": controller_id,
@@ -380,10 +386,45 @@ func complete_summon(pending: Dictionary) -> bool:
 ## effect has already moved it to the Graveyard and there is nothing left in transit.
 ## Otherwise it returns to where it came from — a negated Summon does not by itself
 ## destroy the monster.
+##
+## A negated FLIP Summon is the same rule seen from the other side: the monster never left
+## its Monster Zone, so there is nothing to send back and the guard below skips it. It stays
+## **face-down** in Defense Position, because the position change was the Summon and the
+## Summon did not happen.
+## A Flip Summon's monster is already in its Monster Zone, so completing one is a POSITION
+## change rather than a move. `complete_summon()` must not be reused unchanged for it.
+##
+## The turn restrictions are re-tested here rather than trusted from declaration time: the
+## response window may have destroyed the monster, banished it, or flipped it face-up by an
+## effect. In any of those cases the Flip Summon does not succeed and — critically — no
+## `FLIP_SUMMON_SUCCEEDED` event is emitted, so no successful-summon trigger is collected.
+func _complete_flip_summon(card: CardInstance, controller_id: int) -> bool:
+	if card.zone != Enums.Zone.MONSTER_ZONE or card.controller_id != controller_id:
+		return false
+	if card.position != Enums.Position.FACE_DOWN_DEFENSE:
+		return false
+	# Face-down Defense -> face-up ATTACK only. [S1 p.24]
+	state.set_battle_position(card, Enums.Position.FACE_UP_ATTACK, false)
+	# A Flip Summon is not a manual battle position change, so it does not spend the
+	# once-per-turn manual change. RULES_SPEC.md 5.3 [S1 p.36].
+	card.position_changed_this_turn = false
+	card.turn_summoned = state.turn_number
+	card.summoned_by = Enums.SummonKind.FLIP
+	# A Flip Summon uses no summoning PROCEDURE, so "Special Summoned this way" is empty.
+	card.summoned_by_procedure_id = ""
+	state.emit(GameEvent.Kind.FLIP_SUMMON_SUCCEEDED, {
+		"card_id": card.id, "card_name": card.card_name(), "player": controller_id,
+		"summon_kind": Enums.SummonKind.FLIP,
+		"position": Enums.Position.FACE_UP_ATTACK,
+	})
+	return true
+
+
 func abort_summon(pending: Dictionary, negated_by_id: int = -1) -> void:
 	if pending.is_empty():
 		return
 	var card: CardInstance = pending["card"]
+	state.pending_summon_card_id = -1
 	state.emit(GameEvent.Kind.SUMMON_NEGATED, {
 		"card_id": card.id, "card_name": card.card_name(),
 		"player": int(pending["controller"]), "by_card_id": negated_by_id,
@@ -397,19 +438,37 @@ func abort_summon(pending: Dictionary, negated_by_id: int = -1) -> void:
 # Flip Summon / position change
 # ---------------------------------------------------------------------------
 
-## Flip Summon. Face-up Attack Position only [S1 p.24]. Counts as a Summon, so it emits
-## a summon event and the resulting Flip effect is collected by the trigger system.
-func flip_summon(card: CardInstance, controller_id: int) -> bool:
+## Flip Summon — declaration stage. A Flip Summon **is a Summon** [S1 p.24], so it declares
+## first and completes only once the response window closes, exactly like the Normal and
+## Special routes. That is what lets `Champion's Vigilance` ("when a monster(s) would be
+## Summoned") answer one.
+##
+## What it deliberately does NOT share with the other two routes:
+##
+##   * **The monster does not move.** It is already in its Monster Zone and stays there,
+##     face-down, for the whole window. Parking it in `Zone.IN_TRANSIT` would be a departure
+##     from the field, which destroys its Equip Cards and clears its per-instance state —
+##     none of which a Flip Summon does.
+##   * **It spends no Normal Summon allowance.** A Flip Summon is not a Normal Summon
+##     [S1 p.24]; nothing is consumed here.
+##   * **Nothing is flipped face-up yet.** The flip IS the Summon, so a negated Flip Summon
+##     leaves the monster face-down and no Flip effect ever triggers.
+##
+## Returns a pending-summon record for `complete_summon()` / `abort_summon()`, or {} if the
+## Flip Summon was not legal.
+func begin_flip_summon(card: CardInstance, controller_id: int) -> Dictionary:
 	if not can_flip_summon(card, controller_id):
-		return false
-	state.set_battle_position(card, Enums.Position.FACE_UP_ATTACK, false)
-	card.position_changed_this_turn = false  # a Flip Summon is not a manual change
-	card.turn_summoned = state.turn_number
-	card.summoned_by = Enums.SummonKind.FLIP
-	state.emit(GameEvent.Kind.FLIP_SUMMON_SUCCEEDED, {
-		"card_id": card.id, "card_name": card.card_name(), "player": controller_id,
+		return {}
+	state.pending_summon_card_id = card.id
+	state.emit(GameEvent.Kind.FLIP_SUMMON_DECLARED, {
+		"card_id": card.id, "card_name": card.card_name(),
+		"player": controller_id, "summon_kind": Enums.SummonKind.FLIP,
 	})
-	return true
+	return {
+		"card": card, "controller": controller_id, "kind": Enums.SummonKind.FLIP,
+		"zone_index": -1, "position": Enums.Position.FACE_UP_ATTACK,
+		"origin_zone": Enums.Zone.MONSTER_ZONE, "negated": false, "source_id": -1,
+	}
 
 
 func change_position(card: CardInstance, controller_id: int) -> bool:

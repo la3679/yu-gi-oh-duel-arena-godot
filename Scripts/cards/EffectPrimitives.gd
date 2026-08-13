@@ -929,15 +929,20 @@ static func equip_card_to_source(ctx: EffectContext, equip: CardInstance) -> Car
 ## Is a Summon currently declared and waiting for its window to close?
 ##
 ## Read from the STATE rather than from the engine, because a condition is also evaluated in
-## pure-legality paths where `ctx.engine` is null. A monster in `Zone.IN_TRANSIT` is exactly
-## a monster that has been declared and has not yet reached a Monster Zone.
+## pure-legality paths where `ctx.engine` is null. `GameState.pending_summon_card_id` is
+## written by every `SummonRules.begin_*_summon()` and cleared on completion or negation.
+##
+## It is deliberately NOT "is a monster in `Zone.IN_TRANSIT`?", which was the earlier reading:
+## that answers only for the Normal and Special routes. A **Flip Summon**'s monster never
+## leaves its Monster Zone, so scanning `in_transit` reported "no Summon is pending" for a
+## Flip Summon that had genuinely been declared.
 static func summon_is_pending(ctx: EffectContext) -> CardInstance:
-	for p in ctx.state.players:
-		for entry in p.in_transit:
-			var card: CardInstance = entry
-			if card != null and card.is_monster():
-				return card
-	return null
+	if ctx.state.pending_summon_card_id == -1:
+		return null
+	var pending = ctx.state.instance(ctx.state.pending_summon_card_id)
+	if pending == null or not pending.is_monster():
+		return null
+	return pending
 
 
 ## "Negate the Summon, and if you do, destroy that card."

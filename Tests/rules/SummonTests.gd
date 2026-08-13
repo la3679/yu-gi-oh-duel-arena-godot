@@ -14,6 +14,10 @@ static func run() -> TestCase:
 	_test_card_worth_two_tributes(t)
 	_test_full_field_blocks_a_zero_tribute_summon(t)
 	_test_flip_summon_rules(t)
+	_test_flip_summon_is_a_declaration(t)
+	_test_a_negated_flip_summon(t)
+	_test_a_flip_summon_whose_monster_leaves_the_window(t)
+	_test_flip_summon_accounting(t)
 	_test_manual_position_change_rules(t)
 	return t
 
@@ -223,6 +227,169 @@ static func _test_flip_summon_rules(t: TestCase) -> void:
 		"a Flip Summon event was emitted")
 	t.eq(TestFixtures.count_events(engine, GameEvent.Kind.CARD_FLIPPED_FACE_UP), 1,
 		"and the card was flipped face-up, which is what Flip effects watch for")
+
+
+# ---------------------------------------------------------------------------
+# A Flip Summon is a SUMMON — declaration, window, completion or negation.
+# RULES_SPEC.md 5.4 [S1 p.24]. Added in batch 6; before it, `flip_summon()` applied the
+# flip immediately and no negation card could answer one.
+# ---------------------------------------------------------------------------
+
+## Set a monster on turn 1 and hand the turn back and forth so it is legally Flip
+## Summonable. Returns {"engine", "p0", "p1", "monster"}.
+static func _flip_ready_duel(seed_value: int, def: CardDef) -> Dictionary:
+	var d := _main_phase_duel(seed_value)
+	var engine: DuelEngine = d["engine"]
+	var mon := TestFixtures.give_to_hand(engine, 0, def)
+	engine.submit_action(TestFixtures.find_action(
+		engine.get_legal_actions(0), Enums.ActionKind.NORMAL_SET, mon.id))
+	TestFixtures.pass_until_open(engine)
+	TestFixtures.end_turn(engine)
+	TestFixtures.end_turn(engine)
+	TestFixtures.advance_to_phase(engine, Enums.Phase.MAIN_1)
+	d["monster"] = mon
+	return d
+
+
+static func _test_flip_summon_is_a_declaration(t: TestCase) -> void:
+	t.start("a Flip Summon DECLARES and waits for a response window, like the other two "
+		+ "Summon routes [S1 p.24]")
+	var d := _flip_ready_duel(210, TestFixtures.flip_effect_monster("Watcher"))
+	var engine: DuelEngine = d["engine"]
+	var mon: CardInstance = d["monster"]
+	# Player 1 holds a real Spell Speed 3 response, so the window genuinely stays open
+	# instead of the engine auto-passing and resolving everything in one submit_action().
+	var negator := TestFixtures.give_set_spell_trap(engine, 1,
+		TestFixtures.summon_negator("Deny"), 0)
+	var hand_before := engine.state.player(0).hand.size()
+
+	var flip = TestFixtures.find_action(engine.get_legal_actions(0),
+		Enums.ActionKind.FLIP_SUMMON, mon.id)
+	t.not_null(flip, "the Flip Summon is offered")
+	t.is_true(engine.submit_action(flip), "and declared")
+
+	t.eq(TestFixtures.count_events(engine, GameEvent.Kind.FLIP_SUMMON_DECLARED), 1,
+		"a FLIP_SUMMON_DECLARED event was emitted")
+	t.eq(TestFixtures.count_events(engine, GameEvent.Kind.FLIP_SUMMON_SUCCEEDED), 0,
+		"and no success event yet — the Summon has not happened")
+	t.eq(engine.state.pending_summon_card_id, mon.id,
+		"the authoritative state records which monster \"would be Summoned\"")
+	t.ne(engine.timing, DuelEngine.Timing.OPEN,
+		"the game state is not open while the declaration window is up")
+
+	# The transitional state is NOT `Zone.IN_TRANSIT`: a Flip Summon does not move the card.
+	t.eq(mon.zone, Enums.Zone.MONSTER_ZONE, "the monster stays in its Monster Zone")
+	t.ne(mon.zone, Enums.Zone.IN_TRANSIT,
+		"it does not leave the field — that would destroy its Equip Cards and clear its "
+		+ "per-instance state, none of which a Flip Summon does")
+	t.eq(mon.position, Enums.Position.FACE_DOWN_DEFENSE,
+		"and is still FACE-DOWN: the flip IS the Summon, so it has not happened yet")
+	t.eq(engine.state.player(0).hand.size(), hand_before,
+		"so its FLIP effect has not triggered either")
+	t.not_null(TestFixtures.find_action(engine.get_legal_responses(1),
+		Enums.ActionKind.ACTIVATE_CARD, negator.id),
+		"and a Summon negation IS offered against it — the point of the whole split")
+
+	TestFixtures.pass_until_open(engine)
+	t.eq(TestFixtures.count_events(engine, GameEvent.Kind.FLIP_SUMMON_SUCCEEDED), 1,
+		"unanswered, it completes when the window closes")
+	t.eq(mon.position, Enums.Position.FACE_UP_ATTACK, "face-up Attack Position [S1 p.24]")
+	t.eq(engine.state.pending_summon_card_id, -1, "and the pending record is cleared")
+	t.eq(engine.state.player(0).hand.size(), hand_before + 1,
+		"the FLIP effect fired exactly once, on the successful flip")
+
+
+static func _test_a_negated_flip_summon(t: TestCase) -> void:
+	t.start("a negated Flip Summon: the monster stays face-down, no success event, no Flip "
+		+ "effect, and the manual position change is still available")
+	var d := _flip_ready_duel(211, TestFixtures.flip_effect_monster("Watcher"))
+	var engine: DuelEngine = d["engine"]
+	var mon: CardInstance = d["monster"]
+	TestFixtures.give_set_spell_trap(engine, 1, TestFixtures.summon_negator("Deny"), 0)
+	var hand_before := engine.state.player(0).hand.size()
+
+	engine.submit_action(TestFixtures.find_action(engine.get_legal_actions(0),
+		Enums.ActionKind.FLIP_SUMMON, mon.id))
+	var response = TestFixtures.find_action(engine.get_legal_responses(1),
+		Enums.ActionKind.ACTIVATE_CARD)
+	t.not_null(response, "the opponent may answer the declaration")
+	t.is_true(engine.submit_action(response), "and negates the Summon")
+	TestFixtures.pass_until_open(engine)
+
+	t.eq(TestFixtures.count_events(engine, GameEvent.Kind.SUMMON_NEGATED), 1,
+		"SUMMON_NEGATED was emitted")
+	t.eq(TestFixtures.count_events(engine, GameEvent.Kind.FLIP_SUMMON_SUCCEEDED), 0,
+		"no successful-summon event, so no successful-summon trigger can be collected")
+	t.eq(TestFixtures.count_events_for(engine, GameEvent.Kind.CARD_FLIPPED_FACE_UP, mon.id), 0,
+		"the monster was never flipped face-up")
+	t.eq(mon.position, Enums.Position.FACE_DOWN_DEFENSE,
+		"it is still face-down: the position change WAS the Summon [S1 p.24]")
+	t.eq(mon.zone, Enums.Zone.MONSTER_ZONE,
+		"and still on the field — a negated Summon does not by itself destroy the monster")
+	t.eq(engine.state.player(0).hand.size(), hand_before,
+		"its FLIP effect never triggered, because it was never flipped")
+	t.ne(mon.summoned_by, Enums.SummonKind.FLIP, "it was not recorded as Flip Summoned")
+	t.eq(engine.state.pending_summon_card_id, -1, "the pending record is cleared")
+	t.is_false(mon.position_changed_this_turn,
+		"and no position change was spent on the attempt")
+
+
+static func _test_a_flip_summon_whose_monster_leaves_the_window(t: TestCase) -> void:
+	t.start("if the monster leaves the field while the Flip Summon is pending, the Summon "
+		+ "simply does not happen")
+	var d := _flip_ready_duel(212, TestFixtures.flip_effect_monster("Watcher"))
+	var engine: DuelEngine = d["engine"]
+	var mon: CardInstance = d["monster"]
+	# A Spell Speed 2 Trap that destroys the pending monster during the window.
+	TestFixtures.give_set_spell_trap(engine, 1,
+		TestFixtures.interferer("Snipe", mon, "destroy"), 0)
+	var hand_before := engine.state.player(0).hand.size()
+
+	engine.submit_action(TestFixtures.find_action(engine.get_legal_actions(0),
+		Enums.ActionKind.FLIP_SUMMON, mon.id))
+	var response = TestFixtures.find_action(engine.get_legal_responses(1),
+		Enums.ActionKind.ACTIVATE_CARD)
+	t.not_null(response, "the opponent may respond to the declaration")
+	t.is_true(engine.submit_action(response), "and destroys the face-down monster")
+	TestFixtures.pass_until_open(engine)
+
+	t.eq(mon.zone, Enums.Zone.GRAVEYARD, "the monster is in the Graveyard")
+	t.eq(TestFixtures.count_events(engine, GameEvent.Kind.FLIP_SUMMON_SUCCEEDED), 0,
+		"the Flip Summon did not succeed — completion re-checks the monster")
+	t.eq(TestFixtures.count_events(engine, GameEvent.Kind.SUMMON_NEGATED), 0,
+		"and it was not NEGATED either: nobody negated anything")
+	t.eq(engine.state.player(0).hand.size(), hand_before,
+		"no FLIP effect, because the monster was never flipped face-up")
+	t.eq(engine.state.pending_summon_card_id, -1, "the pending record is cleared either way")
+
+
+static func _test_flip_summon_accounting(t: TestCase) -> void:
+	t.start("a Flip Summon spends no Normal Summon and no manual position change, and a "
+		+ "monster Flip Summoned this turn cannot then change position [S1 p.24, p.36]")
+	var d := _flip_ready_duel(213, TestFixtures.monster("Sleeper"))
+	var engine: DuelEngine = d["engine"]
+	var mon: CardInstance = d["monster"]
+
+	engine.submit_action(TestFixtures.find_action(engine.get_legal_actions(0),
+		Enums.ActionKind.FLIP_SUMMON, mon.id))
+	TestFixtures.pass_until_open(engine)
+	t.eq(mon.position, Enums.Position.FACE_UP_ATTACK, "the Flip Summon succeeded")
+	t.eq(mon.summoned_by, Enums.SummonKind.FLIP, "recorded as a Flip Summon")
+	t.eq(mon.summoned_by_procedure_id, "",
+		"a Flip Summon uses no summoning procedure, so \"Summoned this way\" is empty")
+	t.is_false(mon.position_changed_this_turn,
+		"a Flip Summon is not a manual position change, so that allowance is untouched")
+	t.eq(mon.turn_summoned, engine.state.turn_number,
+		"but the monster WAS played into its current position this turn")
+	t.is_false(TestFixtures.has_action(engine.get_legal_actions(0),
+		Enums.ActionKind.CHANGE_POSITION, mon.id),
+		"so it may not also change position this turn [S1 p.36]")
+
+	# The Normal Summon allowance is a separate resource and a Flip Summon does not touch it.
+	var other := TestFixtures.give_to_hand(engine, 0, TestFixtures.monster("Fresh"))
+	t.is_true(TestFixtures.has_action(engine.get_legal_actions(0),
+		Enums.ActionKind.NORMAL_SUMMON, other.id),
+		"a Normal Summon is still available: a Flip Summon is not one [S1 p.24]")
 
 
 # --- RULES_SPEC.md 5.3 [S1 p.36] ---

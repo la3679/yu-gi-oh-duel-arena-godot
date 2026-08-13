@@ -620,7 +620,12 @@ func _apply_open_action(action: DuelAction) -> void:
 			_open_window_from_events(_events_since(_event_mark))
 
 		Enums.ActionKind.FLIP_SUMMON:
-			summons.flip_summon(card, pid)
+			# A Flip Summon is a Summon, so it declares and waits for its window like the
+			# other two routes. RULES_SPEC.md 5.4 [S1 p.24].
+			var flip_pending := summons.begin_flip_summon(card, pid)
+			if flip_pending.is_empty():
+				return
+			_pending_summon = flip_pending
 			_open_window_from_events(_events_since(_event_mark))
 
 		Enums.ActionKind.CHANGE_POSITION:

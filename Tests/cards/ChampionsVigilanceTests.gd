@@ -32,7 +32,8 @@ static func run() -> TestCase:
 	_test_a_monster_effect_is_not_a_spell_trap_activation(t)
 	_test_an_effect_that_would_special_summon_is_the_other_path(t)
 	_test_spell_speed_three(t)
-	_test_flip_summon_is_a_known_gap(t)
+	_test_negates_a_flip_summon(t)
+	_test_an_unanswered_flip_summon_still_succeeds(t)
 	return t
 
 
@@ -477,15 +478,65 @@ static func _test_spell_speed_three(t: TestCase) -> void:
 
 
 # ---------------------------------------------------------------------------
-# Known gap, pinned down rather than forgotten
+# The third Summon route. This was a KNOWN ENGINE GAP through batch 5 and is CLOSED.
 # ---------------------------------------------------------------------------
 
-static func _test_flip_summon_is_a_known_gap(t: TestCase) -> void:
-	t.start("KNOWN GAP: the engine applies a Flip Summon immediately instead of declaring "
-		+ "it, so this card cannot currently answer one (PROJECT_STATE.md §7, R24)")
+## A Flip Summon **is a Summon** [S1 p.24], so "when a monster(s) would be Summoned" reaches
+## one. Through batch 5 it did not: `SummonRules.flip_summon()` applied the flip immediately
+## with no declaration, so no window opened and this card was never offered. That gap is now
+## closed by a real begin/complete split, and this test is the proof — it replaces the one
+## that used to pin the gap down.
+static func _test_negates_a_flip_summon(t: TestCase) -> void:
+	t.start("it negates a FLIP Summon — the third Summon route, and the one that used to be "
+		+ "unreachable (PROJECT_STATE.md §7, R24)")
 	var d := _armed_duel(7711)
 	var engine: DuelEngine = d["engine"]
 	var vigilance: CardInstance = d["vigilance"]
+	# A monster with a FLIP effect, so the test can also prove the Flip effect never fires.
+	var hidden := TestFixtures.give_monster_on_field(engine, 0,
+		TestFixtures.flip_effect_monster("Hidden Watcher"),
+		Enums.Position.FACE_DOWN_DEFENSE)
+	var hand_before := engine.state.player(0).hand.size()
+
+	var a = TestFixtures.find_action(engine.get_legal_actions(0),
+		Enums.ActionKind.FLIP_SUMMON, hidden.id)
+	t.not_null(a, "a Flip Summon is offered")
+	t.is_true(engine.submit_action(a), "and declared")
+
+	t.eq(TestFixtures.count_events(engine, GameEvent.Kind.FLIP_SUMMON_DECLARED), 1,
+		"a Flip Summon now DECLARES rather than applying itself")
+	t.eq(TestFixtures.count_events(engine, GameEvent.Kind.FLIP_SUMMON_SUCCEEDED), 0,
+		"and has not succeeded yet — the window is open")
+	t.eq(hidden.position, Enums.Position.FACE_DOWN_DEFENSE,
+		"the monster is still face-down while the Summon is pending")
+	t.eq(hidden.zone, Enums.Zone.MONSTER_ZONE,
+		"and is still in its Monster Zone: a Flip Summon does not move the card")
+
+	var counter = _response(engine, 1, vigilance, NEGATE_SUMMON)
+	t.not_null(counter, "the Counter Trap IS offered against it")
+	t.is_true(engine.submit_action(counter), "and is activated")
+	TestFixtures.pass_until_open(engine)
+
+	t.eq(TestFixtures.count_events(engine, GameEvent.Kind.SUMMON_NEGATED), 1,
+		"the Summon was negated")
+	t.eq(TestFixtures.count_events(engine, GameEvent.Kind.FLIP_SUMMON_SUCCEEDED), 0,
+		"no successful-summon event: the Flip Summon never happened")
+	t.eq(TestFixtures.count_events_for(engine, GameEvent.Kind.CARD_FLIPPED_FACE_UP,
+		hidden.id), 0, "and the monster was never flipped face-up")
+	t.eq(hidden.zone, Enums.Zone.GRAVEYARD,
+		"\"and if you do, destroy that card\" — destroyed face-down, from the field")
+	t.eq(engine.state.player(0).hand.size(), hand_before,
+		"the FLIP effect never triggered: no card was drawn")
+	t.eq(vigilance.zone, Enums.Zone.GRAVEYARD, "the Counter Trap resolved and left")
+
+
+## The other half of the same rule: left alone, a Flip Summon completes normally. Without
+## this the test above could pass because the Flip Summon simply never works.
+static func _test_an_unanswered_flip_summon_still_succeeds(t: TestCase) -> void:
+	t.start("left unanswered, the same Flip Summon completes normally — the declaration "
+		+ "window is not a regression in ordinary play")
+	var d := _main_phase_duel(7712)
+	var engine: DuelEngine = d["engine"]
 	var hidden := TestFixtures.give_monster_on_field(engine, 0,
 		TestFixtures.monster("Face Down", 4, 1000, 1000), Enums.Position.FACE_DOWN_DEFENSE)
 
@@ -493,18 +544,11 @@ static func _test_flip_summon_is_a_known_gap(t: TestCase) -> void:
 		Enums.ActionKind.FLIP_SUMMON, hidden.id)
 	t.not_null(a, "a Flip Summon is offered")
 	t.is_true(engine.submit_action(a), "and performed")
-
-	# This is the DOCUMENTED CURRENT BEHAVIOUR, not the rules-correct one. A Flip Summon is
-	# a Summon [S1 p.24] and Champion's Vigilance should be able to negate it. Making that
-	# possible is an engine change — `SummonRules.flip_summon()` needs a begin/complete
-	# split like the other two routes — and is deliberately out of scope for this batch.
+	t.eq(TestFixtures.count_events(engine, GameEvent.Kind.FLIP_SUMMON_DECLARED), 1,
+		"it declared")
 	t.eq(TestFixtures.count_events(engine, GameEvent.Kind.FLIP_SUMMON_SUCCEEDED), 1,
-		"the Flip Summon succeeds immediately")
-	t.eq(hidden.zone, Enums.Zone.MONSTER_ZONE, "the monster never left its Monster Zone")
-	t.ne(hidden.zone, Enums.Zone.IN_TRANSIT,
-		"so it never entered the IN_TRANSIT declaration pipeline")
-	t.is_null(_response(engine, 1, vigilance, NEGATE_SUMMON),
-		"and the Counter Trap is therefore not offered — the gap, asserted so it cannot be "
-		+ "silently forgotten")
-	TestFixtures.pass_until_open(engine)
+		"and, with nobody holding a response, completed inside the same submit_action()")
+	t.eq(hidden.position, Enums.Position.FACE_UP_ATTACK,
+		"face-up Attack Position [S1 p.24]")
+	t.eq(hidden.summoned_by, Enums.SummonKind.FLIP, "recorded as a Flip Summon")
 	t.is_true(hidden.is_face_up(), "the monster is face-up in Attack Position")
