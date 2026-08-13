@@ -6,13 +6,21 @@
 **Last updated:** 2026-08-13
 **Current phase:** **Phase 5 — the card effect library.** Phases 0–4 are complete and
 Gate B (the generic rules engine) is MET; nothing in Phase 4 needs revisiting.
-**Phase 5 progress:** batches 1-6 are complete. **Batch 6** closed the Flip Summon negation
-engine gap and added `Aussa the Earth Charmer`, `Eria the Water Charmer`, `Wynn the Wind Charmer`
-and `Enemy Controller` — **36 / 77 implemented, 36 / 77 tested, 41 remaining**. With batch 6 the
-pool's **control-change group is complete**, and `Champion's Vigilance` is now complete too: every
-part of its printed text is reachable. **Nothing in batch 6 is partial or unverified, and §7 no
-longer carries an open engine gap.**
-**Measured suite: 2862 passed / 0 failed across 44 suites; SmokeCheck PASS.**
+**Phase 5 progress:** batches 1-6 are complete and **batch 7 is PARTLY done — units A and B of
+four.** Unit A built the generic **movement / excavation gate** (`MovementTests`, 194 assertions,
+written and passing before any batch-7 card) and closed two live engine defects in the movement
+API; unit B added `Compulsory Evacuation Device`, `Kaiser Glider` and
+`A Wingbeat of Giant Dragon` — **39 / 77 implemented, 39 / 77 tested, 38 remaining**.
+**Batch 7 units C and D have NOT been started** and are specified card-by-card in §8; the generic
+engine work they need is already done and tested, so they are card work only.
+**Nothing in batch 7 so far is partial or unverified, and §7 carries no open engine gap.**
+**Measured suite: 3324 passed / 0 failed across 48 suites; SmokeCheck PASS.**
+
+The description of batch 6 below is unchanged and kept for the record: **batch 6** closed the
+Flip Summon negation engine gap and added `Aussa the Earth Charmer`, `Eria the Water Charmer`,
+`Wynn the Wind Charmer` and `Enemy Controller` — 36 / 77 implemented and tested — completing the
+pool's **control-change group**, and completing `Champion's Vigilance`, every part of whose
+printed text is now reachable.
 
 The description of batch 5 below is unchanged and kept for the record: batch 5 added
 `Apprentice Magician`, `Kunai with Chain`, `Fairy Tail - Rella` and `Champion's Vigilance` —
@@ -35,14 +43,12 @@ its own suite and passes it in full. **49 unique playable cards remain.**
 With batch 4 the pool's **Continuous Spell/Trap group is complete** (all 6 Continuous Traps
 plus the single Continuous Spell).
 **Overall status:** IN PROGRESS — **not** acceptance-complete.
-**HEAD at checkpoint:** `e1b7b8e` (the Phase 5 batch-6 unit C commit follows it)
-**Measured suite at checkpoint:** **2862 passed / 0 failed** across **44 suites**
-(846 core rules + 1970 per-card + 46 interaction); SmokeCheck **PASS**.
-Every assertion from the previous checkpoint still passes unchanged **except one deliberate
-correction**: `ChampionsVigilanceTests :: KNOWN GAP`, which asserted that a Flip Summon could NOT
-be negated, was replaced by a real negation test because the engine limitation it described has
-been fixed. That is the only changed expectation in the batch, and it is recorded in
-`Reports/TEST_RESULTS.md`.
+**HEAD at checkpoint:** `7d026fb` (Phase 5 batch 7 unit B).
+**Measured suite at checkpoint:** **3324 passed / 0 failed** across **48 suites**
+(1040 core rules + 2238 per-card + 46 interaction); SmokeCheck **PASS**.
+**Every assertion from the previous checkpoint passes unchanged.** Batch 7 changed no existing
+test expectation at all: it only added suites. Per-suite detail and the honest not-yet-covered
+list live in `Reports/TEST_RESULTS.md`.
 
 ---
 
@@ -265,6 +271,26 @@ Two things it handles that cost real time to discover:
    call `quit()`, so the headless SceneTree runs forever at near-zero CPU. The runner does
    a `--check-only` parse pass first, turning that hang into an immediate readable error.
 
+### Defects the Phase 5 batch-7 tests caught
+
+Two **pre-existing engine defects** in the movement API, both live since it was written and both
+found by the generic gate before any card relied on them, plus one defect in a card written this
+batch. Full write-up in `Reports/TEST_RESULTS.md`.
+
+1. **`RETURNED_TO_DECK_BOTTOM` did not place the card on the bottom of the Deck.**
+   `move_card()` took the end of the Deck from a `deck_position` option that **no caller anywhere
+   in the repository passed**, defaulting to `"top"` — so every bottom placement would have gone
+   to the exactly-wrong end while the MoveReason claimed otherwise. The end is now derived from
+   the reason itself (`Enums.deck_position_for()`), so the two can never disagree.
+2. **`SHUFFLED_INTO_DECK` never shuffled the Deck.** It cleared `revealed_to`, so the
+   hidden-information half was right, but the card was inserted on top and the Deck was left in
+   its old order — the next draw returned it. `RulesQuestionTests` missed it because it only
+   asserted the `revealed_to` half. `move_card()` now performs the shuffle for that reason.
+3. **`Compulsory Evacuation Device` was written at Spell Speed 1.** `of_type()` derives Spell
+   Speed from the EFFECT category (SS1 for everything but a Quick Effect), so a Trap's CARD-level
+   Spell Speed [S1 p.44-45] must be stated — every other Trap in the registry does. Left as it
+   was, the card would never have been offered in a response window.
+
 ### Defects the Phase 5 batch-4 tests caught
 
 All three are **pre-existing gaps**, each surfaced because a batch-4 card is the first card in
@@ -384,7 +410,7 @@ the pool that needs the behaviour. Full write-up in `Reports/TEST_RESULTS.md`.
 | 2 | Per-card official text + rulings research (77 cards) | **COMPLETE** |
 | 3 | Architecture / scaffolding + Graphify index | **COMPLETE** |
 | 4 | Core rules engine | **COMPLETE** — 4b-1/4b-2/4b-3/4c done+tested |
-| 5 | Card effect library (77 cards) | **IN PROGRESS** — **36 / 77** implemented and tested (batches 1-6) |
+| 5 | Card effect library (77 cards) | **IN PROGRESS** — **39 / 77** implemented and tested (batches 1-6, batch 7 units A+B) |
 | 6 | Automated tests | NOT STARTED |
 | 7 | Basic playable UI | NOT STARTED |
 | 8 | Arena / presentation | NOT STARTED |
@@ -469,8 +495,11 @@ DuelArenaGame/
 │   │       ├── AussaTheEarthCharmer.gd  FLIP + target + take control while face-up (EARTH)
 │   │       ├── EriaTheWaterCharmer.gd   the same, WATER — current text, "face-up" removed
 │   │       ├── WynnTheWindCharmer.gd    the same, WIND
-│   │       └── EnemyController.gd       Quick-Play, two bullets: change battle position, or
-│   │                                    Tribute then take control until the End Phase
+│   │       ├── EnemyController.gd       Quick-Play, two bullets: change battle position, or
+│   │       │                            Tribute then take control until the End Phase
+│   │       ├── CompulsoryEvacuationDevice.gd  the plainest bounce; targets any monster
+│   │       ├── KaiserGlider.gd          conditional battle protection + GY bounce trigger
+│   │       └── AWingbeatOfGiantDragon.gd  non-targeting return + "and if you do" backrow wipe
 │   ├── rules/
 │   │   ├── ChainLink.gd               one chain link
 │   │   ├── ChainManager.gd            chain build / negate / reverse resolve
@@ -490,6 +519,7 @@ DuelArenaGame/
 │   └── rules/
 │       ├── EquipTests.gd        83 assertions (the Equip gate)
 │       ├── ControlTests.gd      93 assertions (the CONTROL gate)
+│       ├── MovementTests.gd    194 assertions (the MOVEMENT / EXCAVATION gate)
 │       ├── ChainTests.gd        27 assertions
 │       ├── TimingTests.gd       37 assertions
 │       ├── TurnFlowTests.gd     40 assertions
@@ -528,6 +558,9 @@ DuelArenaGame/
 │   ├── EriaTheWaterCharmerTests.gd       36
 │   ├── WynnTheWindCharmerTests.gd        48
 │   ├── EnemyControllerTests.gd          127
+│   ├── CompulsoryEvacuationDeviceTests.gd  88
+│   ├── KaiserGliderTests.gd              93
+│   ├── AWingbeatOfGiantDragonTests.gd    87
 │   └── SpecialSummonInteractionTests.gd  46   (no card-under-test marker, on purpose)
 ├── Tools/                             Python research + data pipeline (dev only)
 │   ├── run_tests.ps1                  headless test runner (parse-check + no pipe stall)
@@ -537,7 +570,7 @@ DuelArenaGame/
 │   ├── dump_official_text.py          human-readable card text dump
 │   ├── build_card_db.py               -> Data/cards/cards.json + deck lists
 │   └── build_matrix.py                -> Reports/CARD_IMPLEMENTATION_MATRIX.csv
-├── Reports/CARD_IMPLEMENTATION_MATRIX.csv   77 rows, text verified, 36 implemented
+├── Reports/CARD_IMPLEMENTATION_MATRIX.csv   77 rows, text verified, 39 implemented
 └── graphify-out/graph.json            dev index (git-ignored)
 ```
 
@@ -606,6 +639,10 @@ Legend: **DONE+TESTED** = implemented and covered by passing assertions ·
 | **Effect damage / LP gain (not battle damage)** | **DONE+TESTED** | `GameState.change_life_points()` + an explicit `check_life_point_loss()` by the caller | FiveBrothersExplosionTests |
 | **Counters driven by a real card** | **DONE+TESTED** | `GameState.place_counters()` consumed by `Wonder Balloons` | WonderBalloonsTests |
 | **Duel log / replay payload** | **DONE+TESTED** — a payload now round-trips to an identical event stream | `Scripts/engine/DuelLog.gd`, `DuelAction.from_dict()` | ReplayTests |
+| **Card MOVEMENT: return to hand / add to hand / Deck top / Deck bottom / shuffle into Deck** | **DONE+TESTED** | `GameState.move_card()`, `Enums.deck_position_for()` / `is_return_to_deck()`, `MoveReason.ADDED_TO_HAND`, `GameEvent.Kind.CARD_ADDED_TO_HAND` | MovementTests (194) |
+| **REVEALING a hidden card without moving it** | **DONE+TESTED** | `GameState.reveal()`, `GameEvent.Kind.CARD_REVEALED` (private to one viewer, public to both) | MovementTests |
+| **EXCAVATION** | **DONE+TESTED** | `Enums.Zone.EXCAVATED`, `GameState.excavate()` / `excavated_cards()`, `PlayerState.excavated`, `EffectPrimitives.excavate()` / `return_excavated()` | MovementTests |
+| **A conditional destruction prevention that depends on the OTHER battling monster** | **DONE+TESTED** | `EffectPrimitives.battle_opponent_of()` reading `GameState.current_attacker` / `current_attack_target` at damage calculation | KaiserGliderTests |
 
 ### Design decisions a future session must not silently reverse
 
@@ -833,6 +870,43 @@ Legend: **DONE+TESTED** = implemented and covered by passing assertions ·
     state mutation rather than a derived flag) and `TurnFlow.enter_phase()` on entering the End
     Phase. **No timers, no polling, no per-card bookkeeping.** `CARD_RULINGS.md` R25.
 
+38. **The end of the Deck comes from the MOVE REASON, never from a separate option.**
+    `Enums.deck_position_for()` maps `RETURNED_TO_DECK_TOP` / `_BOTTOM` to the end, and
+    `move_card()` overrides any caller-supplied `deck_position` for those reasons. The two
+    cannot then disagree — which they did, silently and in the wrong direction, until batch 7.
+    The `deck_position` option survives only for a `RULE` move that names no end.
+    `RULES_SPEC.md §8.2`.
+
+39. **"Shuffle it into the Deck" performs the shuffle inside `move_card()`.** It is one
+    instruction, not "insert, and separately remember to shuffle": a caller that forgot left the
+    card sitting deterministically on top with a MoveReason claiming otherwise. This is also the
+    single place `revealed_to` is cleared for that reason, so the shuffle and the loss of
+    information can never come apart. A top or bottom placement is **not** implemented by
+    shuffling afterwards, and must never be. `RULES_SPEC.md §8.2, §12.1`, design decision 11.
+
+40. **"Add to your hand" and "return to the hand" are two different moves.**
+    `MoveReason.ADDED_TO_HAND` / `CARD_ADDED_TO_HAND` versus `RETURNED_TO_HAND` /
+    `CARD_RETURNED_TO_HAND`. PSCT separates them and so does the engine: a bounce trigger must
+    not see a search, and a search trigger must not see a bounce. Neither is a destruction and
+    neither is a send to the Graveyard.
+
+41. **`Zone.EXCAVATED` is not `Zone.IN_TRANSIT`.** `IN_TRANSIT` means "mid-Summon or
+    mid-activation" and is the one non-field zone `GameState._is_destroyable_zone()` accepts, so
+    sharing it would let a Summon-negation card destroy a card sitting in somebody's excavation.
+    Excavation is also none of draw / search / reveal / mill: it takes from the **top**, reveals
+    to **both** players, and an empty Deck yields fewer cards rather than losing the Duel,
+    because the deck-out rule is written about *drawing* [S1 p.35]. The excavating card's text
+    states where every excavated card goes and in what order; nothing is left in the zone when
+    the effect finishes, and nothing is shuffled unless the text says so. `RULES_SPEC.md §8.2`.
+
+42. **A Trap or Quick-Play card's CARD-level Spell Speed must be stated on its EffectDef.**
+    `EffectDef.of_type()` derives Spell Speed from the EFFECT category, which is Spell Speed 1
+    for everything except a Quick Effect. A `CARD_ACTIVATION` clause on a Normal/Continuous Trap
+    therefore needs an explicit `with_spell_speed(SS2)` (and `SS3` for the Counter Trap), or the
+    card is silently never offered in a response window. Every Trap in the registry does this;
+    `Compulsory Evacuation Device` was written without it and its own clause-shape test caught
+    it. **Assert the Spell Speed directly in every new Trap's suite.** [S1 p.44-45]
+
 ---
 
 ## 7. Blockers
@@ -877,8 +951,20 @@ Everything previously listed here is now done and tested; see §6a and
 
 ### Genuinely still open (carried through Phase 5, not hidden)
 
-* **41 of 77 cards are not implemented yet.** They are honestly `NOT_IMPLEMENTED` in the
+* **38 of 77 cards are not implemented yet.** They are honestly `NOT_IMPLEMENTED` in the
   matrix; see §8 for the next batch.
+* **Batch 7 is HALF DONE.** Units A (the movement/excavation gate) and B (the return-to-hand
+  group) are complete, tested and committed. **Units C and D have not been started** and are
+  specified card-by-card in §8. This is card work only — the generic engine each of them needs
+  already exists and is covered by `MovementTests`.
+* **R27 and R28 are reasoned decisions resting on community-transcribed rulings, not on an
+  S1–S4 official source.** R27: `A Wingbeat of Giant Dragon` cannot be activated without a
+  Level 5 or higher Dragon to return (MEDIUM confidence; the cost-vs-effect and non-targeting
+  halves of R27 are HIGH and are directly sourced). R28: a card that destroys "all Spell and
+  Trap Cards on the field" does not destroy itself (MEDIUM, reasoned from the `Heavy Storm`
+  precedent). Both are recorded with that caveat stated in `CARD_RULINGS.md`, and both are
+  asserted in `AWingbeatOfGiantDragonTests` so a later correction fails loudly rather than
+  drifting.
 * **R25 is a reasoned decision, not a quoted rule.** "Take control until the End Phase"
   (`Enemy Controller`) is implemented as expiring the instant the End Phase is ENTERED, before
   either step of this engine's two-step End Phase. No single official sentence names the instant.
@@ -898,11 +984,13 @@ Everything previously listed here is now done and tested; see §6a and
 * **`Kunai with Chain` and `Fairy Tail - Rella` still exercise Equip mechanics** and are not
   implemented yet. The generic subsystem they need now exists and is tested; they still need
   their own per-card work.
-* **85668 leaked ObjectDB instances at exit** (measured at the batch-6 checkpoint, up from 74049
-  at batch 5 and 61457 at batch 4 — it grows in proportion to the number of duels the suite
-  builds, not because of anything batch 6 introduced) — RefCounted cycles between `GameState`, the
-  `DuelLog` signal and test closures. It causes no test failure, hang, memory pressure or
-  unreliable result, so it was correctly not allowed to derail batch 6, but it must be cleaned up
+* **97559 leaked ObjectDB instances at exit** (measured at this checkpoint, up from 85668 at
+  batch 6, 74049 at batch 5 and 61457 at batch 4 — it grows in proportion to the number of duels
+  the suite builds, not because of anything batch 7 introduced: ~11.9k more for 462 more
+  assertions is the same ratio as batch 6's ~11.6k for 465) — RefCounted cycles between
+  `GameState`, the `DuelLog` signal and test closures. It causes no test failure, hang, memory
+  pressure or unreliable result, so it was correctly not allowed to derail batch 7, but it must
+  be cleaned up
   **before Phase 7**, when the UI keeps one duel alive for a long session. This is a harness /
   object-lifetime issue and is **not** a rules correctness failure.
 
@@ -932,6 +1020,13 @@ negation gap, added the generic CONTROL subsystem, and implemented the three Cha
 and the **thirty-seven** design decisions that must not be reversed, and §7 for what is genuinely
 still open — which no longer includes any engine gap. Do **not** re-read the whole repository,
 re-run research, or re-derive rules.
+
+**Where that paragraph now ends: batch 7 units A and B are also done.** Unit A added the generic
+MOVEMENT and EXCAVATION subsystem (`MovementTests`, 194 assertions, written before any card) and
+fixed two live movement defects; unit B added `Compulsory Evacuation Device`, `Kaiser Glider` and
+`A Wingbeat of Giant Dragon` — **3324 assertions across 48 suites, 0 failures, 39 / 77**. There
+are now **forty-two** design decisions that must not be reversed. **Batch 7 units C and D are the
+next thing to do and are specified card-by-card below.**
 
 ### Batch 3 — COMPLETE (nothing partial, nothing unverified)
 
@@ -1081,32 +1176,110 @@ that did nothing, the same failure shape as batch 5's `cannot_be_targeted` (unit
 
 Cards started but unfinished: **none.** Mechanics still unverified from this batch: **none.**
 
-### The NEXT batch (batch 7) — start here
+### Batch 7 — units A and B COMPLETE (nothing partial, nothing unverified)
 
-**Do not start this in the session that finished batch 6.**
+**The movement group.** Done in units, each tested and committed before the next began.
 
-**The movement group.** Continue the mechanic-grouped ordering; do not switch to alphabetical.
-With Equip, Continuous, counters, negation, summon procedures and control change all complete, the
-41 remaining cards are dominated by cards that MOVE a card from one zone to another, and they
-should be grouped by the movement rather than by card type:
+**Unit A — the generic movement / excavation gate.** `MovementTests` (194 assertions) was
+written and passing **before any batch-7 card existed**, the way `EquipTests` and `ControlTests`
+were. It asserts that these are NOT one operation with a destination argument: return to hand ·
+add to hand · top of Deck · bottom of Deck · shuffle into Deck · send to GY · banish · excavate ·
+reveal. It found the two pre-existing movement defects listed in §4. New generic mechanics:
 
-1. **Return to hand** (bounce) — the largest sub-group. The engine already has
-   `MoveReason.RETURNED_TO_HAND` and `CARD_RETURNED_TO_HAND`, exercised only incidentally so far.
-   What is genuinely new is a **cost or effect that returns a card its owner does not control**
-   (owner-bound destinations are already forced by `move_card()`, so this should be cheap) and
-   returning a card from the FIELD versus from the GY.
-2. **Place on top / bottom of the Deck, and shuffle into the Deck** — three different
-   `MoveReason`s that already exist and are already distinguished, plus the `revealed_to` rule
-   (`RULES_SPEC.md §12.1`, design decision 11): a SHUFFLE clears it, an unshuffled top/bottom
-   placement does not. `RulesQuestionTests` already covers the rule; no card has exercised it yet.
-3. **Excavate** — reveal N cards from the top of the Deck, act on some, return the rest in a
-   stated order. Nothing implements this. It needs a real "revealed to both players" step that
-   goes through `CardInstance.revealed_to` rather than a private choice, and the order the
-   remainder goes back in is part of the card text, not an implementation detail.
+* `Enums.Zone.EXCAVATED` (deliberately **not** `IN_TRANSIT` — see `RULES_SPEC.md §8.2`),
+  `MoveReason.ADDED_TO_HAND` / `EXCAVATED`, `Enums.is_return_to_deck()` / `deck_position_for()`.
+* `GameEvent.Kind.CARD_ADDED_TO_HAND` / `CARD_REVEALED` / `CARD_EXCAVATED`.
+* `GameState.reveal()` / `excavate()` / `excavated_cards()`, `PlayerState.excavated`.
+* `EffectPrimitives` movement + excavation sections: `cards_on_field()`,
+  `opponent_field_cards()`, `return_to_hand()`, `return_target_to_hand()`, `place_on_deck()`,
+  `place_target_on_deck()`, `shuffle_into_deck()`, `add_to_hand()`, `excavate()`,
+  `return_excavated()`.
+* `RULES_SPEC.md §8.2` records the whole decision.
 
-Read `Reports/CARD_IMPLEMENTATION_MATRIX.csv` for the exact 41 `NOT_IMPLEMENTED` rows and group
-them by these three mechanics before writing any card. Do the generic movement/excavation gate
-suite FIRST, the way `EquipTests` and `ControlTests` were done, then the cards.
+**Unit B — the return-to-hand group.**
+
+| Card | EffectDefs | Suite | Result |
+|---|---:|---|---|
+| `Compulsory Evacuation Device` | 1 | `CompulsoryEvacuationDeviceTests` | 88/88 |
+| `Kaiser Glider` | 2 | `KaiserGliderTests` | 93/93 |
+| `A Wingbeat of Giant Dragon` | 1 | `AWingbeatOfGiantDragonTests` | 87/87 |
+
+Generic mechanics added by unit B: `EffectPrimitives.battle_opponent_of()` (a destruction
+prevention conditional on the OTHER battling monster) and
+`EffectPrimitives.destroyed_and_sent_to_gy_condition()`. New rulings: **R27**, **R28**.
+
+Cards started but unfinished: **none.** Mechanics still unverified: **none.**
+
+### The NEXT step — batch 7 units C and D — start here
+
+**This is card work only.** Every generic mechanic units C and D need already exists and is
+covered by `MovementTests`; do **not** rebuild the gate, and do **not** re-derive `RULES_SPEC.md
+§8.2`. Read `Scripts/cards/registry/CompulsoryEvacuationDevice.gd` and its suite for the shape,
+and the `EffectPrimitives` movement section for the primitives.
+
+**UNIT C — Deck placement (top / bottom / shuffle).** Four cards, in this order:
+
+| Card | Official text (verified — `Data/cards/cards.json`) |
+|---|---|
+| `Phoenix Wing Wind Blast` | "Discard 1 card, then target 1 card your opponent controls; place that target on the top of the Deck." |
+| `Spiritual Wind Art - Miyabi` | "Tribute 1 WIND monster, then target 1 card your opponent controls; place that opponent's card on the bottom of the Deck." |
+| `Chain Detonation` | "Inflict 500 damage to your opponent. If this card was activated as Chain Link 2 or 3, add this card to the Deck and shuffle it. If this card was activated as Chain Link 4 or higher, return this card to the hand." |
+| `Chain Healing` | "Gain 500 Life Points. If this card was activated as Chain Link 2 or 3, add this card to the Deck and shuffle it. If this card was activated as Chain Link 4 or higher, return this card to the hand." |
+
+Notes that will otherwise cost a cycle:
+
+* Both `Phoenix Wing Wind Blast` and `Miyabi` put their payment **before a comma and "then"**,
+  which is PSCT for a **COST** — use `EffectPrimitives.pay_discard_cost()` and
+  `pay_tribute_cost()` respectively, in `pay_cost`, not in `resolve`. Contrast
+  `A Wingbeat of Giant Dragon`, whose return is the effect (R27).
+* Both target "1 card your opponent controls" — **any** card, not just a monster, and
+  face-down is legal. `EffectPrimitives.opponent_field_cards()` is exactly that candidate set.
+  Neither may target the controller's own cards.
+* Use `place_target_on_deck(ctx, to_bottom)` with the correct end. **Do not** implement either
+  by calling shuffle afterwards — the text says top/bottom, so nothing is shuffled, and
+  `revealed_to` is kept.
+* `Chain Detonation` / `Chain Healing` are **CARD_RULINGS.md R4**: behaviour depends on the
+  Chain Link number the card was activated at. `ChainLink.link_number` already exists and is
+  already 1-based authoritative state, so read it from `ctx.link.link_number` — do not count
+  the chain array. Chain Link 1 gets neither of the two conditional halves; the damage / LP
+  gain always happens. These two are **the only cards in the pool that shuffle into the Deck**,
+  so they are what finally exercises the `revealed_to`-cleared branch with a printed card. They
+  are the same shape as each other but are **NOT one implementation** — see design decision 22
+  about `Birthright` / `Call of the Haunted`; each writes its own first half.
+* "add this card to the Deck and shuffle it" moves the resolving card itself from the field —
+  which means `DuelEngine._cleanup_resolved_spell_traps()` must not then also send it to the
+  Graveyard. Check that path explicitly; it is the one genuinely new interaction in unit C.
+
+**UNIT D — Excavation.** One card:
+
+| Card | Official text (verified) |
+|---|---|
+| `Crystal Seer` | "FLIP: Excavate the top 2 cards of your Deck, then add 1 of them to your hand, then place the other on the bottom of your Deck." |
+
+* WATER / Spellcaster / Level 1 / 100 ATK / 100 DEF. A **FLIP** effect, so it keys on
+  `CARD_FLIPPED_FACE_UP` (a Flip Summon, an attack, or a card effect all turn it face-up) —
+  copy the trigger shape from the three Charmers. No "You can", so **MANDATORY**.
+* `EffectPrimitives.excavate(ctx, 2)` → `add_to_hand()` for the chosen one →
+  `return_excavated(ctx, rest, true)` for the other. The player chooses **which** goes to hand,
+  so that is a logged `choose_one`. Nothing is shuffled: the text says "place", so the card
+  left on the bottom **keeps** `revealed_to` — this is the printed-card exercise of design
+  decision 11's "keeps it" branch, and it must be asserted.
+* Fewer than 2 cards in the Deck excavates fewer; it is **not** a draw and must not deck the
+  player out. Assert that branch.
+
+**Then close batch 7** with a full regression, SmokeCheck, `python Tools/build_matrix.py`,
+and a checkpoint. Expected at that point: **44 / 77 implemented and tested, 33 remaining.**
+
+### The batch AFTER that (batch 8) — do not start it early
+
+**The banish group, and temporary removal.** Once movement is complete the next coherent
+mechanic group is banishing and returning: `Interdimensional Matter Transporter` (banish own
+monsters until the End Phase), `Judge of the Ice Barrier`, `Junk Blader`,
+`The Phantom Knights of Shadow Veil`, and `Runick Flashing Fire` (R1 — its Extra Deck branch can
+never have a legal target and must still be implemented and report "no legal choice"). Banish as
+a COST and banish as an EFFECT are already two separate primitives (batch 4); what is new is
+**temporary** banishing with a stated return timing, which needs the same lease-with-an-end-
+condition shape `Enums.ControlDuration` uses for control. Write that generic gate first.
 
 **Also scheduled and not forgotten:** the ObjectDB leak (§7) must be characterised or fixed
 before Phase 7. It is a harness/object-lifetime issue, not a rules failure, and it does not
@@ -1168,8 +1341,11 @@ Cards are done in **mechanic** groups, not alphabetically. Batches completed so 
   `Eria the Water Charmer`, `Wynn the Wind Charmer`, `Enemy Controller`. Between them they
   required the Flip Summon declaration architecture and the whole owner-vs-controller subsystem.
   This batch **completes the pool's control-change group**.
+* **Batch 7 units A+B — the movement gate and the return-to-hand group**:
+  `Compulsory Evacuation Device`, `Kaiser Glider`, `A Wingbeat of Giant Dragon`, on top of the
+  generic movement/excavation subsystem. Units C and D are still to do.
 
-The batch to do next is spelled out under **"The NEXT batch (batch 7)"** above.
+The step to do next is spelled out under **"The NEXT step — batch 7 units C and D"** above.
 
 Primitives added by batch 2, in `Scripts/cards/EffectPrimitives.gd` — reuse these rather
 than re-inventing them: `cards_in()`, `cards_in_either_graveyard()`, `monster_of_level()`,
@@ -1194,6 +1370,15 @@ Primitives added by batch 4: `pay_banish_cost()`, `pay_send_any_number_to_gy_cos
 `clear_afflicted_link()`. Test-side: `TestFixtures.activate_effect()` (for an
 `ACTIVATE_EFFECT` action, which `activate_card()` does not find) and the `interferer()`
 `"send_to_gy"` mode.
+
+Primitives added by batch 7 (units A+B): `cards_on_field()`, `opponent_field_cards()`,
+`return_to_hand()`, `return_target_to_hand()`, `place_on_deck()`, `place_target_on_deck()`,
+`shuffle_into_deck()`, `add_to_hand()`, `excavate()`, `return_excavated()`,
+`battle_opponent_of()`, `destroyed_and_sent_to_gy_condition()`. Engine-side:
+`Enums.Zone.EXCAVATED`, `Enums.MoveReason.ADDED_TO_HAND` / `EXCAVATED`,
+`Enums.is_return_to_deck()` / `deck_position_for()`, `GameState.reveal()` / `excavate()` /
+`excavated_cards()`, `PlayerState.excavated`, and the `CARD_ADDED_TO_HAND` / `CARD_REVEALED` /
+`CARD_EXCAVATED` events.
 
 Primitives added by batch 6: `opponent_monsters()`, `take_control_of_target()`,
 `charmer_take_control()`. Engine-side: `GameState.change_control()`, `can_change_control()`,

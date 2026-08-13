@@ -1,6 +1,6 @@
 # TEST_RESULTS
 
-**Last run:** 2026-08-13 (Phase 5 batch 6)
+**Last run:** 2026-08-13 (Phase 5 batch 7, units A and B)
 **Engine:** Godot 4.7.1.stable.official.a13da4feb (headless)
 
 Command:
@@ -32,28 +32,36 @@ The raw command still works and produces the same numbers:
 
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
-| Core rules tests | 15 | 846 | **846** | 0 |
-| Per-card tests | 28 | 1970 | **1970** | 0 |
+| Core rules tests | 16 | 1040 | **1040** | 0 |
+| Per-card tests | 31 | 2238 | **2238** | 0 |
 | Interaction tests | 1 | 46 | **46** | 0 |
 | Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **44** | **2862** | **2862** | **0** |
+| **TOTAL** | **48** | **3324** | **3324** | **0** |
 
-Batch 6 added **465** and changed **two** existing suites, both deliberately and both because
-the behaviour they described was corrected:
+Batch 7 units A and B added **462** assertions and changed **nothing** that already existed.
+**All 2862 assertions from the batch-6 checkpoint pass unchanged** — none was weakened,
+retargeted or deleted, and no test expectation was altered this batch.
 
-* `SummonTests` 45 → **85**. Four new tests for the Flip Summon declaration architecture. The
-  original `Flip Summon legality and position` test is unchanged and still passes.
-* `ChampionsVigilanceTests` 114 → **128**. Its `KNOWN GAP` test — which asserted that a Flip
-  Summon could NOT be negated — was **replaced** by `it negates a Flip Summon`, plus a positive
-  control that an unanswered Flip Summon still succeeds. This is the one test expectation
-  changed this batch, and it was changed because the old expectation described an engine
-  limitation that has been fixed, not because the new code failed it.
-* New: `ControlTests` **93** (the control gate), `AussaTheEarthCharmerTests` **107**,
-  `EriaTheWaterCharmerTests` **36**, `WynnTheWindCharmerTests` **48**,
-  `EnemyControllerTests` **127**.
+* New: `MovementTests` **194** (the movement / excavation gate — written and passing before
+  any batch-7 card existed, the way `EquipTests` and `ControlTests` were),
+  `CompulsoryEvacuationDeviceTests` **88**, `KaiserGliderTests` **93**,
+  `AWingbeatOfGiantDragonTests` **87**.
 
-Every other assertion from the previous checkpoint passes **unchanged** — none was weakened,
-retargeted or deleted.
+The batch-6 summary below is kept for the record.
+
+> Batch 6 added **465** and changed **two** existing suites, both deliberately and both because
+> the behaviour they described was corrected:
+>
+> * `SummonTests` 45 → **85**. Four new tests for the Flip Summon declaration architecture. The
+>   original `Flip Summon legality and position` test is unchanged and still passes.
+> * `ChampionsVigilanceTests` 114 → **128**. Its `KNOWN GAP` test — which asserted that a Flip
+>   Summon could NOT be negated — was **replaced** by `it negates a Flip Summon`, plus a positive
+>   control that an unanswered Flip Summon still succeeds. This is the one test expectation
+>   changed in that batch, and it was changed because the old expectation described an engine
+>   limitation that has been fixed, not because the new code failed it.
+> * New: `ControlTests` **93** (the control gate), `AussaTheEarthCharmerTests` **107**,
+>   `EriaTheWaterCharmerTests` **36**, `WynnTheWindCharmerTests` **48**,
+>   `EnemyControllerTests` **127**.
 
 Per-test assertion counts in this file are **measured**, not counted by hand from source:
 `TestCase` records them per test and `Scripts/tests/DumpAssertionCounts.gd` prints them.
@@ -61,7 +69,7 @@ A suite that loops over nine cards runs many more assertions than it has `t.` ca
 and the earlier hand-written `ShiningAngelTests` breakdown was wrong for exactly that
 reason — it has been corrected against the measurement.
 
-Card library: **36 / 77 implemented, 36 / 77 tested** — computed by `Tools/build_matrix.py`
+Card library: **39 / 77 implemented, 39 / 77 tested** — computed by `Tools/build_matrix.py`
 from `Scripts/cards/registry/*.gd`, the card database's `is_normal` flag and
 `Tests/cards/*.gd`, never by hand.
 
@@ -95,6 +103,7 @@ removed.
 | `RulesQuestionTests` | 37 | `RULES_SPEC.md §8.1, §12.1`, `§6/§7`, `§2.3` |
 | `ReplayTests` | 33 | master prompt §8 / §70 |
 | `EquipTests` | 83 | `RULES_SPEC.md §16, §17` [S1 p.29, p.53, p.55] |
+| `MovementTests` | 194 | `RULES_SPEC.md §8, §8.2, §9, §12.1` [S1 p.5, p.28, p.52–53] |
 | `ShiningAngelTests` | 43 | per-card |
 | `NormalMonsterTests` | 76 | per-card (9 cards) |
 | `MonsterRebornTests` | 48 | per-card |
@@ -123,6 +132,9 @@ removed.
 | `EriaTheWaterCharmerTests` | 36 | per-card |
 | `WynnTheWindCharmerTests` | 48 | per-card |
 | `EnemyControllerTests` | 127 | per-card |
+| `CompulsoryEvacuationDeviceTests` | 88 | per-card |
+| `KaiserGliderTests` | 93 | per-card |
+| `AWingbeatOfGiantDragonTests` | 87 | per-card |
 | `SpecialSummonInteractionTests` | 46 | interaction |
 
 ### ChainTests — 27/27
@@ -335,7 +347,67 @@ guessed, each now decided against an official source and pinned down.
 
 ## Defects found and fixed by these tests
 
-### This milestone (Phase 5 batch 6 — Flip Summon negation, and the control-change group)
+### This milestone (Phase 5 batch 7 units A+B — the movement gate and the return-to-hand group)
+
+Three defects. The first two are **pre-existing engine defects** that had been live since the
+movement API was written and that nothing before now needed; the third is a defect in a card
+written this batch, caught by its own suite on the first run.
+
+1. **`RETURNED_TO_DECK_BOTTOM` did not place the card on the bottom of the Deck.**
+   `GameState.move_card()` took the end of the Deck from a `deck_position` option in `opts`,
+   defaulting to `"top"`, entirely independently of the `MoveReason`. **No caller anywhere in
+   the repository passed that option**, so every "place it on the bottom of the Deck" in the
+   engine would silently have placed the card on TOP — an exactly-wrong result that the
+   MoveReason claimed not to be. Two of batch 7's remaining cards
+   (`Spiritual Wind Art - Miyabi`, `Crystal Seer`) depend on it entirely.
+   Fixed by deriving the end from the reason itself (`Enums.deck_position_for()`), so the two
+   can never disagree. The option survives only for a `RULE` move that names no end.
+   *Guard:* `MovementTests :: top and bottom are exact positions`, which deliberately passes
+   **no** `deck_position` and asserts the placement, the untouched order of the rest of the
+   Deck, and that the next draw is the card placed on top.
+2. **`SHUFFLED_INTO_DECK` never shuffled the Deck.** The reason cleared `revealed_to` — so the
+   hidden-information half of the rule was right — but the card was inserted with the default
+   `push_front` and the Deck was left in its old order. A card "shuffled into the Deck" sat
+   deterministically on top of it, so the very next draw returned it. `RulesQuestionTests`
+   did not catch this because it only ever asserted the `revealed_to` half.
+   Fixed by performing the shuffle inside `move_card()` for that reason, so a card cannot be
+   shuffled in without the shuffle happening.
+   *Guard:* `MovementTests :: a shuffle actually shuffles and is deterministic`, which asserts
+   the card is not on top, that the rest of the Deck was reordered, and that the same seed
+   reproduces the same order — the last of which is what replay depends on.
+3. **`Compulsory Evacuation Device` was written at Spell Speed 1.** `EffectDef.of_type()`
+   derives Spell Speed from the EFFECT category, which is Spell Speed 1 for everything except a
+   Quick Effect, so a Trap's CARD-level Spell Speed [S1 p.44–45] has to be stated explicitly —
+   every other Trap in the registry does. Without it the card would never have been offered in
+   a response window: a Normal Trap unusable on the opponent's turn.
+   *Guard:* `CompulsoryEvacuationDeviceTests :: the clause shape`, which asserts the Spell
+   Speed directly rather than inferring it from behaviour.
+
+Generic mechanics completed and tested in unit A — none is left UNVERIFIED:
+
+* **The five movement destinations are five different rules**, not one with a destination
+  argument: return to hand · add to hand · top of Deck · bottom of Deck · shuffle into Deck.
+  `MovementTests` asserts each one's reason, event and resulting zone, and asserts in both
+  directions that none of them is a destruction or a send to the Graveyard.
+* **`Enums.MoveReason.ADDED_TO_HAND` + `GameEvent.Kind.CARD_ADDED_TO_HAND`.** "Add to your
+  hand" is not "return to the hand": a bounce trigger must not see a search, and vice versa.
+* **`GameState.reveal()`** — showing a hidden card without moving it, private to one player
+  when only one saw it and public when both did.
+* **Excavation** — `Enums.Zone.EXCAVATED`, `GameState.excavate()` / `excavated_cards()`,
+  `PlayerState.excavated`. Kept distinct from draw, search, reveal and mill, and asserted so:
+  it emits no `CARD_DRAWN`, puts nothing in the hand, and an empty Deck does **not** lose the
+  Duel. `Zone.EXCAVATED` is deliberately separate from `Zone.IN_TRANSIT` so that a
+  Summon-negation cannot destroy a card sitting in somebody's excavation.
+* **The `revealed_to` / shuffle rule now has a real consumer path.** It had been proved
+  generically by `RulesQuestionTests` and exercised by no card; `MovementTests` proves it
+  through the movement primitives and through a whole-Deck shuffle by a bystander card, and
+  batch 7 unit D (`Crystal Seer`) will exercise the "keeps it" branch with a printed card.
+* **Card-facing primitives**: `cards_on_field()`, `opponent_field_cards()`, `return_to_hand()`,
+  `return_target_to_hand()`, `place_on_deck()`, `place_target_on_deck()`, `shuffle_into_deck()`,
+  `add_to_hand()`, `excavate()`, `return_excavated()`, plus `battle_opponent_of()` and
+  `destroyed_and_sent_to_gy_condition()` for unit B.
+
+### Previous milestone (Phase 5 batch 6 — Flip Summon negation, and the control-change group)
 
 Cards: `Aussa the Earth Charmer` (107), `Eria the Water Charmer` (36), `Wynn the Wind Charmer`
 (48), `Enemy Controller` (127). All four are complete: every official clause implemented, every
@@ -735,14 +807,15 @@ No test expectation was weakened to make the implementation pass.
 
 ## Known issues in the harness (not rules defects)
 
-* The run reports **`85668 ObjectDB instances were leaked at exit`**, up from 74049 at the batch-5
-  checkpoint and 61457 at batch 4 — purely because the suite now builds more duels (465 more
-  assertions across five new suites). The growth is proportional to the number of duels built, not
-  to anything batch 6 introduced. No test fails, hangs, or becomes unreliable because of it, no
-  rules outcome changes, and there is no memory pressure, so it was correctly not allowed to
-  derail batch 6 — but it **must be characterised or fixed before Phase 7**, when the UI keeps a
-  single duel alive for a long session. Measured again this milestone so the trend stays visible.
-  These are RefCounted
+* The run reports **`97559 ObjectDB instances were leaked at exit`**, up from 85668 at the
+  batch-6 checkpoint, 74049 at batch 5 and 61457 at batch 4 — purely because the suite now builds
+  more duels (462 more assertions across four new suites). The growth stays proportional to the
+  number of duels built, not to anything batch 7 introduced: ~11.9k more for 462 more assertions
+  is the same ratio as batch 6's ~11.6k for 465. No test fails, hangs, or becomes unreliable
+  because of it, no rules outcome changes, and there is no memory pressure, so it was correctly
+  not allowed to derail batch 7 — but it **must be characterised or fixed before Phase 7**, when
+  the UI keeps a single duel alive for a long session. Measured again this milestone so the trend
+  stays visible. These are RefCounted
   reference cycles between `GameState`, `DuelLog` (connected signal) and the closures the
   tests capture. The count grows with the number of duels the suite builds. It does not
   affect any rules outcome and does not fail the suite, but it must be cleaned up before
@@ -758,7 +831,9 @@ No test expectation was weakened to make the implementation pass.
 
 ## Not yet covered (required by master prompt §64 — tracked, not claimed)
 
-**A. Core rules** — still missing: **simultaneous-LP-zero draws**. Effect damage (as
+**A. Core rules** — still missing: **simultaneous-LP-zero draws**. Card movement, Deck
+placement (top / bottom / shuffle), revealing and excavation were on this list and are now
+covered end to end by `MovementTests` (194 assertions). Effect damage (as
 opposed to battle damage), banishing as a COST, continuous negation of another card's effects,
 and a turn-scoped ATK modifier that outlives its source were on this list and are now covered by
 batch 4. Equip mechanics were on this list
