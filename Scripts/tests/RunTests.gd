@@ -30,6 +30,15 @@ func _initialize() -> void:
 
 	# --- Per-card suites (Phase 5). One per implemented card. ---
 	suites.append(ShiningAngelTests.run())
+	suites.append(NormalMonsterTests.run())
+	suites.append(MonsterRebornTests.run())
+	suites.append(SilversCryTests.run())
+	suites.append(KaibamanTests.run())
+	suites.append(DragonicTacticsTests.run())
+	suites.append(OneForOneTests.run())
+
+	# --- Interaction suites (Phase 5). Cross-card behaviour, no card-under-test. ---
+	suites.append(SpecialSummonInteractionTests.run())
 
 	var total_passed := 0
 	var total_failed := 0

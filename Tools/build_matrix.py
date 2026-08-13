@@ -90,13 +90,24 @@ def registered_cards() -> dict[str, dict]:
 
 
 def tested_cards() -> dict[str, str]:
+    """Card name -> the suite that covers it.
+
+    A suite declares either CARD_UNDER_TEST (one card, the usual per-card suite) or
+    CARDS_UNDER_TEST (an array, for a suite that covers a whole mechanic group such as
+    the nine vanilla Normal Monsters). Both are read from the GDScript source, so this
+    file can only report a card as TESTED when a suite really names it.
+    """
     out: dict[str, str] = {}
     if not TESTS_DIR.exists():
         return out
     for gd in TESTS_DIR.rglob("*.gd"):
         src = gd.read_text(encoding="utf-8", errors="replace")
+        rel = gd.relative_to(PROJECT).as_posix()
         for m in re.finditer(r'CARD_UNDER_TEST\s*(?::=|=)\s*"([^"]+)"', src):
-            out[m.group(1)] = gd.relative_to(PROJECT).as_posix()
+            out[m.group(1)] = rel
+        for m in re.finditer(r'CARDS_UNDER_TEST\s*(?::=|=)\s*\[(.*?)\]', src, re.S):
+            for name in re.findall(r'"([^"]+)"', m.group(1)):
+                out[name] = rel
     return out
 
 
@@ -122,6 +133,23 @@ def main() -> int:
 
         r = reg.get(c["name"])
         ruling = RULING_FLAGGED.get(c["name"], "")
+
+        # A vanilla Normal Monster has no effect clauses, so it has no registry file --
+        # an empty effect list IS its complete implementation, which is exactly what
+        # CardDef.is_vanilla() / CardRegistry.unimplemented() already encode. Reporting
+        # it as NOT_IMPLEMENTED would be the dishonest reading, not the strict one.
+        #
+        # This applies ONLY to cards the card database marks is_normal. An Effect
+        # Monster with no registry file stays NOT_IMPLEMENTED, so an unimplemented
+        # Effect Monster can never be quietly counted as a vanilla body.
+        is_vanilla = c["category"] == "Monster" and c.get("is_normal")
+        if r:
+            impl_note = r["file"]
+        elif is_vanilla:
+            impl_note = "vanilla Normal Monster: no effect clauses to implement"
+        else:
+            impl_note = ""
+
         rows.append([
             c["name"],
             c["passcode"] or "",
@@ -135,9 +163,9 @@ def main() -> int:
             "; ".join(mechanics),
             ruling or "NO",
             "PENDING" if ruling else "N/A",
-            "IMPLEMENTED" if r else "NOT_IMPLEMENTED",
+            "IMPLEMENTED" if (r or is_vanilla) else "NOT_IMPLEMENTED",
             "TESTED" if c["name"] in tests else "NOT_TESTED",
-            r["file"] if r else "",
+            impl_note,
         ])
 
     OUT.parent.mkdir(parents=True, exist_ok=True)

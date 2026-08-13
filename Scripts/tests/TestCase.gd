@@ -13,6 +13,13 @@ var passed: int = 0
 var failed: int = 0
 var _current: String = ""
 
+## test name -> assertions executed, in declaration order. Reports/TEST_RESULTS.md quotes
+## per-test counts, so they are measured here rather than counted by hand from source —
+## a loop over the 9 vanilla Normal Monsters runs far more assertions than it has `t.`
+## call sites. Purely observational; nothing in the harness branches on it.
+var test_counts: Dictionary = {}
+var test_order: Array[String] = []
+
 
 func _init(p_suite_name: String = "") -> void:
 	suite_name = p_suite_name
@@ -20,15 +27,25 @@ func _init(p_suite_name: String = "") -> void:
 
 func start(test_name: String) -> void:
 	_current = test_name
+	if not test_counts.has(test_name):
+		test_counts[test_name] = 0
+		test_order.append(test_name)
+
+
+func _record() -> void:
+	if _current != "":
+		test_counts[_current] = int(test_counts.get(_current, 0)) + 1
 
 
 func _fail(msg: String) -> void:
 	failed += 1
+	_record()
 	failures.append("%s :: %s — %s" % [suite_name, _current, msg])
 
 
 func _ok() -> void:
 	passed += 1
+	_record()
 
 
 func check(condition: bool, msg: String) -> bool:

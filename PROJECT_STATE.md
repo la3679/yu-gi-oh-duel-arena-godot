@@ -4,18 +4,16 @@
 > then read only the targeted files named in §8. Do **not** recursively reread the repository.
 
 **Last updated:** 2026-08-12
-**Current phase:** Phase 4 — Core rules engine. Phases 0–3 complete. Phase 4b-1/4b-2/4b-3
-complete and tested. **Phase 4c is now complete: the generic-engine gate (Gate B) is
-MET.** Special Summon execution, the DuelLog replay payload, piercing damage, the
-player-level continuous restriction path and both open rules questions are all resolved
-and tested.
-**Phase 5 has STARTED:** the card registry, the first reusable effect primitives and the
-first card (`Shining Angel`) are implemented and tested — **1 / 77 implemented,
-1 / 77 tested**.
+**Current phase:** **Phase 5 — the card effect library.** Phases 0–4 are complete and
+Gate B (the generic rules engine) is MET; nothing in Phase 4 needs revisiting.
+**Phase 5 progress:** the registry, the reusable effect primitives, `Shining Angel`, the
+**9 vanilla Normal Monsters** and the **first Special Summon batch** (`Monster Reborn`,
+`Silver's Cry`, `Kaibaman`, `Dragonic Tactics`, `One for One`) are implemented and
+tested — **15 / 77 implemented, 15 / 77 tested**.
 **Overall status:** IN PROGRESS — **not** acceptance-complete.
-**HEAD at checkpoint:** `1a8cce6` (the Phase 5 kickoff commit follows it)
-**Measured suite at checkpoint:** **673 passed / 0 failed** across **14 suites**
-(630 core rules + 43 per-card); SmokeCheck **PASS**.
+**HEAD at checkpoint:** `483f82f` (the Phase 5 batch-2 commit follows it)
+**Measured suite at checkpoint:** **1016 passed / 0 failed** across **21 suites**
+(630 core rules + 340 per-card + 46 interaction); SmokeCheck **PASS**.
 
 ---
 
@@ -179,32 +177,43 @@ Key research outputs:
 
 ## 4. Build/verification status
 
-Last verified run (2026-08-12, at commit `9b12742` plus the Phase 4c work):
+Last verified run (2026-08-12, at commit `483f82f` plus the Phase 5 batch-2 work):
 
 ```
 powershell -File Tools\run_tests.ps1 SmokeCheck  -> SMOKE CHECK: PASS
 powershell -File Tools\run_tests.ps1 RunTests
-  ChainTests:          27/27 passed
-  TimingTests:         37/37 passed
-  TurnFlowTests:       40/40 passed
-  SummonTests:         45/45 passed
-  SpellTrapTests:      27/27 passed
-  BattleTests:         72/72 passed
-  DamageStepTests:     86/86 passed
-  ContinuousTests:     52/52 passed
-  CounterTests:        44/44 passed
-  HiddenInfoTests:     76/76 passed
-  SpecialSummonTests:  54/54 passed
-  RulesQuestionTests:  37/37 passed
-  ReplayTests:         33/33 passed
-  TOTAL: 630 passed, 0 failed (630 assertions across 13 suites)
+  ChainTests:          27/27      DamageStepTests:      86/86
+  TimingTests:         37/37      ContinuousTests:      52/52
+  TurnFlowTests:       40/40      CounterTests:         44/44
+  SummonTests:         45/45      HiddenInfoTests:      76/76
+  SpellTrapTests:      27/27      SpecialSummonTests:   54/54
+  BattleTests:         72/72      RulesQuestionTests:   37/37
+                                  ReplayTests:          33/33
+  --- per-card (Phase 5) ---
+  ShiningAngelTests:   43/43      KaibamanTests:        47/47
+  NormalMonsterTests:  76/76      DragonicTacticsTests: 39/39
+  MonsterRebornTests:  48/48      OneForOneTests:       40/40
+  SilversCryTests:     47/47
+  --- interaction (Phase 5) ---
+  SpecialSummonInteractionTests: 46/46
+  TOTAL: 1016 passed, 0 failed (1016 assertions across 21 suites)
   RESULT: PASS
 ```
 
-**630 / 630 passing. These numbers were actually produced by the command above; they are
-not estimates.** All 506 earlier assertions still pass unchanged — none was weakened,
+**1016 / 1016 passing. These numbers were actually produced by the command above; they
+are not estimates.** All 673 earlier assertions still pass unchanged — none was weakened,
 retargeted or deleted. Per-suite detail and the honest not-yet-covered list live in
 `Reports/TEST_RESULTS.md`.
+
+Per-test assertion counts quoted in `Reports/TEST_RESULTS.md` are **measured**:
+`TestCase` records them per test and `Scripts/tests/DumpAssertionCounts.gd` prints them.
+Run it directly (it is a reporting tool, not a suite, so `run_tests.ps1` will print
+`RUNNER: FAIL` for it — it looks for a `RESULT: PASS` line that this script does not
+emit):
+
+```bash
+"…\Godot_v4.7.1-stable_win64.exe" --headless --path "…\DuelArenaGame" --script res://Scripts/tests/DumpAssertionCounts.gd
+```
 
 SmokeCheck remains a load/determinism check, not part of the rules suite count.
 
@@ -291,7 +300,7 @@ Two things it handles that cost real time to discover:
 | 2 | Per-card official text + rulings research (77 cards) | **COMPLETE** |
 | 3 | Architecture / scaffolding + Graphify index | **COMPLETE** |
 | 4 | Core rules engine | **COMPLETE** — 4b-1/4b-2/4b-3/4c done+tested |
-| 5 | Card effect library (77 cards) | **IN PROGRESS** — registry + primitives built; **1 / 77** implemented and tested |
+| 5 | Card effect library (77 cards) | **IN PROGRESS** — **15 / 77** implemented and tested (9 vanillas, `Shining Angel`, and the first Special Summon batch) |
 | 6 | Automated tests | NOT STARTED |
 | 7 | Basic playable UI | NOT STARTED |
 | 8 | Arena / presentation | NOT STARTED |
@@ -353,8 +362,13 @@ DuelArenaGame/
 │   │   ├── EffectContext.gd           everything an effect callable can reach
 │   │   ├── CardRegistry.gd            scans registry/, validates, attaches to CardDefs
 │   │   ├── EffectPrimitives.gd        reusable mechanics shared by the card library
-│   │   └── registry/
-│   │       └── ShiningAngel.gd        1 of 77 — the template for every other card
+│   │   └── registry/                  6 effect cards; the 9 vanillas need no file
+│   │       ├── ShiningAngel.gd        the template for every other card
+│   │       ├── MonsterReborn.gd       target 1 monster in either GY
+│   │       ├── SilversCry.gd          Quick-Play + hard once-per-turn on the name
+│   │       ├── Kaibaman.gd            Tribute-self COST + named-card Summon
+│   │       ├── DragonicTactics.gd     two-Tribute COST + Deck Summon
+│   │       └── OneForOne.gd           send-from-hand COST + hand-or-Deck Summon
 │   ├── rules/
 │   │   ├── ChainLink.gd               one chain link
 │   │   ├── ChainManager.gd            chain build / negate / reverse resolve
@@ -366,7 +380,8 @@ DuelArenaGame/
 │   │   └── ContinuousEffects.gd       state-derived modifiers (tested)
 │   └── tests/
 │       ├── SmokeCheck.gd              headless load/determinism check
-│       ├── TestCase.gd                assertion harness
+│       ├── TestCase.gd                assertion harness (+ measured per-test counts)
+│       ├── DumpAssertionCounts.gd     reporting tool: per-test counts for TEST_RESULTS
 │       └── RunTests.gd                entry point; a 0-assertion suite is a FAILURE
 ├── Tests/
 │   ├── support/TestFixtures.gd        synthetic cards, duel builder, engine drivers
@@ -385,7 +400,14 @@ DuelArenaGame/
 │       ├── RulesQuestionTests.gd  37 assertions
 │       └── ReplayTests.gd         33 assertions
 ├── Tests/cards/
-│   └── ShiningAngelTests.gd       43 assertions (declares CARD_UNDER_TEST)
+│   ├── ShiningAngelTests.gd              43   (declares CARD_UNDER_TEST)
+│   ├── NormalMonsterTests.gd             76   (declares CARDS_UNDER_TEST — 9 cards)
+│   ├── MonsterRebornTests.gd             48
+│   ├── SilversCryTests.gd                47
+│   ├── KaibamanTests.gd                  47
+│   ├── DragonicTacticsTests.gd           39
+│   ├── OneForOneTests.gd                 40
+│   └── SpecialSummonInteractionTests.gd  46   (no card-under-test marker, on purpose)
 ├── Tools/                             Python research + data pipeline (dev only)
 │   ├── run_tests.ps1                  headless test runner (parse-check + no pipe stall)
 │   ├── enumerate_cards.py             deck CSVs -> card_pool.json
@@ -394,7 +416,7 @@ DuelArenaGame/
 │   ├── dump_official_text.py          human-readable card text dump
 │   ├── build_card_db.py               -> Data/cards/cards.json + deck lists
 │   └── build_matrix.py                -> Reports/CARD_IMPLEMENTATION_MATRIX.csv
-├── Reports/CARD_IMPLEMENTATION_MATRIX.csv   77 rows, text verified, 0 implemented
+├── Reports/CARD_IMPLEMENTATION_MATRIX.csv   77 rows, text verified, 15 implemented
 └── graphify-out/graph.json            dev index (git-ignored)
 ```
 
@@ -509,7 +531,36 @@ Legend: **DONE+TESTED** = implemented and covered by passing assertions ·
     `skip_battle_phase_this_turn` is turn-scoped and must survive a continuous recompute;
     `continuous:cannot_conduct_battle_phase` is state-derived and must not. Neither may be
     expressed in terms of the other.
-13. **Every question put to a player is a duel input and must be logged.**
+13. **A vanilla Normal Monster is IMPLEMENTED and has no registry file.** An empty
+    `CardDef.effects` array IS the complete implementation of a card with no effect text,
+    which is what `CardDef.is_vanilla()` and `CardRegistry.unimplemented()` already
+    encode. `Tools/build_matrix.py` therefore counts a card as implemented when it has a
+    registry file **or** when the card database marks it `is_normal` — and only then.
+    The guard against abusing that shortcut is
+    `NormalMonsterTests :: no Effect Monster is silently treated as a vanilla card`,
+    which asserts that `is_vanilla()` is false for every Effect Monster and that every
+    non-vanilla card without effects is still on the honest unimplemented list. Do not
+    widen the `is_normal` condition, and do not delete that test.
+14. **A cost is paid inside `pay_cost`, at activation, through an `EffectPrimitives.pay_*`
+    helper.** `DuelEngine._perform_activation()` runs `pay_cost` before the Chain Link
+    exists and with the controller attached, so a cost that needs a choice asks for it
+    there (`choose_n`, logged like every other decision) and records what it consumed in
+    `ctx.cost_payload`. A cost is never re-checked or refunded at resolution:
+    `KaibamanTests :: the Tribute is a COST` proves it survives the effect being negated.
+    Costs are all-or-nothing — `choose_n` returns `[]` rather than a partial selection.
+15. **"Special Summon 1 …" with no position named asks the summoning player.**
+    `EffectPrimitives.choose_face_up_position()` offers face-up Attack and face-up
+    Defense and **never** face-down: a Special Summon is face-up unless the card says
+    otherwise (`Apprentice Magician` does, and says so). The card is chosen first and the
+    position second. RULES_SPEC.md 5.5.
+16. **A resolving effect re-checks its own target and its own room.** Activation legality
+    is not carried forward to resolution: `EffectPrimitives.surviving_target()` drops a
+    target that left the required zone, and every Special Summon primitive re-tests
+    `has_free_monster_zone()`. Both branches are covered
+    (`MonsterRebornTests :: a target that left the Graveyard`,
+    `SpecialSummonInteractionTests :: the last zone goes to Chain Link 2`). Master
+    prompt 44.
+17. **Every question put to a player is a duel input and must be logged.**
     `TriggerCollector`, `TurnFlow` and `EffectContext.ask()` all record through
     `DuelLog.record_decision()`. A new decision point that skips this silently breaks
     replay, and `ReplayTests` will catch it (it compares the recorded count against what
@@ -538,13 +589,22 @@ Everything previously listed here is now done and tested; see §6a and
 
 ### Genuinely still open (carried through Phase 5, not hidden)
 
-* **76 of 77 cards have no `EffectDef` yet.** `Shining Angel` is implemented and tested;
-  the rest are honestly `NOT_IMPLEMENTED` in the matrix.
-* **Equip mechanics have no assertions.** `GameState._unequip_all()` runs but nothing
-  tests it. `Rider of the Storm Winds` and `Castle of Dragon Souls` will force this.
+* **62 of 77 cards are not implemented yet.** They are honestly `NOT_IMPLEMENTED` in the
+  matrix; see §8 for the next batch.
+* **Equip mechanics still have no assertions.** `GameState._unequip_all()` runs but
+  nothing tests it. `Rider of the Storm Winds`, `Gagagashield` and `Castle of Dragon
+  Souls` will force this, and the generic mechanic must be built and tested **before**
+  the first Equip card is marked complete.
 * **Simultaneous-LP-zero (a draw) is unexercised.**
-* **GY-activated effects** beyond the destroyed-by-battle shape are untested.
-* **~24500 leaked ObjectDB instances at exit** — RefCounted cycles between `GameState`,
+* **No Continuous Trap card is implemented yet.** `Birthright` and `Call of the Haunted`
+  are the first, and they need the "when this card leaves the field, destroy that
+  monster / when that monster leaves the field, destroy this card" mutual link, which no
+  existing primitive covers.
+* **No card yet uses a summoning PROCEDURE.** The engine path is tested
+  (`SpecialSummonTests`) but no real card drives it; `Hieratic Dragon of Tefnuit`,
+  `Inari Fire`, `Ranryu` and `Nefarious Archfiend` will.
+* **34241 leaked ObjectDB instances at exit** (measured on this run, up from ~24500 —
+  it grows with the number of duels the suite builds) — RefCounted cycles between `GameState`,
   the `DuelLog` signal and test closures. Harmless to rules outcomes, but it must be
   cleaned up before the UI keeps one duel alive for a long session.
 
@@ -554,16 +614,60 @@ Everything previously listed here is now done and tested; see §6a and
 
 ### How to resume in one paragraph
 
-**Phase 4 is complete and Gate B is MET.** The generic rules engine is tested end to end:
-Fast Effect Timing, the `DuelEngine` legal-action API, trigger collection and ordering,
-Normal/Tribute/Flip **and Special** Summons (including summon negation on both paths),
-turn/phase flow, the Spell/Trap framework, the Battle Phase, the Damage Step and its
-activation restriction, damage calculation **including piercing**, battle destruction
-semantics, continuous effects (with the correct resolution-time start), the counter engine,
-hidden-information filtering and the **DuelLog replay payload** all pass — **630 assertions
-across 13 suites, 0 failures**, SmokeCheck PASS. Read §6a for per-subsystem status and the
-**thirteen** design decisions that must not be reversed, and §7 for what is genuinely still
-open. Do **not** re-read the whole repository, re-run research, or re-derive rules.
+**Phase 4 is complete and Gate B is MET; Phase 5 is 15 / 77 of the way through.** The
+generic rules engine is tested end to end (Fast Effect Timing, the `DuelEngine`
+legal-action API, trigger collection and ordering, Normal/Tribute/Flip **and Special**
+Summons including summon negation on both paths, turn/phase flow, the Spell/Trap
+framework, the Battle Phase, the Damage Step and its activation restriction, damage
+calculation including piercing, battle destruction semantics, continuous effects, the
+counter engine, hidden-information filtering and the DuelLog replay payload). On top of
+it, the card library now has the 9 vanillas, `Shining Angel`, and the first Special
+Summon batch — **1016 assertions across 21 suites, 0 failures**, SmokeCheck PASS. Read
+§6a for per-subsystem status and the **seventeen** design decisions that must not be
+reversed, and §7 for what is genuinely still open. Do **not** re-read the whole
+repository, re-run research, or re-derive rules.
+
+### The NEXT batch (batch 3) — start here
+
+**Continuous-Trap revival, then the summoning procedures, then Equip.** In order:
+
+1. **`Birthright` and `Call of the Haunted`** — the two Continuous Traps that revive.
+   They are one coherent batch because they share a shape no existing primitive covers:
+   *"Activate this card by targeting 1 … in your GY; Special Summon that target. When
+   this card leaves the field, destroy that monster. When that monster leaves the field /
+   is destroyed, destroy this card."* Three things to get right, and the two cards differ
+   on the third:
+   * the target is chosen **at activation** (`targeting(1)`) and the card **stays on the
+     field** (`Enums.stays_on_field(CONTINUOUS_TRAP)` is already true, and
+     `_cleanup_resolved_spell_traps` already leaves it there);
+   * `Birthright` reaches only a **Normal Monster** in your GY, `Call of the Haunted` any
+     monster — reuse `monster_filter(..., normal_only)` and `revivable_monster()`;
+   * the **mutual link** is asymmetric: `Birthright` destroys itself when the monster
+     *leaves the field*, `Call of the Haunted` only when the monster *is destroyed*.
+     Do not collapse them. Both directions need a TRIGGER effect keyed on the right
+     event with `MoveReason` discrimination, plus a link between the two instances (the
+     Trap needs to remember which monster it Summoned — put it in `link.params` /
+     `CardInstance.flags`, and note that `flags` is cleared by `on_leave_field()`).
+   A new primitive for "destroy the card this one is linked to" belongs in
+   `EffectPrimitives`, not duplicated per card.
+2. **The summoning-procedure monsters** — `Hieratic Dragon of Tefnuit`, `Inari Fire`,
+   `Ranryu`, `Nefarious Archfiend Eater of Nefariousness`. These use
+   `Enums.EffectType.SUMMON_PROCEDURE` and the `SPECIAL_SUMMON_PROCEDURE` action, **not**
+   the resolution-time path — design decision 9. Three of them also carry "You can only
+   control 1 …", which nothing implements yet. `Tefnuit` additionally has a
+   "cannot attack the turn it was Special Summoned this way" restriction and a
+   "when this card is Tributed" trigger; `Inari Fire` and `Nefarious Archfiend` are
+   Standby/End Phase self-revivals. Check `Research/CARD_RULINGS.md` R17 and R18 first.
+3. **Equip** — `Rider of the Storm Winds`, `Gagagashield`, `Castle of Dragon Souls`.
+   **Equip mechanics still have NO assertions** (§7). Build and test the generic mechanic
+   — equipping, `CardInstance.equipped_to_id` / `equipped_card_ids`, the
+   `CARD_EQUIPPED` / `CARD_UNEQUIPPED` events, and the `GameState._unequip_all()` path
+   that destroys an Equip Card when its host leaves the field [S1 p.28] — **before**
+   marking the first Equip card complete. `Rider of the Storm Winds` also grants
+   piercing, which the engine already supports and tests.
+4. Then the remaining **Spells/Traps by kind**, then the **counter** cards
+   (`Apprentice Magician`, `Wonder Balloons`), then the **negation** cards
+   (`Champion's Vigilance`) last — they exercise the most machinery.
 
 ### Phase 5 — how the card library is built (the pattern is now established)
 
@@ -592,24 +696,21 @@ Per card, in order:
 5. Only once it passes: `python Tools/build_matrix.py`. The counts are computed, never
    written by hand.
 
-Suggested remaining order, grouped by **mechanic** rather than alphabetically
-(from the pool scan: 22 of 77 cards Special Summon, 1 grants piercing):
+Cards are done in **mechanic** groups, not alphabetically. Batches completed so far:
 
-1. The 9 **Normal Monsters** — no effects at all; they are cheap and they prove
-   `CardDef.is_vanilla()` is treated as "implemented", not "missing".
-2. The rest of the **Special Summon family** (`Kaibaman`, `Monster Reborn`,
-   `Birthright`, `Call of the Haunted`, `Silver's Cry`, `Dragonic Tactics`,
-   `One for One`, `Damage Condenser`, `Apprentice Magician`…) — they reuse
-   `special_summon_one()` directly.
-3. The **summoning-procedure** monsters (`Hieratic Dragon of Tefnuit`, `Inari Fire`,
-   `Ranryu`, `Nefarious Archfiend Eater of Nefariousness`) — these use the
-   `SPECIAL_SUMMON_PROCEDURE` path, not the resolution-time one.
-4. **Equip** cards (`Rider of the Storm Winds`, `Gagagashield`, `Castle of Dragon Souls`)
-   — this needs the equip mechanic, which is implemented but **has no assertions yet**.
-   Write those tests as part of the first equip card.
-5. The remaining **Spells/Traps** by kind, then the **counter** cards
-   (`Apprentice Magician`, `Wonder Balloons`), then the **negation** cards
-   (`Champion's Vigilance`) last — they exercise the most machinery.
+* **Batch 1 — the 9 vanilla Normal Monsters.** No registry files; see design decision 13.
+* **Batch 2 — the resolution-time Special Summon family**: `Monster Reborn`,
+  `Silver's Cry`, `Kaibaman`, `Dragonic Tactics`, `One for One`. Between them they
+  introduced targeting at activation, "either GY", the self-Tribute cost, the two-Tribute
+  cost, the send-from-hand cost, Deck Summons, and player-chosen summon positions.
+
+The batch to do next is spelled out under **"The NEXT batch (batch 3)"** above.
+
+Primitives added by batch 2, in `Scripts/cards/EffectPrimitives.gd` — reuse these rather
+than re-inventing them: `cards_in()`, `cards_in_either_graveyard()`, `monster_of_level()`,
+`monster_named()`, `revivable_monster()`, `choose_n()`, `choose_face_up_position()`,
+`special_summon_one_any_position()`, `special_summon_target()`, `surviving_target()`,
+`pay_tribute_cost()`, `pay_send_to_gy_cost()`, `record_cost()`.
 
 No placeholders, and never silently drop a clause: `ChainManager` fails loudly on a
 missing `resolve()` and `CardRegistry` rejects a chain-starting effect that has none.
@@ -630,7 +731,19 @@ animations, particles, audio, cinematic camera, UI polish). Those are Phases 7�
 * Never use `:=` where the right-hand side is a `Variant` (an untyped `Array` element such
   as `some_def.effects[0]`, or a function declared `-> Variant` such as
   `TestFixtures.find_action()`). It is a hard compile error, and a failed compile takes
-  the whole dependent class down with it.
+  the whole dependent class down with it. This bites **transitively**: `find_action()`
+  returns a Variant, so `var a = find_action(...)` then `var b := a.with_choices({...})`
+  fails too, even though `with_choices()` is typed. It cost a parse-check cycle in
+  batch 2.
+* `EffectPrimitives.choose_n()` / `choose_one()` do **not** ask when the number of
+  candidates equals the number required — there is nothing to decide. A test that
+  asserts on the offered option list must therefore set up **more** candidates than the
+  clause consumes, or the prompt never happens and the assertion fails confusingly.
+* `ScriptedController`'s default answer for a selection is "the first `min_count`
+  options", which is rarely the card a test means. Any test that cares which card pays a
+  cost must `queue_for(...)` it explicitly, and should then assert
+  `controller.errors == []` — that is what proves the queued answer went to the prompt
+  the test thought it did.
 * **A GDScript single-line lambda ends at the newline.** A wrapped lambda body inside a
   call argument needs an explicit `\` continuation, or you get
   `Expected closing ")" after call arguments` with **no line number**.
@@ -651,7 +764,12 @@ numbers in comments, and those trace to `RULES_SOURCES.md` S1–S4. Do not re-de
 **Card implementation (Phase 5)** goes in `Scripts/cards/registry/<CardName>.gd`, one file
 per card, each declaring `const CARD_NAME := "..."` and one `EffectDef.new(...)` per official
 effect clause — `Tools/build_matrix.py` reads those two markers to compute the implementation
-matrix, so the matrix can never over-report.
+matrix, so the matrix can never over-report. Two additions from batch 1/2:
+a **vanilla Normal Monster has no registry file** and is counted as implemented from the
+card database's `is_normal` flag alone (design decision 13), and a suite covering a whole
+mechanic group declares `const CARDS_UNDER_TEST := ["…", "…"]` instead of the singular
+marker. An interaction suite declares **neither**, so a card is only ever counted as
+TESTED because it has its own suite.
 
 **Re-verify after any change:**
 

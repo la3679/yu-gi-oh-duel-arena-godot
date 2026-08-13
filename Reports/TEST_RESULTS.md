@@ -33,13 +33,20 @@ The raw command still works and produces the same numbers:
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
 | Core rules tests | 13 | 630 | **630** | 0 |
-| Per-card tests | 1 | 43 | **43** | 0 |
-| Interaction tests | 0 | 0 | 0 | 0 |
+| Per-card tests | 7 | 340 | **340** | 0 |
+| Interaction tests | 1 | 46 | **46** | 0 |
 | Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **14** | **673** | **673** | **0** |
+| **TOTAL** | **21** | **1016** | **1016** | **0** |
 
-Card library: **1 / 77 implemented, 1 / 77 tested** — computed by `Tools/build_matrix.py`
-from `Scripts/cards/registry/*.gd` and `Tests/cards/*.gd`, never by hand.
+Per-test assertion counts in this file are **measured**, not counted by hand from source:
+`TestCase` records them per test and `Scripts/tests/DumpAssertionCounts.gd` prints them.
+A suite that loops over nine cards runs many more assertions than it has `t.` call sites,
+and the earlier hand-written `ShiningAngelTests` breakdown was wrong for exactly that
+reason — it has been corrected against the measurement.
+
+Card library: **15 / 77 implemented, 15 / 77 tested** — computed by `Tools/build_matrix.py`
+from `Scripts/cards/registry/*.gd`, the card database's `is_normal` flag and
+`Tests/cards/*.gd`, never by hand.
 
 `RESULT: PASS`, exit code 0.
 
@@ -69,6 +76,14 @@ removed.
 | `SpecialSummonTests` | 54 | `RULES_SPEC.md §5.5` |
 | `RulesQuestionTests` | 37 | `RULES_SPEC.md §8.1, §12.1`, `§6/§7`, `§2.3` |
 | `ReplayTests` | 33 | master prompt §8 / §70 |
+| `ShiningAngelTests` | 43 | per-card |
+| `NormalMonsterTests` | 76 | per-card (9 cards) |
+| `MonsterRebornTests` | 48 | per-card |
+| `SilversCryTests` | 47 | per-card |
+| `KaibamanTests` | 47 | per-card |
+| `DragonicTacticsTests` | 39 | per-card |
+| `OneForOneTests` | 40 | per-card |
+| `SpecialSummonInteractionTests` | 46 | interaction |
 
 ### ChainTests — 27/27
 `Tests/rules/ChainTests.gd`. Rules: `RULES_SPEC.md §4` (Rulebook v10 pp.44–47, 51).
@@ -257,7 +272,40 @@ guessed, each now decided against an official source and pinned down.
 
 ## Defects found and fixed by these tests
 
-### This milestone (Phase 4c — the generic-engine gate)
+### This milestone (Phase 5 batch 1+2 — vanillas and the Special Summon family)
+
+**No rules-engine defect was found by this batch, and that is reported as-is rather than
+dressed up.** Every one of the 343 new assertions passed against the engine as Gate B
+left it, which is the outcome Gate B was supposed to produce. Three real problems were
+found and fixed, none of them in the rules:
+
+1. **`Tools/build_matrix.py` could never report a vanilla Normal Monster as implemented.**
+   It derived implementation status purely from the presence of a registry file, but a
+   card with no effect text correctly has no registry file — `CardDef.is_vanilla()` and
+   `CardRegistry.unimplemented()` already treated an empty effect list as the complete
+   implementation, so the matrix and the engine disagreed. The matrix now counts a card
+   as implemented when it has a registry file **or** when the card database marks it
+   `is_normal`, and `NormalMonsterTests` asserts the shortcut cannot be abused: no Effect
+   Monster satisfies `is_vanilla()`, and every non-vanilla card without effects is still
+   on the honest unimplemented list.
+2. **A suite could not report covering more than one card.** `tested_cards()` read only
+   the singular `CARD_UNDER_TEST`, so a mechanic-group suite could not mark its cards
+   TESTED without nine near-identical files. It now also reads a `CARDS_UNDER_TEST`
+   array. An interaction suite declares neither marker, so a card is still only ever
+   counted as TESTED because it has its own suite.
+3. **The per-test assertion counts in this file were estimates, and at least one was
+   wrong.** The published `ShiningAngelTests` breakdown summed to 45 against a suite that
+   runs 43. `TestCase` now records assertions per test and
+   `Scripts/tests/DumpAssertionCounts.gd` prints them, so every per-test number in this
+   file is measured. The `ShiningAngelTests` table has been corrected.
+
+One test was also strengthened after measurement showed it was thin:
+`DragonicTacticsTests :: a Level 7 Wyrm does not qualify` ran a single assertion, so a
+positive control was added — adding a Level 8 Dragon to the same Deck makes the card
+activatable — which turns the negative from "something blocked it" into "the filter
+blocked it".
+
+### Previous milestone (Phase 4c — the generic-engine gate)
 
 1. **`SummonRules.begin_special_summon()` was unreachable from the engine.** It existed and
    compiled, but no engine path called it, so "Special Summon" was not a capability the
@@ -289,7 +337,7 @@ guessed, each now decided against an official source and pinned down.
 No test expectation was weakened to make the implementation pass, and none of the 506
 earlier assertions was retargeted or deleted.
 
-### Previous milestone (Phase 4b-3)
+### Earlier milestone (Phase 4b-3)
 
 1. **Removing the attack TARGET cancelled the attack instead of causing a Replay.**
    `DuelEngine._advance_battle()` called `BattleRules.attack_still_valid()` — which
@@ -329,7 +377,7 @@ No test expectation was weakened to make the implementation pass.
 
 ## Known issues in the harness (not rules defects)
 
-* The run reports `~24500 ObjectDB instances were leaked at exit`. These are RefCounted
+* The run reports `34241 ObjectDB instances were leaked at exit`. These are RefCounted
   reference cycles between `GameState`, `DuelLog` (connected signal) and the closures the
   tests capture. The count grows with the number of duels the suite builds. It does not
   affect any rules outcome and does not fail the suite, but it must be cleaned up before
@@ -350,8 +398,10 @@ shape, equip mechanics (the `MoveReason.RULE` unequip path runs but nothing asse
 and simultaneous-LP-zero draws. Special Summon execution, piercing battle damage and the
 duel log / replay payload were the other three and are now covered.
 
-**B. Per-card** — **1 of 77** cards implemented and tested (`Shining Angel`). The other 76
-are honestly reported as `NOT_IMPLEMENTED` / `NOT_TESTED` in
+**B. Per-card** — **15 of 77** cards implemented and tested: the 9 vanilla Normal
+Monsters, `Shining Angel`, and the first Special Summon batch (`Monster Reborn`,
+`Silver's Cry`, `Kaibaman`, `Dragonic Tactics`, `One for One`). The other 62 are honestly
+reported as `NOT_IMPLEMENTED` / `NOT_TESTED` in
 `Reports/CARD_IMPLEMENTATION_MATRIX.csv`.
 
 ### ShiningAngelTests — 43/43
@@ -363,14 +413,110 @@ where the value is.
 |---|---:|---|
 | the registry loads cleanly | 5 | all 77 definitions load, the registry reports no errors, one `EffectDef` per official clause, and the card name is stamped onto the effect |
 | the clause shape | 9 | optional Trigger Effect, Spell Speed 1, Damage Step window as a *timing* permission, activates from the GY, and **does not target** — the official text has no "target", so the monster is chosen at resolution |
-| destroyed by battle | 12 | a LIGHT monster with ≤1500 ATK arrives from the Deck in Attack Position by Special Summon; the controller is asked exactly once; **every candidate offered passes the clause's own filter** while the too-strong LIGHT copies in the same Deck are excluded |
-| declining | 6 | asked, said no, nothing Summoned, Deck untouched |
+| destroyed by battle | 11 | a LIGHT monster with ≤1500 ATK arrives from the Deck in Attack Position by Special Summon; the controller is asked exactly once; **every candidate offered passes the clause's own filter** while the too-strong LIGHT copies in the same Deck are excluded |
+| declining | 5 | asked, said no, nothing Summoned, Deck untouched |
 | destroyed by a card effect | 3 | not destroyed *by battle*, so nobody is asked [S1 p.52–53] |
 | Tributed | 3 | a Tribute **is** "sent to the GY" and the trigger event does fire, but the clause still does not — destruction by battle is what it requires |
 | no legal monster in the Deck | 3 | the controller is not asked a question with no possible answer |
 | a full Monster Zone | 4 | the zone the Angel itself vacated is available, so the recruit legitimately fills it |
 
-**C. Interaction** — none yet.
+### NormalMonsterTests — 76/76
+`Tests/cards/NormalMonsterTests.gd`. Covers all nine vanilla Normal Monsters at once via
+`CARDS_UNDER_TEST`, because their implementation is shared: an EMPTY effect list is the
+correct and complete implementation of a card with no effect text.
+
+| Test | Asserts | What it proves |
+|---|---:|---|
+| all nine are vanilla | 38 | exactly nine cards in the pool satisfy `is_vanilla()`, and each is a Normal Monster with zero `EffectDef`s |
+| Tribute requirement follows Level | 9 | 0 / 1 / 2 Tributes by printed Level, on the real cards [S1 p.24-25] |
+| Normal Summon a real vanilla | 9 | Sabersaurus reaches a Monster Zone face-up in Attack Position with its printed 1900/500, spending the turn's one Normal Summon |
+| Tribute Summon a real vanilla | 8 | Blue-Eyes White Dragon needs two Tributes, both reach the Graveyard, and only the Summoned monster remains |
+| a vanilla battles on printed stats | 4 | Alexandrite Dragon 2000 beats Sabersaurus 1900; 100 battle damage [S1 p.42] |
+| offers no effect to activate | 4 | no `ACTIVATE_EFFECT` / `ACTIVATE_CARD` / summon procedure is offered, and a hand-built activation is rejected |
+| **no Effect Monster is treated as vanilla** | 4 | `is_vanilla()` is false for every Effect Monster; every non-vanilla card with no effects is still on `CardRegistry.unimplemented()`; the two categories never overlap, and that list is genuinely non-empty |
+
+The last test is the load-bearing one: it is what stops "vanilla counts as implemented"
+from becoming a way to over-report an unimplemented Effect Monster.
+
+### MonsterRebornTests — 48/48
+`Tests/cards/MonsterRebornTests.gd`. "Target 1 monster in either GY; Special Summon it."
+
+| Test | Asserts | What it proves |
+|---|---:|---|
+| the clause shape | 9 | Spell Speed 1 card activation, targets exactly 1, activatable from hand or a Set copy, no invented once-per-turn |
+| revives from your own GY | 8 | the target leaves the GY, is properly Special Summoned, the Spell goes to the GY, and the Normal Summon is untouched |
+| the player chooses the position | 4 | face-up Defense is honoured; face-down is never offered (RULES_SPEC.md 5.5) |
+| revives from the OPPONENT's GY | 9 | you control it, the OWNER is unchanged, and it returns to the **owner's** Graveyard when it later leaves the field [S1 p.52] |
+| a Trap in the GY is not a target | 5 | only monsters are candidates; a hand-built activation targeting a Trap is rejected |
+| empty Graveyard | 4 | an effect that targets with no legal target cannot be activated (master prompt 17) |
+| a full Monster Zone | 2 | not offered — unlike Kaibaman, nothing here frees a zone |
+| **a target that left the GY** | 7 | a Chain Link 2 that banishes the target resolves first, and Monster Reborn then Summons nothing while still resolving to the GY (master prompt 44) |
+
+### SilversCryTests — 47/47
+`Tests/cards/SilversCryTests.gd`. Quick-Play, targeting, hard once-per-turn.
+
+| Test | Asserts | What it proves |
+|---|---:|---|
+| the clause shape | 11 | Spell Speed 2, a real fast effect, targets 1, hard OPT on the NAME rather than the copy |
+| revives a Dragon Normal Monster | 6 | the target arrives at full printed ATK; the Quick-Play does not stay on the field [S1 p.29] |
+| the target filter | 7 | "Dragon Normal Monster" is both halves: a Dragon **Effect** Monster, a Normal **Wyrm** and a Normal Dinosaur are all rejected, on the real cards |
+| only your own Graveyard | 4 | a legal-looking Dragon in the opponent's GY does not enable it |
+| hard once-per-turn | 7 | a SECOND COPY is blocked in the same turn, the restriction is recorded against the card name, and it expires by that player's next turn |
+| cannot be activated the turn it was Set | 5 | the Quick-Play exception to the "Spells may be activated the turn they are Set" rule [S1 p.31] |
+| a Set copy on the opponent's turn | 7 | offered in a response window during the opponent's turn and resolves there |
+
+### KaibamanTests — 47/47
+`Tests/cards/KaibamanTests.gd`. The cost/effect split lives or dies here.
+
+| Test | Asserts | What it proves |
+|---|---:|---|
+| the clause shape | 11 | a non-targeting Ignition Effect, Spell Speed 1, never a fast effect, field face-up only, Main Phases only, with a real `pay_cost` |
+| Tributes itself and Summons | 10 | `CARD_TRIBUTED` and no `CARD_DESTROYED` — a Tribute is not a destruction [S1 p.53]; Blue-Eyes fills the zone Kaibaman vacated |
+| **the cost survives negation** | 10 | the Tribute is already paid before any response window opens, and stays paid when Chain Link 2 negates the effect — the single most important cost assertion in the library |
+| no Blue-Eyes in hand | 4 | not offered, a hand-built activation is rejected and pays nothing, and a copy in the GY does not count |
+| only Blue-Eyes qualifies | 5 | other Level 8 LIGHT Dragons in hand do not satisfy a clause that names one card |
+| from the hand or face-down | 3 | usable only from a face-up field position, and turning the same copy face-up enables it |
+| outside the Main Phases | 4 | absent in the Battle Phase, present again in Main Phase 2 [S1 p.10] |
+
+### DragonicTacticsTests — 39/39
+`Tests/cards/DragonicTacticsTests.gd`. The first two-card cost and the first Deck Summon.
+
+| Test | Asserts | What it proves |
+|---|---:|---|
+| the clause shape | 8 | non-targeting Normal Spell activation with both a cost check and a cost payment |
+| two Dragons for a Level 8 Dragon | 11 | both Tributes happen at activation, the Deck loses exactly one card, two `CARD_TRIBUTED` and zero `CARD_DESTROYED` |
+| the Tribute candidates | 10 | the three Dragons you control are offered; the Dinosaur, the **Wyrm** and the opponent's Dragon are not |
+| only one Dragon | 4 | an unpayable cost blocks the activation, a hand-built one is rejected, nothing is Tributed, and a second Dragon fixes it |
+| no Level 8 Dragon in the Deck | 2 | one in the HAND does not count; putting one in the Deck enables it |
+| a Level 7 Wyrm does not qualify | 4 | "Level 8 Dragon monster" is an exact Level **and** the race, with a positive control so the negative is not vacuous |
+
+### OneForOneTests — 40/40
+`Tests/cards/OneForOneTests.gd`.
+
+| Test | Asserts | What it proves |
+|---|---:|---|
+| the clause shape | 8 | non-targeting Normal Spell activation with a send-from-hand cost |
+| sends and Summons from the Deck | 7 | the cost is paid before any response window; the Level 1 monster arrives and the Deck shrinks by one |
+| **a send is not a discard** | 5 | the move reason is `SENT_AS_COST`, explicitly not `DISCARDED`, while still counting as "sent to the GY" and not as a destruction [S1 p.52-53] |
+| "hand or Deck" is both zones | 6 | both candidates are offered and the hand copy can be the one Summoned |
+| no monster in hand | 3 | a Spell in hand is not "a monster"; adding one makes the cost payable |
+| no Level 1 monster anywhere | 2 | one in the GY, or one the opponent holds, does not count |
+| a full Monster Zone | 2 | unlike Kaibaman, nothing here frees a zone |
+| **paying away the last Level 1 monster** | 7 | the activation is legal because the candidate check precedes the cost; the card then legitimately resolves for nothing |
+
+**C. Interaction** — `SpecialSummonInteractionTests` (46). Everything else, not yet.
+
+### SpecialSummonInteractionTests — 46/46
+`Tests/cards/SpecialSummonInteractionTests.gd`. Declares no card-under-test marker on
+purpose: a card is only counted as TESTED because it has its own suite.
+
+| Test | Asserts | What it proves |
+|---|---:|---|
+| Kaibaman then Silver's Cry | 10 | the deck's real line: Kaibaman fetches Blue-Eyes, Silver's Cry has no target while it lives, and recovers the very same copy once it is in the GY |
+| two revivals in one Chain | 10 | Silver's Cry (SS2) legally chains to Monster Reborn (SS1); both resolve, and the `SPECIAL_SUMMON_SUCCEEDED` order proves reverse resolution [S1 p.46-47] |
+| the last zone goes to Chain Link 2 | 9 | with one free zone both activations are legal, Chain Link 2 takes it, and Chain Link 1 re-checks the board at RESOLUTION and Summons nothing |
+| revived monsters can be Tributed | 8 | a monster Special Summoned this turn is an ordinary monster and may pay Dragonic Tactics' cost |
+| none spend the Normal Summon | 9 | two Special Summons later the Normal Summon is still available, and only a real Normal Summon spends it [S1 p.24] |
 
 **D. Scripted full duels** — none yet.
 
