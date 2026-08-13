@@ -177,6 +177,22 @@ enum SummonKind {
 	SPECIAL,
 }
 
+## How long a change of CONTROL lasts. RULES_SPEC.md 5.6.
+##
+## Control is always a LEASE with an explicit end condition, never an unconditional rewrite
+## of who controls a card: every control-changing card in the V1 pool states a duration, and
+## the two it states are these. OWNERSHIP is never affected by any of them.
+enum ControlDuration {
+	## "…while this card is face-up on the field" — the three Charmers. Ends the moment the
+	## SOURCE stops being face-up on the field, for any reason.
+	WHILE_SOURCE_FACE_UP,
+	## "…until the End Phase" — `Enemy Controller`. Ends when the End Phase is entered.
+	UNTIL_END_PHASE,
+	## No stated end condition. Nothing in the V1 pool uses it; it exists so that a card that
+	## genuinely says "take control" with no duration is not silently given one.
+	PERMANENT,
+}
+
 ## Damage Step activation permission. RULES_SPEC.md 7.2 [S1 p.41].
 enum DamageStepPermission {
 	## Never activatable in the Damage Step. Default.

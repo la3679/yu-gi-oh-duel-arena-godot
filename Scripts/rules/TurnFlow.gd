@@ -105,6 +105,14 @@ func enter_phase(new_phase: Enums.Phase) -> void:
 		state.battle_phase_conducted_this_turn = true
 	if new_phase == Enums.Phase.DRAW:
 		_do_draw_phase_draw()
+	if new_phase == Enums.Phase.END:
+		# "…take control of that target UNTIL THE END PHASE" (`Enemy Controller`): the lease
+		# runs up TO the End Phase, so it ends as the End Phase is entered — before the
+		# hand-size discard, which is the *end* of the End Phase [S1 p.40], and therefore
+		# before anything either player does during it. This engine's End Phase is two
+		# steps, so the moment has to be named explicitly rather than left to "some point in
+		# the End Phase". RULES_SPEC.md 5.6, CARD_RULINGS.md R25.
+		state.expire_control_leases(true)
 
 
 ## "The player who goes first does not draw during the Draw Phase of their first turn."

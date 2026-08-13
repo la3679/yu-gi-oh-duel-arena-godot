@@ -28,6 +28,7 @@ func _initialize() -> void:
 	suites.append(RulesQuestionTests.run())
 	suites.append(ReplayTests.run())
 	suites.append(EquipTests.run())
+	suites.append(ControlTests.run())
 
 	# --- Per-card suites (Phase 5). One per implemented card. ---
 	suites.append(ShiningAngelTests.run())
@@ -54,6 +55,9 @@ func _initialize() -> void:
 	suites.append(KunaiWithChainTests.run())
 	suites.append(FairyTailRellaTests.run())
 	suites.append(ChampionsVigilanceTests.run())
+	suites.append(AussaTheEarthCharmerTests.run())
+	suites.append(EriaTheWaterCharmerTests.run())
+	suites.append(WynnTheWindCharmerTests.run())
 
 	# --- Interaction suites (Phase 5). Cross-card behaviour, no card-under-test. ---
 	suites.append(SpecialSummonInteractionTests.run())

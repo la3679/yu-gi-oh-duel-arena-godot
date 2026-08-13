@@ -154,8 +154,13 @@ static func flip_effect_monster(card_name: String, level: int = 4, atk: int = 10
 	# (the three Charmers) are mandatory too — none of them says "you can".
 	e.mandatory()
 	e.trigger_events = [GameEvent.Kind.CARD_FLIPPED_FACE_UP]
+	e.activation_locations = [Enums.ActivationLocation.FIELD_FACE_UP]
+	# A FLIP effect triggered by an attack becomes a Chain Link inside the Damage Step.
+	e.damage_step_permission = Enums.DamageStepPermission.MANDATORY_TRIGGER
 	e.condition = func(ctx: EffectContext) -> bool:
-		return ctx.source.is_on_field() and ctx.source.is_face_up()
+		# It is THIS card being flipped that matters, not any card being flipped.
+		var ev: GameEvent = ctx.trigger_event
+		return ev != null and int(ev.data.get("card_id", -1)) == ctx.source.id
 	e.resolve = func(ctx: EffectContext) -> void:
 		ctx.state.draw(ctx.source.controller_id, 1)
 	return with_effect(d, e)

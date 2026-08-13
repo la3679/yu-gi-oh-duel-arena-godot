@@ -345,6 +345,103 @@ static func surviving_target(ctx: EffectContext,
 
 
 # ---------------------------------------------------------------------------
+# Control. RULES_SPEC.md 5.6 [S1 p.52]
+#
+# "Take control of that monster" changes the CONTROLLER and never the OWNER. The owner is
+# what decides where the card goes when it leaves the field, and `GameState.move_card()`
+# already forces every owner-bound zone to the owner, so a card taken by one of these
+# primitives still goes to ITS OWN Graveyard when it dies under the other player's control.
+# ---------------------------------------------------------------------------
+
+## "Target 1 <ATTRIBUTE> monster your opponent controls" — the candidate set the three
+## Charmers publish, and the shape `Enemy Controller` uses with `face_up_only`.
+##
+## Face-down monsters are excluded when `face_up_only` is set, because a face-down monster's
+## Attribute is not a property either player may act on — the same reading
+## `Champion's Vigilance` uses for "a Level 7 or higher Normal Monster".
+static func opponent_monsters(ctx: EffectContext, attribute: String = "",
+		face_up_only: bool = true) -> Array:
+	var out: Array = []
+	for entry in ctx.state.player(ctx.opponent_id()).monsters():
+		var card: CardInstance = entry
+		if card == null or card.definition == null:
+			continue
+		if face_up_only and not card.is_face_up():
+			continue
+		if attribute != "" and card.definition.attribute != attribute:
+			continue
+		out.append(card)
+	return out
+
+
+## "Take control of that target." Re-checks the target at RESOLUTION: activation legality is
+## never carried forward, so a target that left the field, was flipped face-down, or already
+## changed control is dropped here rather than acted on. Design decision 16.
+##
+## Returns true only if control actually changed. It legitimately returns false when the
+## taker has no free Monster Zone — a monster can only be controlled from a Monster Zone.
+static func take_control_of_target(ctx: EffectContext,
+		duration: Enums.ControlDuration, face_up_only: bool = true) -> bool:
+	var target := surviving_target(ctx, Enums.Zone.MONSTER_ZONE)
+	if target == null:
+		ctx.log_note("the target is no longer on the field")
+		return false
+	if face_up_only and not target.is_face_up():
+		ctx.log_note("the target is no longer face-up")
+		return false
+	if target.controller_id == ctx.controller_id:
+		ctx.log_note("the target is already under this player's control")
+		return false
+	if not ctx.state.can_change_control(target, ctx.controller_id):
+		ctx.log_note("there is no Monster Zone to take %s into" % target.card_name())
+		return false
+	return ctx.state.change_control(target, ctx.controller_id, ctx.source.id, duration)
+
+
+## The Charmer clause, whole: "FLIP: Target 1 <ATTRIBUTE> monster your opponent controls;
+## take control of that monster while this card is face-up on the field."
+##
+## `Aussa the Earth Charmer`, `Eria the Water Charmer` and `Wynn the Wind Charmer` carry this
+## text WORD FOR WORD apart from the Attribute — verified against the official database, not
+## remembered (`Research/CARD_RULINGS.md` §2.1: the current wording of all three targets, and
+## Eria's older "face-up" wording is gone). Sharing the mechanics is therefore correct rather
+## than an over-generalisation; each card still declares its own name, Attribute and text, and
+## each has its own suite. If any of the three is ever errata'd apart from the others, it
+## stops calling this and writes its own clause.
+static func charmer_take_control(attribute: String, clause_text: String) -> EffectDef:
+	var e := EffectDef.new("charmer_take_control", clause_text)
+	e.of_type(Enums.EffectType.FLIP)
+	# No "you can": the effect is MANDATORY. With no legal target it simply cannot activate,
+	# which is not the same thing as being optional.
+	e.mandatory()
+	# A FLIP effect fires whenever the monster is turned face-up — by Flip Summon, by an
+	# attack, or by a card effect — so it keys on the flip itself, never on
+	# FLIP_SUMMON_SUCCEEDED. RULES_SPEC.md 5.4 [S1 p.28].
+	e.trigger_events = [GameEvent.Kind.CARD_FLIPPED_FACE_UP]
+	e.activation_locations = [Enums.ActivationLocation.FIELD_FACE_UP]
+	# Flipped by an attacker, the Flip effect becomes a Chain Link in Damage Step sub-step 4,
+	# so the Damage Step permission is the rules-mandated TIMING. RULES_SPEC.md 7.2.
+	e.damage_step_permission = Enums.DamageStepPermission.MANDATORY_TRIGGER
+	e.targeting(1)
+
+	e.condition = func(ctx: EffectContext) -> bool:
+		# THIS card being flipped face-up, not any card.
+		var ev: GameEvent = ctx.trigger_event
+		return ev != null and int(ev.data.get("card_id", -1)) == ctx.source.id
+
+	e.legal_targets = func(ctx: EffectContext) -> Array:
+		return opponent_monsters(ctx, attribute, true)
+
+	e.resolve = func(ctx: EffectContext) -> void:
+		# "while this card is face-up on the field" — a lease on the Charmer, so control
+		# returns the instant the Charmer is flipped face-down or leaves the field.
+		if take_control_of_target(ctx, Enums.ControlDuration.WHILE_SOURCE_FACE_UP):
+			ctx.log_note("took control of %s" % ctx.first_target().card_name())
+
+	return e
+
+
+# ---------------------------------------------------------------------------
 # Costs. Paid at ACTIVATION, never at resolution. RULES_SPEC.md 10, master prompt 16.
 # ---------------------------------------------------------------------------
 

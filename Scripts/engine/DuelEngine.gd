@@ -897,6 +897,12 @@ func _advance() -> void:
 		if continuous != null:
 			continuous.recompute()
 
+		# A control lease worded "while this card is face-up on the field" ends the moment
+		# its source stops being that, so it is checked at the same cadence as the
+		# continuous recompute. It is a state MUTATION rather than a derived flag, which is
+		# why it does not live inside recompute(). RULES_SPEC.md 5.6.
+		state.expire_control_leases()
+
 		match timing:
 			Timing.TRIGGER_CHECK:
 				if _do_trigger_check():

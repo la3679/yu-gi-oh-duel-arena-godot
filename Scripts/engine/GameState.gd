@@ -78,6 +78,18 @@ var deferred_trigger_events: Array = []
 ## "is a monster in IN_TRANSIT?" answers the question for the Normal and Special routes only.
 var pending_summon_card_id: int = -1
 
+# --- Control leases. RULES_SPEC.md 5.6. ---
+## Every change of CONTROL currently in force, oldest first, as a STACK per card.
+##
+## Each entry is `{"card_id", "source_id", "from_controller", "to_controller", "duration"}`.
+## `from_controller` is who controlled the card immediately BEFORE this lease, which is where
+## control returns when the lease ends — not necessarily the owner.
+##
+## Control is state, not presentation: `CardInstance.controller_id` and the Monster Zone
+## arrays are the truth, and `owner_id` is never touched by any of this. RULES_SPEC.md 5.6
+## [S1 p.52].
+var control_leases: Array = []
+
 # --- Battle state ---
 var current_attacker = null           # CardInstance
 var current_attack_target = null      # CardInstance or null for a direct attack
@@ -339,6 +351,10 @@ func move_card(card: CardInstance, to_zone: Enums.Zone, reason: Enums.MoveReason
 	if was_on_field and not card.is_on_field():
 		orphaned_equips = _detach_equips(card)
 		card.on_leave_field()
+		# A monster that left the field is no longer under anyone's temporary control.
+		# It has already gone to its OWNER's zone (forced above), so there is nothing to
+		# hand back — the lease is simply over. RULES_SPEC.md 5.6.
+		drop_control_leases_for(card)
 
 	# Recorded after on_leave_field() precisely so it survives it. RULES_SPEC.md 15.
 	card.last_move_reason = reason
@@ -395,6 +411,170 @@ func move_card(card: CardInstance, to_zone: Enums.Zone, reason: Enums.MoveReason
 				{"source_id": card.id})
 
 	return true
+
+
+# ---------------------------------------------------------------------------
+# Control. RULES_SPEC.md 5.6 [S1 p.52]
+#
+# OWNER and CONTROLLER are different things and this subsystem exists to keep them that way.
+# Taking control of a monster moves it between the two players' Monster Zone arrays and
+# rewrites `CardInstance.controller_id`; it NEVER touches `owner_id`, which is what sends the
+# card to its owner's Graveyard, hand or Deck when it later leaves the field — `move_card()`
+# already forces `to_player = card.owner_id` for every owner-bound zone.
+#
+# A control change is deliberately NOT expressed as a `move_card()`. The card does not leave
+# the field, so nothing that keys on leaving the field may fire: `on_leave_field()` must not
+# run, Equip Cards must not be destroyed, and `last_move_*` must not be rewritten to describe
+# a move that did not happen.
+#
+# Every control change is a LEASE with an explicit end condition (`Enums.ControlDuration`).
+# Leases stack per card, oldest first, so two effects taking control of the same monster
+# unwind in the right order.
+# ---------------------------------------------------------------------------
+
+## Can `new_controller` take control of `card` right now?
+##
+## The zone requirement is real: a monster can only be controlled from a Monster Zone, so an
+## effect that would take control with the taker's field already full simply does nothing.
+func can_change_control(card: CardInstance, new_controller: int) -> bool:
+	if card == null or not card.is_monster():
+		return false
+	if card.zone != Enums.Zone.MONSTER_ZONE:
+		return false
+	if card.controller_id == new_controller:
+		return false
+	if not player(new_controller).has_free_monster_zone():
+		return false
+	return true
+
+
+## Take control of `card`. Returns false if it could not be done, in which case nothing moved.
+func change_control(card: CardInstance, new_controller: int, source_id: int,
+		duration: Enums.ControlDuration) -> bool:
+	if not can_change_control(card, new_controller):
+		return false
+	var from_controller := card.controller_id
+	if not _transfer_control(card, new_controller):
+		return false
+	control_leases.append({
+		"card_id": card.id, "source_id": source_id,
+		"from_controller": from_controller, "to_controller": new_controller,
+		"duration": duration,
+	})
+	emit(GameEvent.Kind.CONTROL_CHANGED, {
+		"card_id": card.id, "card_name": card.card_name(),
+		"from_player": from_controller, "to_player": new_controller,
+		"owner": card.owner_id, "source_id": source_id, "duration": duration,
+		"reverted": false,
+	})
+	return true
+
+
+## Move the card between the two players' Monster Zone arrays. No events, no lease.
+func _transfer_control(card: CardInstance, new_controller: int) -> bool:
+	var from_controller := card.controller_id
+	_detach(card)
+	card.controller_id = new_controller
+	if not _attach(card, new_controller, Enums.Zone.MONSTER_ZONE, -1, "top"):
+		# Never leave the board corrupted: put it back exactly where it was.
+		card.controller_id = from_controller
+		_attach(card, from_controller, Enums.Zone.MONSTER_ZONE, -1, "top")
+		return false
+	return true
+
+
+## The leases currently in force for one card, oldest first.
+func control_leases_for(card_id: int) -> Array:
+	return control_leases.filter(func(l): return int(l["card_id"]) == card_id)
+
+
+## End one lease.
+##
+## Only the NEWEST lease on a card actually governs where it sits, so ending an older one
+## does not move the card — it hands its `from_controller` down to the lease that follows it,
+## so that when the newest one eventually ends the card still returns all the way to the
+## player who controlled it before any of this started.
+func end_control_lease(lease: Dictionary) -> void:
+	var idx := control_leases.find(lease)
+	if idx == -1:
+		return
+	var card_id := int(lease["card_id"])
+	var later := control_leases_for(card_id)
+	var is_newest: bool = later.is_empty() or later[later.size() - 1] == lease
+	control_leases.remove_at(idx)
+
+	if not is_newest:
+		for entry in control_leases_for(card_id):
+			var l: Dictionary = entry
+			if int(l["from_controller"]) == int(lease["to_controller"]):
+				l["from_controller"] = int(lease["from_controller"])
+				break
+		return
+
+	var card = instance(card_id)
+	if card == null or card.zone != Enums.Zone.MONSTER_ZONE:
+		# The card left the field; there is nothing to hand back. It is already in its
+		# OWNER's zone, because move_card() sends it there regardless of who controlled it.
+		return
+	var back_to := int(lease["from_controller"])
+	if card.controller_id == back_to:
+		return
+	# Explicitly typed: `instance()` returns Variant and `:=` cannot infer through one.
+	var from_controller: int = card.controller_id
+	if not _transfer_control(card, back_to):
+		# The original controller's field is full. Control does not revert; recorded rather
+		# than papered over, and the lease is still gone so this is not retried forever.
+		emit(GameEvent.Kind.CONTROL_CHANGED, {
+			"card_id": card.id, "card_name": card.card_name(),
+			"from_player": from_controller, "to_player": from_controller,
+			"owner": card.owner_id, "source_id": int(lease["source_id"]),
+			"duration": lease["duration"], "reverted": true, "no_free_zone": true,
+		})
+		return
+	emit(GameEvent.Kind.CONTROL_CHANGED, {
+		"card_id": card.id, "card_name": card.card_name(),
+		"from_player": from_controller, "to_player": back_to,
+		"owner": card.owner_id, "source_id": int(lease["source_id"]),
+		"duration": lease["duration"], "reverted": true,
+	})
+
+
+## End every lease whose card has left the field. There is nothing to hand back — the card is
+## already in its owner's zone — so this only stops a stale lease from reverting a card that
+## later returns to the field under someone else's effect.
+func drop_control_leases_for(card: CardInstance) -> void:
+	if card == null:
+		return
+	for entry in control_leases_for(card.id):
+		control_leases.erase(entry)
+
+
+## Expire the leases whose end condition has been met. Called by `DuelEngine._advance()` at
+## every timing point, at the same cadence as the continuous recompute, and by
+## `TurnFlow.enter_phase()` when the End Phase begins.
+##
+## `end_phase_reached` is passed separately rather than read from `state.phase` so that the
+## End Phase expiry happens exactly once, as the phase is ENTERED, rather than repeatedly
+## for every timing point inside a two-step End Phase.
+func expire_control_leases(end_phase_reached: bool = false) -> void:
+	# Newest first: ending the newest lease is the only one that moves the card, and
+	# unwinding in that order lets each hand back to the one below it.
+	var snapshot := control_leases.duplicate()
+	snapshot.reverse()
+	for entry in snapshot:
+		var lease: Dictionary = entry
+		if not control_leases.has(lease):
+			continue
+		match lease["duration"]:
+			Enums.ControlDuration.WHILE_SOURCE_FACE_UP:
+				var source = instance(int(lease["source_id"]))
+				if source == null or not source.is_on_field() or not source.is_face_up():
+					end_control_lease(lease)
+			Enums.ControlDuration.UNTIL_END_PHASE:
+				if end_phase_reached:
+					end_control_lease(lease)
+			_:
+				pass
 
 
 # ---------------------------------------------------------------------------
