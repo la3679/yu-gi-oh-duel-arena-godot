@@ -31,6 +31,7 @@ nothing is left UNVERIFIED.
 `python Tools/build_matrix.py`, never written by hand). **All 4787 assertions from the previous
 checkpoint pass unchanged** — none was weakened, retargeted or deleted, and no existing suite
 changed its count; the LP-cost suite is still exactly 109. ObjectDB at exit: **154223**.
+**HEAD at checkpoint:** `8544fe3` (the last code commit; this commit records the hash).
 
 Batch 8 completes the pool's **banishment group**, adds the pool's only **Trap Monster**, and
 adds the only card that **restricts a future Battle Phase**. Each of the last two cards got its
