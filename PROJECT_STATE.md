@@ -27,7 +27,7 @@ committed; **four cards are not started**.
 45 / 77 implemented, 45 / 77 tested, 32 remaining** (counts computed by
 `python Tools/build_matrix.py`, never written by hand). **All 4118 assertions from the batch-7
 checkpoint pass unchanged** — none was weakened, retargeted or deleted, and no existing suite
-changed its count. **HEAD at checkpoint:** see §8. ObjectDB at exit: **123104**.
+changed its count. **HEAD at checkpoint:** `7e8995e`. ObjectDB at exit: **123104**.
 
 The batch was stopped here **deliberately, not because anything failed**: the next card's first
 clause needs a new "activated by paying LP" cost concept in the engine, which is a unit of its
