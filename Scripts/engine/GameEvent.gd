@@ -17,6 +17,11 @@ enum Kind {
 	PHASE_CHANGED,
 	BATTLE_STEP_CHANGED,
 	DAMAGE_SUBSTEP_CHANGED,
+	## "…but skip your next Battle Phase after activation" [`Runick Flashing Fire`]:
+	## the obligation being taken on, and the Battle Phase it later costs. Two events, not
+	## one, because they happen on different turns. RULES_SPEC.md 2.4.
+	BATTLE_PHASE_SKIP_IMPOSED,
+	BATTLE_PHASE_SKIPPED,
 
 	CARD_DRAWN,
 	CARD_SET,

@@ -891,9 +891,10 @@ func pending_summon_card():
 ## assume success: a full Monster Zone makes the Summon illegal and it simply does not
 ## happen (the card stays where it was).
 func special_summon(card: CardInstance, controller_id: int, position: Enums.Position,
-		source_id: int = -1, zone_index: int = -1) -> bool:
+		source_id: int = -1, zone_index: int = -1,
+		to_zone: Enums.Zone = Enums.Zone.MONSTER_ZONE) -> bool:
 	var pending := summons.begin_special_summon(card, controller_id, position,
-		source_id, zone_index)
+		source_id, zone_index, to_zone)
 	if pending.is_empty():
 		return false
 	return summons.complete_summon(pending)

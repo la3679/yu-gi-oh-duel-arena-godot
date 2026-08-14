@@ -1,7 +1,8 @@
 # TEST_RESULTS
 
-**Last run:** 2026-08-14 (Phase 5 batch 8 STILL PARTIAL — the LP-cost unit,
-`Judge of the Ice Barrier` and `Junk Blader`; two cards remain)
+**Last run:** 2026-08-14 (Phase 5 **batch 8 COMPLETE** — the Trap-Monster gate,
+`The Phantom Knights of Shadow Veil`, the Battle-Phase-restriction gate and
+`Runick Flashing Fire`)
 **Engine:** Godot 4.7.1.stable.official.a13da4feb (headless)
 
 Command:
@@ -33,40 +34,111 @@ The raw command still works and produces the same numbers:
 
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
-| Core rules tests | 18 | 1323 | **1323** | 0 |
-| Per-card tests | 39 | 3418 | **3418** | 0 |
+| Core rules tests | 20 | 1568 | **1568** | 0 |
+| Per-card tests | 41 | 3666 | **3666** | 0 |
 | Interaction tests | 1 | 46 | **46** | 0 |
 | Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **58** | **4787** | **4787** | **0** |
+| **TOTAL** | **62** | **5280** | **5280** | **0** |
 
-SmokeCheck: **PASS**. Matrix: **47 / 77 implemented, 47 / 77 tested, 30 remaining** (computed by
+SmokeCheck: **PASS**. Matrix: **49 / 77 implemented, 49 / 77 tested, 28 remaining** (computed by
 `python Tools/build_matrix.py`, not written by hand).
 
-### Batch 8 so far — STILL PARTIAL, and honestly so
+### Batch 8 — COMPLETE. Nothing in it is partial or unverified.
 
-Batch 8 is **not complete**. Four of its units are done, tested and committed; **two cards are
-not started** and are **not** counted as implemented anywhere.
+All six units are done, tested and committed. Both remaining cards were finished in this session,
+each behind its own generic gate written and passing first.
 
-This session added **336** assertions and changed **no existing test expectation at all**. **All
-4451 assertions from the previous checkpoint pass unchanged** — none was weakened, retargeted or
+This session added **493** assertions and changed **no existing test expectation at all**. **All
+4787 assertions from the previous checkpoint pass unchanged** — none was weakened, retargeted or
 deleted. Every pre-existing suite reports exactly its previous count; no suite was rewritten.
 
-* New core-rules suite: `LifePointCostTests` **109** — the **LP-cost gate**, written and passing
-  before `Judge of the Ice Barrier` existed, the way `EquipTests`, `ControlTests`,
-  `MovementTests` and `BanishTests` were.
-* New per-card suites: `JudgeOfTheIceBarrierTests` **154**, `JunkBladerTests` **73**.
+* New core-rules suites: `TrapMonsterTests` **192** — the **Trap-Monster gate** — and
+  `BattlePhaseRestrictionTests` **53** — the **Battle-Phase-restriction gate**. Both were written
+  and passing **before** the card that needed them, the way `EquipTests`, `ControlTests`,
+  `MovementTests`, `BanishTests` and `LifePointCostTests` were.
+* New per-card suites: `ThePhantomKnightsOfShadowVeilTests` **125**,
+  `RunickFlashingFireTests` **123**.
 
-**Done:** unit A (the banish gate) · `Interdimensional Matter Transporter` · the LP-cost unit ·
-`Judge of the Ice Barrier` · `Junk Blader`.
-**Not started:** `The Phantom Knights of Shadow Veil` · `Runick Flashing Fire`.
+| Batch 8 unit | Suite | Result |
+|---|---|---|
+| the generic banish / temporary-removal gate | `BanishTests` | 158/158 |
+| `Interdimensional Matter Transporter` | `InterdimensionalMatterTransporterTests` | 175/175 |
+| the generic LP-payment-as-cost gate | `LifePointCostTests` | 109/109 |
+| `Judge of the Ice Barrier` | `JudgeOfTheIceBarrierTests` | 154/154 |
+| `Junk Blader` | `JunkBladerTests` | 73/73 |
+| **the generic Trap-Monster gate** | `TrapMonsterTests` | **192/192** |
+| **`The Phantom Knights of Shadow Veil`** | `ThePhantomKnightsOfShadowVeilTests` | **125/125** |
+| **the generic Battle-Phase-restriction gate** | `BattlePhaseRestrictionTests` | **53/53** |
+| **`Runick Flashing Fire`** | `RunickFlashingFireTests` | **123/123** |
 
-The batch was stopped at this point **deliberately, not because anything failed**. Each of the
-two remaining cards needs a generic subsystem of its own first — Trap Monsters for
-`The Phantom Knights of Shadow Veil`, and an authoritative Battle-Phase restriction for
-`Runick Flashing Fire` — and starting one without room to finish it and its gate would have
-risked leaving a card half-implemented. `PROJECT_STATE.md §8` carries the exact continuation.
+The LP-cost suite is **unchanged at 109**, as required. Cards started but unfinished: **none.**
+Mechanics left UNVERIFIED: **none.**
 
-#### Generic mechanics added this session
+#### Generic mechanics added by the final two units
+
+* **Trap Monsters — a card with two identities.** `CardInstance.monster_identity` plus
+  `become_monster()` / `clear_monster_identity()` / `has_monster_identity()` /
+  `original_card_category()` / `current_level()` / `current_attribute()` / `current_race()` /
+  `is_normal_monster()`, with `is_monster()` / `is_trap()` / `is_spell()` / `base_atk()` /
+  `base_def()` answering from the runtime identity when one is held. The immutable, **shared**
+  `CardDef` is never written to — asserted by keeping a second copy of the same definition in the
+  Graveyard and proving it stays a Trap. `GameState.move_card()` revokes the identity on every
+  departure from a Monster Zone, in one place. New spec section `RULES_SPEC.md §5.8`; new ruling
+  **R33**.
+* **A DESTINATION replacement** — `GameState.BANISH_WHEN_LEAVING_FIELD_KEY` and
+  `EffectPrimitives.banish_when_it_leaves_the_field()`. Distinct from the destruction replacement
+  of §17: that one swaps *which card* is destroyed, this one swaps *where this card ends up*, and
+  it applies to every departure rather than to destruction alone. **Only the destination changes;
+  the reason does not**, so a redirected destruction still fires `CARD_DESTROYED`.
+* **"Skip your next Battle Phase" as authoritative turn state** — `PlayerState.battle_phase_skips`,
+  `GameState.impose_battle_phase_skip()` / `has_pending_battle_phase_skip()` /
+  `consume_battle_phase_skip()`, the `BATTLE_PHASE_SKIP_IMPOSED` / `BATTLE_PHASE_SKIPPED` events,
+  and `TurnFlow._spend_battle_phase_skip()`. A genuinely **third** lifetime alongside the
+  turn-scoped and continuous restrictions that already existed — see the table in
+  `RULES_SPEC.md §2.4`. New ruling **R32**, with honest per-part confidence.
+* **A gain with NO printed duration** — `EffectPrimitives.gain_atk_and_def_permanently()`. The
+  absence of a duration is the specification: not end-of-turn, and not tied to a source that is in
+  the Graveyard moments later.
+* **A Special Summon to the EXTRA Monster Zone** — a `to_zone` on
+  `SummonRules.begin_special_summon()` / `complete_summon()` / `DuelEngine.special_summon()`, plus
+  `PlayerState.monsters()` now counting the Extra Monster Zone. `Runick Flashing Fire`'s second
+  bullet names that zone explicitly, and a monster sitting in it has to be a monster the player
+  controls for every rules question that follows.
+* **`EffectPrimitives.extra_deck_monsters()` / `special_summon_from_extra_deck()`** and
+  **`skip_your_next_battle_phase()`**.
+* Test-side: `TestFixtures.trap_monster()`, fully parameterised so the gate can prove the runtime
+  type line is really carried rather than hard-coded.
+
+#### Defects found by the final two units
+
+**No pre-existing engine defect.** Every defect found was in test code, and all three are of the
+two false-positive shapes `PROJECT_STATE.md §12` warns about — which is why the path assertions
+that caught them were written in the first place.
+
+1. **A vacuous negation test, caught by its own path assertion.** `TrapMonsterTests`'s
+   summon-negation test used `TestFixtures.effect_negator()`, which deliberately answers only the
+   narrower "a Spell/Trap **CARD** was activated below me" question and so could never fire on a
+   Graveyard **Ignition Effect** — and it drove the Chain through
+   `TestFixtures.activate_effect()`, which finishes with `pass_until_open()` and therefore
+   auto-passes the opponent's response window. The test would have passed against a broken
+   implementation. It failed on the `EFFECT_NEGATED` assertion instead of on its conclusions,
+   which is exactly what that assertion is for. Rewritten to build the Chain link by link with
+   `any_effect_negator()`.
+2. **A script error that aborted a test after its passing assertions.** A shape assertion in
+   `ThePhantomKnightsOfShadowVeilTests` read `EffectDef.optional`, which does not exist — the
+   field is `optionality`. The suite reported 123/124 with a `SCRIPT ERROR` line rather than
+   failing cleanly. Same class as the batch-8 `JunkBladerTests` `copies_total` access, and the
+   reason the run is checked for `SCRIPT ERROR` lines and not for `RESULT: PASS` alone.
+3. **A Damage Step test observing the wrong moment.** The response window straight after an
+   attack declaration is the **Battle Step**, not the Damage Step, and a Spell Speed 2 Trap is
+   perfectly legal there — so "is it offered?" taken at that instant tested nothing. Rewritten to
+   ask `ActivationRules.damage_step_ok()` at the sub-step, the way `JunkBladerTests` does.
+
+A fourth finding was a wrong expectation of the author's rather than a defect: a test asserted the
+opponent's Deck grew by one when their monster was bounced, and a bounce goes to the **hand**.
+Corrected to the right expectation rather than the assertion being removed.
+
+#### Generic mechanics added earlier in batch 8
 
 * **Paying LP as an activation cost.** `EffectPrimitives.LP_COST_KEY` / `LP_COST_REASON`,
   `can_pay_life_points_cost()`, `pay_life_points_cost()`, `life_points_paid_in()`,
@@ -86,7 +158,7 @@ risked leaving a card half-implemented. `PROJECT_STATE.md §8` carries the exact
 * Test-side: `TestFixtures.lp_cost_activation()`, `lp_cost_ignition()`,
   `non_lp_cost_activation()`, `lp_changer()`, `lp_cost_watcher()`, `any_effect_negator()`.
 
-#### Defects found this session
+#### Defects found earlier in batch 8
 
 **No pre-existing engine defect, and no engine defect at all.** That is a result rather than an
 omission: the LP-cost gate was written and green before `Judge of the Ice Barrier` existed, so
@@ -1028,9 +1100,24 @@ No test expectation was weakened to make the implementation pass.
 
 ## Known issues in the harness (not rules defects)
 
-* **Latest measurement: `135266 ObjectDB instances were leaked at exit`** (2026-08-14, at
+* **Latest measurement: `154223 ObjectDB instances were leaked at exit`** (2026-08-14, at
+  **5280** assertions across 62 suites), up from 135266. That is **18957 more for 493 more
+  assertions, ~38.5 per assertion**, against the previous checkpoint's ~36.2. This is the
+  **fourth consecutive rising checkpoint** and again the highest per-assertion figure recorded.
+  Reported as measured; **no explanation is offered, because none has been measured.** The
+  plausible reading is still that the four new suites build many small duels — `TrapMonsterTests`
+  and `RunickFlashingFireTests` each construct a fresh duel per test, and two of them loop over
+  four to six departure routes building one duel apiece — rather than that the new
+  `monster_identity` dictionary or `battle_phase_skips` array retains anything; both are plain
+  data cleared on the paths that own them. **That remains inference, not measurement**, and
+  confirming it belongs to the characterisation task below, which is now **more** warranted than
+  it was. It causes no test failure, hang, memory pressure or unreliability, so per the batch
+  rules it was correctly not allowed to derail the card work. **It must be characterised or fixed
+  before Phase 7.**
+
+* **Superseded, kept for the trend: `135266 ObjectDB instances were leaked at exit`** (2026-08-14, at
   4787 assertions across 58 suites), up from 123104. That is **12162 more for 336 more
-  assertions, ~36.2 per assertion** — a further rise, and again **the highest per-assertion
+  assertions, ~36.2 per assertion** — a further rise, and at the time **the highest per-assertion
   figure recorded so far**. Reported as measured rather than explained away. The plausible
   reading is unchanged and unchanged in status: the three new suites build many small duels
   (`LifePointCostTests` alone constructs a fresh duel per test and runs one scenario twice for

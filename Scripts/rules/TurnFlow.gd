@@ -80,7 +80,13 @@ func can_enter_battle_phase(pid: int) -> bool:
 	#      stops applying.
 	#
 	# Both must block the Battle Phase; neither may be expressed in terms of the other.
+	#   `battle_phase_skips` — an outstanding "skip your NEXT Battle Phase" obligation
+	#      (`Runick Flashing Fire`). A third lifetime again: acquired at one moment, owed
+	#      against a specific FUTURE turn, surviving every turn boundary until then, and
+	#      CONSUMED by the Battle Phase it costs. RULES_SPEC.md 2.4.
 	if bool(state.player(pid).get_restriction("skip_battle_phase_this_turn", false)):
+		return false
+	if state.has_pending_battle_phase_skip(pid):
 		return false
 	if bool(state.player(pid).get_restriction(
 			ContinuousEffects.PLAYER_KEY_PREFIX + "cannot_conduct_battle_phase", false)):
@@ -211,8 +217,35 @@ func _begin_turn_common() -> void:
 
 ## Per-turn state that expires when the turn ends. RULES_SPEC.md 11.
 func _end_of_turn_cleanup() -> void:
+	_spend_battle_phase_skip()
 	for card in state.all_instances():
 		card.remove_modifiers_with_duration("end_of_turn")
 	for p in state.players:
 		p.end_turn(state.turn_number)
 		p.clear_restriction("skip_battle_phase_this_turn")
+
+
+## An outstanding "skip your next Battle Phase" obligation is spent by the turn that paid it.
+## RULES_SPEC.md 2.4, CARD_RULINGS.md R32.
+##
+## Two decisions are encoded here and neither is arbitrary.
+##
+## **Only the TURN PLAYER pays.** A Battle Phase belongs to the turn player, so a turn in
+## which you are not the turn player never presented one of yours to skip.
+##
+## **A turn that could not have had a Battle Phase anyway does not pay.** The obligation names
+## "your next Battle Phase", and turn 1 of the player who went first contains none to name
+## [S1 p.37] — nothing was skipped, so nothing is spent, and the obligation carries to the
+## next turn that really does offer one. The alternative reading, where the obligation
+## evaporates against a turn that never had a Battle Phase, would let a player activate the
+## card on their first turn for free. CARD_RULINGS.md R32 records this with its confidence.
+##
+## Run BEFORE `p.end_turn()` so it reads the ending turn's number, and before the turn player
+## changes in `begin_next_turn()`.
+func _spend_battle_phase_skip() -> void:
+	var pid := state.turn_player_id
+	if not state.has_pending_battle_phase_skip(pid):
+		return
+	if state.turn_number == 1 and state.first_player_id == pid:
+		return
+	state.consume_battle_phase_skip(pid)

@@ -853,6 +853,74 @@ func expire_banish_leases(end_phase_reached: bool = false) -> void:
 
 
 # ---------------------------------------------------------------------------
+# "Skip your next Battle Phase". RULES_SPEC.md 2.4, CARD_RULINGS.md R1 / R32.
+#
+# Authoritative turn state, held on PlayerState and asked by
+# `TurnFlow.can_enter_battle_phase()`. It is deliberately not a continuous restriction and
+# not a card-local flag: no card polls it, and nothing in the presentation layer owns it.
+# ---------------------------------------------------------------------------
+
+## "…but skip your next Battle Phase after activation."
+##
+## **Which** Battle Phase is decided here, once, at the moment the obligation is taken on —
+## not later by guesswork. It is THIS turn's when the acquiring player is the turn player and
+## their Battle Phase is still ahead of them, and from the next turn onward otherwise.
+##
+## `battle_phase_conducted_this_turn` is what makes the second case right for a Quick-Play
+## Spell activated DURING the Battle Phase: that player is already conducting the Battle
+## Phase they are in, so the "next" one is a later turn's. Using `turn_number + 1` for that
+## case is safe even though the acquirer's own next turn is two away — the turn in between is
+## the opponent's, and this is only ever asked of the turn player.
+func impose_battle_phase_skip(pid: int, source_id: int = -1,
+		source_name: String = "") -> void:
+	var applies_from := turn_number + 1
+	if turn_player_id == pid and not battle_phase_conducted_this_turn:
+		applies_from = turn_number
+	player(pid).battle_phase_skips.append({
+		"applies_from_turn": applies_from,
+		"source_id": source_id,
+		"source_name": source_name,
+	})
+	emit(GameEvent.Kind.BATTLE_PHASE_SKIP_IMPOSED, {
+		"player": pid, "applies_from_turn": applies_from,
+		"source_id": source_id, "source_name": source_name,
+		"pending": player(pid).battle_phase_skips.size(),
+	})
+
+
+## Is this player currently barred from conducting a Battle Phase by an outstanding skip?
+## An obligation acquired for a later turn does not bar the current one.
+func has_pending_battle_phase_skip(pid: int) -> bool:
+	for entry in player(pid).battle_phase_skips:
+		if int((entry as Dictionary).get("applies_from_turn", 0)) <= turn_number:
+			return true
+	return false
+
+
+## Spend exactly ONE outstanding obligation — the oldest applicable one, so the order is
+## fixed and a replay reproduces it. Returns false when there was nothing to spend.
+##
+## Called once per turn, from `TurnFlow._end_of_turn_cleanup()`, and only for a turn in which
+## the player could otherwise have conducted a Battle Phase. Two obligations therefore cost
+## two Battle Phases rather than collapsing into one.
+func consume_battle_phase_skip(pid: int) -> bool:
+	var p := player(pid)
+	for i in range(p.battle_phase_skips.size()):
+		var lease: Dictionary = p.battle_phase_skips[i]
+		if int(lease.get("applies_from_turn", 0)) > turn_number:
+			continue
+		p.battle_phase_skips.remove_at(i)
+		emit(GameEvent.Kind.BATTLE_PHASE_SKIPPED, {
+			"player": pid, "turn": turn_number,
+			"source_id": int(lease.get("source_id", -1)),
+			"source_name": str(lease.get("source_name", "")),
+			"remaining": p.battle_phase_skips.size(),
+		})
+		return true
+	return false
+
+
+# ---------------------------------------------------------------------------
 # Equip Cards. RULES_SPEC.md 16 [S1 p.29, p.53, p.55]
 #
 # "The term 'Equip Card' includes all 3 kinds (standard Equip Spells, equipped Traps, and

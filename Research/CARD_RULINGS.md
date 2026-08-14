@@ -634,6 +634,88 @@ exercises the printed consumer.
 
 ---
 
+### R32 — "skip your next Battle Phase": WHICH Battle Phase, and when it is spent
+
+`Runick Flashing Fire` prints "Activate 1 of these effects, **but skip your next Battle Phase
+after activation**". **R1** already fixes the part that matters most — the restriction applies
+**on activation, even if the chosen effect is later negated** — and that half is official and
+unchanged. R32 records the two questions R1 leaves open, because the implementation cannot avoid
+answering them.
+
+**Part A — which Battle Phase is "your next" one. Confidence: MEDIUM-HIGH.**
+Decided at the moment the obligation is taken on, from turn state rather than guessed later:
+
+| Activated… | Battle Phase it takes |
+|---|---|
+| in your own Main Phase 1, before your Battle Phase | **this turn's** |
+| in your own Battle Phase or Main Phase 2 | a **later** turn's — you cannot skip one you are already conducting or have already had |
+| during the opponent's turn (it is a Quick-Play at Spell Speed 2) | **your next turn's** |
+
+`GameState.battle_phase_conducted_this_turn` is what separates rows 1 and 2, and it is already
+authoritative state written by `TurnFlow.enter_phase()`. This reading is the plain one and needs
+no special pleading; it is not marked HIGH only because no *official* Konami ruling was consulted
+for the mid-Battle-Phase case.
+
+**Part B — a turn that could not have had a Battle Phase does not spend the obligation.
+Confidence: MEDIUM.**
+The player who goes first cannot conduct a Battle Phase on their first turn [S1 p.37]. If that
+player activates this card on turn 1, there is no Battle Phase there to skip, so the obligation is
+**not** consumed and carries to the next turn that really offers one. The alternative reading —
+that the obligation evaporates against a turn which never had a Battle Phase — would make
+activating the card on your first turn **free**, which is the opposite of what the text is for.
+The obligation is therefore spent only by a turn in which the player was the turn player *and*
+was not barred by the turn-1 rule.
+
+**Part C — two obligations cost two Battle Phases. Confidence: LOW-MEDIUM, and NEVER LIVE.**
+Modelled as a counted list rather than a boolean, which is the strictly more general shape. It
+**cannot occur in the physical pool**: there is one copy of `Runick Flashing Fire`, it is a
+Quick-Play Spell that goes to the Graveyard on resolution, and "You can only activate 1 per turn"
+caps it further — so a second outstanding obligation is unreachable. Recorded honestly at LOW-
+MEDIUM and tested synthetically rather than asserted as settled rules.
+
+*Basis:* the card text plus `RULES_SPEC.md §2` / §6 and [S1 p.37]. **No official Konami ruling was
+found for Parts B or C** — recorded as such rather than dressed up. Do not promote the confidence
+without a source.
+*Implementation:* `PlayerState.battle_phase_skips`, `GameState.impose_battle_phase_skip()` /
+`has_pending_battle_phase_skip()` / `consume_battle_phase_skip()`,
+`TurnFlow.can_enter_battle_phase()` and `TurnFlow._spend_battle_phase_skip()`.
+RULES_SPEC.md §2.4.
+*Tests:* `BattlePhaseRestrictionTests` (53) is the generic gate; `RunickFlashingFireTests` (123)
+exercises the printed consumer, including both negation cases R1 names.
+
+---
+
+### R33 — a Trap Monster's runtime identity is per-copy, and the printed card is untouched
+
+`The Phantom Knights of Shadow Veil` Special Summons itself "as a Normal Monster
+(Warrior/DARK/Level 4/ATK 0/DEF 300)". **Confidence: HIGH** — this is a direct consequence of
+[S1 p.53] plus the engine's own invariant that a `CardDef` is immutable and shared.
+
+The decision recorded here is **where the granted type line lives**. It cannot go on the
+`CardDef`: that object is the canonical printed identity and is shared by every copy of the card,
+so writing a temporary Level and ATK into it would rewrite the card for the whole duel and for
+every other copy. It lives on the `CardInstance` instead, and is revoked the instant the card
+leaves the Monster Zone — on every route out, including the negated-Summon path, where the card
+never reached the field at all.
+
+Two sub-questions, both settled by the text rather than by a general rule:
+
+* **"(This card is NOT treated as a Trap.)"** is a statement this particular card makes. Most
+  printed Trap Monsters remain Trap Cards while they are monsters, so the engine carries
+  `treated_as_original_type` per card rather than assuming either answer.
+* **"banish this card when it leaves the field"** replaces the DESTINATION and nothing else. The
+  card really was destroyed / tributed / returned; it simply does not arrive where that normally
+  sends it. Rewriting the movement REASON as well would silently delete the destruction and every
+  trigger keyed on it, so the reason is left alone and a `CARD_BANISHED` event is emitted
+  alongside.
+
+*Implementation:* `CardInstance.monster_identity` and its accessors,
+`GameState.BANISH_WHEN_LEAVING_FIELD_KEY`. RULES_SPEC.md §5.8.
+*Tests:* `TrapMonsterTests` (192) is the generic gate;
+`ThePhantomKnightsOfShadowVeilTests` (125) exercises the printed consumer.
+
+---
+
 ## 5. Banlist note (master prompt §51)
 
 These are fixed casual decks built from an owned physical collection. Current Forbidden/Limited

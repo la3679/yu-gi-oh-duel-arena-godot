@@ -1295,6 +1295,65 @@ static func special_summon_self(ctx: EffectContext,
 	return ctx.engine.special_summon(ctx.source, ctx.controller_id, position, ctx.source.id)
 
 
+## "Special Summon 1 <archetype> monster from your Extra Deck to the Extra Monster Zone."
+## [`Runick Flashing Fire`, second bullet]
+##
+## **Never live in the V1 pool** — both decks have an empty Extra Deck (CARD_RULINGS.md R1) —
+## so this is written to be correct rather than to be convenient, and its card must report
+## "no legal choice" rather than omitting the branch. Tested against a synthetic Extra Deck
+## monster, with a real-pool assertion that no printed card can satisfy it.
+static func extra_deck_monsters(ctx: EffectContext, archetype: String) -> Array:
+	var out: Array = []
+	for entry in ctx.me().extra_deck:
+		var card: CardInstance = entry
+		if card == null or not card.is_monster():
+			continue
+		if archetype != "" and not name_matches_archetype(card, archetype):
+			continue
+		out.append(card)
+	return out
+
+
+## Special Summon one chosen card from the Extra Deck INTO THE EXTRA MONSTER ZONE, which is
+## the zone this clause names explicitly. Returns the monster Summoned, or null.
+static func special_summon_from_extra_deck(ctx: EffectContext, candidates: Array,
+		prompt: String) -> CardInstance:
+	if ctx.engine == null:
+		push_error("EffectPrimitives.special_summon_from_extra_deck: no engine attached")
+		return null
+	if candidates.is_empty():
+		ctx.log_note("no legal monster in the Extra Deck")
+		return null
+	if ctx.me().extra_monster_zone != null:
+		ctx.log_note("the Extra Monster Zone is occupied")
+		return null
+	var chosen := choose_one(ctx, candidates, prompt)
+	if chosen == null:
+		return null
+	var position := choose_face_up_position(ctx,
+		"Special Summon %s in which position?" % chosen.card_name())
+	if not ctx.engine.special_summon(chosen, ctx.controller_id, position, ctx.source.id,
+			-1, Enums.Zone.EXTRA_MONSTER_ZONE):
+		ctx.log_note("the Special Summon did not happen")
+		return null
+	return chosen
+
+
+# ---------------------------------------------------------------------------
+# "Skip your next Battle Phase". RULES_SPEC.md 2.4
+# ---------------------------------------------------------------------------
+
+## "…but skip your next Battle Phase after activation." [`Runick Flashing Fire`]
+##
+## Call this from `pay_cost`, at ACTIVATION — never from `resolve`. CARD_RULINGS.md **R1**
+## fixes that: the restriction applies on activation *even if the chosen effect is later
+## negated*, so it cannot be part of what the effect does. The card owns no state of its own
+## here; the obligation goes to the authoritative turn state.
+static func skip_your_next_battle_phase(ctx: EffectContext) -> void:
+	ctx.state.impose_battle_phase_skip(ctx.controller_id, ctx.source.id,
+		ctx.source.card_name())
+
+
 # ---------------------------------------------------------------------------
 # Trap Monsters. RULES_SPEC.md 5.8 [S1 p.53]
 # ---------------------------------------------------------------------------

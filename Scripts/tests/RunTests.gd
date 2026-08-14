@@ -33,6 +33,7 @@ func _initialize() -> void:
 	suites.append(BanishTests.run())
 	suites.append(LifePointCostTests.run())
 	suites.append(TrapMonsterTests.run())
+	suites.append(BattlePhaseRestrictionTests.run())
 
 	# --- Per-card suites (Phase 5). One per implemented card. ---
 	suites.append(ShiningAngelTests.run())
@@ -75,6 +76,7 @@ func _initialize() -> void:
 	suites.append(JudgeOfTheIceBarrierTests.run())
 	suites.append(JunkBladerTests.run())
 	suites.append(ThePhantomKnightsOfShadowVeilTests.run())
+	suites.append(RunickFlashingFireTests.run())
 
 	# --- Interaction suites (Phase 5). Cross-card behaviour, no card-under-test. ---
 	suites.append(SpecialSummonInteractionTests.run())

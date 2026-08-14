@@ -317,11 +317,19 @@ func _pay_tributes(summoned: CardInstance, tributes: Array, controller_id: int) 
 ## `position` must be a face-up position unless the summoning card says otherwise;
 ## `Apprentice Magician` Special Summons in face-down Defense Position, so face-down is
 ## permitted when the caller explicitly asks for it.
+## `to_zone` is the Monster Zone unless the summoning card names the Extra Monster Zone, which
+## `Runick Flashing Fire`'s second bullet does explicitly ("…to the Extra Monster Zone"). It
+## is carried on the pending record rather than assumed at completion time, so the zone the
+## declaration announced is the zone the Summon lands in.
 func begin_special_summon(card: CardInstance, controller_id: int,
-		position: Enums.Position, source_id: int = -1, zone_index: int = -1) -> Dictionary:
+		position: Enums.Position, source_id: int = -1, zone_index: int = -1,
+		to_zone: Enums.Zone = Enums.Zone.MONSTER_ZONE) -> Dictionary:
 	if state.is_duel_over() or card == null or not card.is_monster():
 		return {}
-	if not state.player(controller_id).has_free_monster_zone():
+	if to_zone == Enums.Zone.EXTRA_MONSTER_ZONE:
+		if state.player(controller_id).extra_monster_zone != null:
+			return {}
+	elif not state.player(controller_id).has_free_monster_zone():
 		return {}
 	# "You can only control 1 …" applies to a Special Summon just as much as to a Normal
 	# Summon: the limit is on what you CONTROL, not on how the copy arrived.
@@ -338,7 +346,7 @@ func begin_special_summon(card: CardInstance, controller_id: int,
 	})
 	return {
 		"card": card, "controller": controller_id, "kind": Enums.SummonKind.SPECIAL,
-		"zone_index": zone_index, "position": position,
+		"zone_index": zone_index, "position": position, "to_zone": to_zone,
 		"origin_zone": from_zone, "negated": false, "source_id": source_id,
 	}
 
@@ -360,7 +368,8 @@ func complete_summon(pending: Dictionary) -> bool:
 	if kind == Enums.SummonKind.FLIP:
 		return _complete_flip_summon(card, controller_id)
 
-	if not state.move_card(card, Enums.Zone.MONSTER_ZONE, Enums.MoveReason.SUMMONED, {
+	var to_zone: Enums.Zone = pending.get("to_zone", Enums.Zone.MONSTER_ZONE)
+	if not state.move_card(card, to_zone, Enums.MoveReason.SUMMONED, {
 			"index": int(pending["zone_index"]), "to_player": controller_id,
 			"position": position, "source_id": int(pending.get("source_id", -1))}):
 		return false

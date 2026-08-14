@@ -60,6 +60,31 @@ consumed. [S1 p.40]
 * **The player who goes first cannot conduct a Battle Phase on their first turn.**
 * Steps: Start Step → (Battle Step → Damage Step)* → End Step. [S1 p.37]
 
+**Three separate ways a player can be barred from conducting one**, with three different
+lifetimes. They must not be collapsed into each other, and `TurnFlow.can_enter_battle_phase()`
+asks all three:
+
+| Mechanism | Lifetime | Owner | Printed by |
+|---|---|---|---|
+| the turn-1 rule above | the first turn only | the rules | — |
+| `skip_battle_phase_this_turn` | THIS turn; wiped by `_end_of_turn_cleanup()` | a resolving effect | `Soul Exchange` ("cannot conduct your Battle Phase this turn") |
+| `continuous:cannot_conduct_battle_phase` | while its face-up source applies; rebuilt on every `ContinuousEffects.recompute()` | the continuous system | a continuous source |
+| `PlayerState.battle_phase_skips` | acquired at one moment, owed against a specific FUTURE turn, survives every turn boundary until then, **consumed** by the Battle Phase it costs | authoritative turn state | `Runick Flashing Fire` ("skip your next Battle Phase after activation") |
+
+The fourth is the one added in batch 8, and it is genuinely a third shape: a turn-scoped flag
+would evaporate before the turn it applies to, and a continuous restriction would lift the moment
+its source left the field — and its source is a Quick-Play Spell that is in the Graveyard
+immediately. **It is never a UI timer and no card polls it.**
+
+*Which* Battle Phase it takes is decided once, when the obligation is taken on: this turn's when
+the acquiring player is the turn player and their Battle Phase is still ahead of them, and from
+the next turn onward otherwise (`battle_phase_conducted_this_turn` separates the two). It is spent
+by `TurnFlow._spend_battle_phase_skip()` at the end of a turn in which that player was the turn
+player and was not barred by the turn-1 rule — so a turn that never offered a Battle Phase does
+not consume it. **CARD_RULINGS.md R1 and R32** record the whole decision with per-part confidence;
+R1's "applies on activation even if the effect is negated" is why the card applies it in
+`pay_cost` rather than in `resolve`.
+
 ### 2.5 End Phase [S1 p.40]
 * Resolve "during the End Phase" effects.
 * **Hand size limit 6** — discard down to 6 at the end of the phase.

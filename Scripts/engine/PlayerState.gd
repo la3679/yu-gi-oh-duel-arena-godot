@@ -48,8 +48,26 @@ var named_effect_usage: Dictionary = {}
 var named_activation_usage: Dictionary = {}
 
 # --- Lingering per-player restrictions ---
-## e.g. {"skip_next_battle_phase": true, "no_battle_phase_this_turn": true}
+## e.g. {"skip_battle_phase_this_turn": true}
 var restrictions: Dictionary = {}
+
+## Outstanding "skip your NEXT Battle Phase" obligations. RULES_SPEC.md 2.4, CARD_RULINGS.md
+## R1/R32.
+##
+## Deliberately NOT in `restrictions`. Everything in that dictionary is either turn-scoped
+## (wiped by `TurnFlow._end_of_turn_cleanup()`) or continuous (rebuilt from the board by
+## `ContinuousEffects.recompute()`), and this obligation is neither: it is acquired at one
+## moment, belongs to a specific FUTURE turn, survives every turn boundary in between, and is
+## CONSUMED by the Battle Phase it costs. A turn-scoped flag would evaporate before the turn
+## it applies to; a continuous one would lift the moment its source left the field, and its
+## source is a Quick-Play Spell that is in the Graveyard immediately.
+##
+## An ARRAY rather than a bool, because two obligations are two Battle Phases. Each entry:
+##   {"applies_from_turn": int, "source_id": int, "source_name": String}
+## `applies_from_turn` is what makes "your NEXT Battle Phase" mean the right one: it is this
+## turn when the acquiring player is the turn player and their Battle Phase is still ahead of
+## them, and the following turn otherwise.
+var battle_phase_skips: Array = []
 
 var has_lost: bool = false
 
@@ -70,8 +88,17 @@ func _init(p_id: int = 0, p_name: String = "Player") -> void:
 # ---------------------------------------------------------------------------
 
 ## Face-up and face-down monsters this player controls.
+##
+## The Extra Monster Zone counts. It is unused by the V1 pool's two decks — both Extra Decks
+## are empty — but `Runick Flashing Fire`'s second bullet Summons there by name, so a monster
+## sitting in it must be a monster this player controls for every rules question that follows:
+## being attacked, being targeted, being Tributed, the control limit. Leaving it out would
+## make a monster that is on the field invisible to the rules. [S1 p.6]
 func monsters() -> Array:
-	return monster_zones.filter(func(c): return c != null)
+	var out := monster_zones.filter(func(c): return c != null)
+	if extra_monster_zone != null:
+		out.append(extra_monster_zone)
+	return out
 
 
 func face_up_monsters() -> Array:
