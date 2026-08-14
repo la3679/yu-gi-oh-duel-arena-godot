@@ -99,6 +99,48 @@ static func _zone_list(player: PlayerState, zone: Enums.Zone) -> Array:
 
 ## "1 LIGHT monster with 1500 or less ATK" and friends. Any argument left at its default
 ## is not tested, so one builder covers most of the pool's search clauses.
+# ---------------------------------------------------------------------------
+# Archetypes — a quoted name fragment, e.g. "Ice Barrier", "Junk", "Runick".
+# ---------------------------------------------------------------------------
+
+## Is this card a member of `archetype`? Membership is by the card's own NAME containing the
+## quoted fragment, which is what the printed text means by '"Ice Barrier" monster'. The
+## OFFICIAL name is used, never a display name, so nothing depends on formatting.
+static func name_matches_archetype(card: CardInstance, archetype: String) -> bool:
+	if card == null or card.definition == null:
+		return false
+	var official := str(card.definition.official_name)
+	if official == "":
+		official = str(card.definition.name)
+	return official.contains(archetype)
+
+
+## Predicate form, for the `own_cards_in()` / `cards_in()` family.
+static func archetype_monster(archetype: String) -> Callable:
+	return func(card: CardInstance) -> bool:
+		return card.is_monster() and name_matches_archetype(card, archetype)
+
+
+## Does this player CONTROL a monster of `archetype`? `exclude_id` drops one instance, for
+## the "another" in `Judge of the Ice Barrier`'s "while you control ANOTHER 'Ice Barrier'
+## monster".
+##
+## Deliberately not face-up-only: the printed text says "control", and where the pool's
+## other cards mean face-up they say so (`controls_face_up_monster_of_race()` exists for
+## exactly that). The Monster Zone is what "control" names, so a Set monster counts and a
+## copy in the Graveyard does not — the GY is not "control". CARD_RULINGS.md R2.
+static func controls_archetype_monster(ctx: EffectContext, archetype: String,
+		pid: int = -1, exclude_id: int = -1) -> bool:
+	var owner_id := pid if pid >= 0 else ctx.controller_id
+	for entry in ctx.state.player(owner_id).monsters():
+		var card: CardInstance = entry
+		if card == null or card.id == exclude_id:
+			continue
+		if name_matches_archetype(card, archetype):
+			return true
+	return false
+
+
 static func monster_filter(attribute: String = "", max_atk: int = -1,
 		max_level: int = -1, race: String = "",
 		normal_only: bool = false) -> Callable:
@@ -1383,6 +1425,27 @@ static func negate_summon_and_destroy(ctx: EffectContext) -> bool:
 ## responder is not on the Chain yet. Returns null when that link is not a Spell/Trap CARD
 ## activation, which is what makes "a Spell/Trap Card is activated" narrower than
 ## "an effect is activated": a monster's Ignition or Quick Effect is neither.
+## The Chain Link directly below this one, whatever kind of card or effect it is.
+##
+## Deliberately weaker than `spell_trap_activation_below()`, which answers the narrower
+## question `Champion's Vigilance` asks ("a Spell/Trap CARD activation"). Negating an EFFECT
+## does not care whether the link is a card activation or a monster's Ignition Effect, and a
+## clause that reads the former cannot reach the latter at all. Returns null when the link
+## below has already resolved or had its activation negated.
+static func chain_link_below(ctx: EffectContext, below_link_number: int = 0) -> ChainLink:
+	var wanted := below_link_number - 1 if below_link_number > 0 else ctx.state.chain.size()
+	if wanted < 1:
+		return null
+	for entry in ctx.state.chain:
+		var link: ChainLink = entry
+		if link.link_number != wanted:
+			continue
+		if link.resolved or link.activation_negated:
+			return null
+		return link
+	return null
+
+
 static func spell_trap_activation_below(ctx: EffectContext,
 		below_link_number: int = 0) -> ChainLink:
 	var wanted := below_link_number - 1 if below_link_number > 0 else ctx.state.chain.size()

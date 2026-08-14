@@ -248,6 +248,28 @@ static func effect_negator(card_name: String) -> CardDef:
 	return with_effect(d, e)
 
 
+## The same as `effect_negator()`, but able to negate ANY Chain Link below it — including a
+## monster's Ignition or Trigger Effect, which `effect_negator()` cannot reach because
+## `spell_trap_activation_below()` deliberately answers only the narrower Spell/Trap
+## question. `Judge of the Ice Barrier`'s two Ignition Effects are the first clauses in the
+## pool that need it.
+static func any_effect_negator(card_name: String) -> CardDef:
+	var d := trap(card_name)
+	var e := EffectDef.new("negate_any_effect", "Test: negate whatever is below.")
+	e.of_type(Enums.EffectType.CARD_ACTIVATION)
+	e.with_spell_speed(Enums.SpellSpeed.SS2)
+	e.activation_locations = [Enums.ActivationLocation.FIELD_FACE_DOWN]
+	e.condition = func(ctx: EffectContext) -> bool:
+		return EffectPrimitives.chain_link_below(ctx) != null
+	e.resolve = func(ctx: EffectContext) -> void:
+		var link_number: int = ctx.link.link_number if ctx.link != null else 0
+		var below := EffectPrimitives.chain_link_below(ctx, link_number)
+		if below == null or ctx.engine == null or ctx.engine.chain == null:
+			return
+		ctx.engine.chain.negate_effect(below.link_number, ctx.source)
+	return with_effect(d, e)
+
+
 ## A Counter Trap that negates a pending Summon and does NOT destroy the monster.
 ##
 ## Deliberately weaker than `Champion's Vigilance`: "Negate the Summon" on its own is what
