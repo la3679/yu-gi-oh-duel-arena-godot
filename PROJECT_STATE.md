@@ -29,6 +29,7 @@ started.** The session that did it stopped at the Milestone A boundary for weekl
 unchanged — unit A adds a gate, not a card.** **All 5280 assertions from the previous
 checkpoint pass unchanged**; every pre-existing suite reports exactly its previous count, and
 5509 − 5280 = 229 is precisely the new suite. ObjectDB at exit: **164444**.
+**HEAD at checkpoint:** `245f15a` (the last code commit; this commit records the hash).
 
 **Unit A pins down that ATTACK PREVENTION, ATTACK NEGATION and a CARD-CLASS ACTIVATION LOCK are
 three different things** and must never become one `attack_blocked` boolean. It also consumed two
