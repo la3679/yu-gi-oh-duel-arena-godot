@@ -562,7 +562,18 @@ inconsistent answers to the same question.
 **Timing.** "Until the End Phase" is the same moment R25 already fixed for
 `Enemy Controller`'s control lease: the **entry** to the End Phase, before the hand-size discard.
 The two expiries are called side by side in `TurnFlow.enter_phase()` precisely so they cannot
-drift apart.
+drift apart, control first (see the code comment there for why the order is fixed).
+
+**(e) Known limitation, recorded rather than hidden: a card banished by an effect activated
+DURING the End Phase does not come back until the NEXT turn's End Phase.** Expiry runs as the
+phase is entered, so an activation later in the same phase has already missed it.
+`Interdimensional Matter Transporter` is a Normal Trap and can be activated in the End Phase, so
+this is reachable, and the real-world answer is probably that it should return during that same
+End Phase. It is left as it is on purpose: `Enemy Controller`'s "until the End Phase" control
+lease has exactly the same behaviour for exactly the same reason, R25 fixed that moment
+deliberately, and making banishment differ from control would break the one invariant this
+subsystem is built around. **Changing it must change both together**, and must revisit R25 —
+it is not a banish-only fix. Recorded in `Reports/TEST_RESULTS.md` under not-yet-covered.
 
 *Source:* the card's own current official text plus the general rules the engine already applies;
 reasoned, **not** a quoted Konami ruling on this card. Consulted 2026-08-13.

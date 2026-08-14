@@ -685,7 +685,11 @@ func banish_temporarily(card: CardInstance, source_id: int,
 	# in is the one it left in. CARD_RULINGS.md R30.
 	var return_zone := card.zone
 	var return_position = card.position
-	var return_index := card.zone_index
+	# The Monster Zone INDEX is deliberately NOT recorded. Nothing in the rules reserves the
+	# slot a banished monster left, and another monster may legally be sitting in it by the
+	# time this one comes back, so the card returns to the first free zone — deterministic,
+	# and the only answer that is always available. Recording an index nothing may act on
+	# would be state with no reader, which is the shape of two engine defects already in §4.
 	# The card returns under its OWNER's control, not under whoever controlled it at the
 	# moment it was banished. This is not a special rule for banishing: leaving the field
 	# already ends every control lease on the card (`drop_control_leases_for()` inside
@@ -701,8 +705,7 @@ func banish_temporarily(card: CardInstance, source_id: int,
 	banish_leases.append({
 		"card_id": card.id, "source_id": source_id, "duration": duration,
 		"return_zone": return_zone, "return_position": return_position,
-		"return_index": return_index, "return_controller": return_controller,
-		"face_up": face_up,
+		"return_controller": return_controller, "face_up": face_up,
 	})
 	return true
 

@@ -116,7 +116,14 @@ func enter_phase(new_phase: Enums.Phase) -> void:
 		# "…banish that target UNTIL THE END PHASE" (`Interdimensional Matter Transporter`)
 		# names the same moment as the control lease above and must not come to mean a
 		# different one, so the two expire side by side, here, at the ENTRY to the End Phase.
-		# RULES_SPEC.md 8.3, CARD_RULINGS.md R25/R30.
+		#
+		# The ORDER is control first, then banish returns, and it is deliberate: reverting
+		# control only rearranges monsters already on the board, whereas a banish return puts
+		# one back onto it. Settling the board before anything re-enters it means the return
+		# sees the final zone layout rather than a half-unwound one — which matters only in
+		# the exotic case where a monster coming home under a control reversion takes the
+		# last Monster Zone the returning card needed. RULES_SPEC.md 8.3, CARD_RULINGS.md
+		# R25/R30.
 		state.expire_banish_leases(true)
 
 

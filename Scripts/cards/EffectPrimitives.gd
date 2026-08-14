@@ -383,6 +383,32 @@ static func surviving_opponent_field_target(ctx: EffectContext) -> CardInstance:
 	return card
 
 
+## The mirror, for a clause that targets "1 face-up monster **you control**" —
+## `Interdimensional Matter Transporter` and `The Phantom Knights of Shadow Veil`.
+##
+## Three conditions, because the text states three, and each is re-checked at resolution for
+## the reason R29 gives: every word that made the target a legal target is part of what the
+## effect needs to still be true.
+##
+##   * still in a Monster Zone — the zone re-check every targeting clause does;
+##   * still controlled by THIS effect's controller — so a monster the opponent has taken
+##     with `Enemy Controller` or a Charmer in response is no longer a legal target;
+##   * still FACE-UP when the clause says "face-up" — a monster flipped face-down in response
+##     is not the thing that was targeted.
+##
+## Ownership is never consulted, exactly as in R29: control is what the text names.
+static func surviving_own_monster_target(ctx: EffectContext,
+		face_up_only: bool = true) -> CardInstance:
+	var card := surviving_target(ctx, Enums.Zone.MONSTER_ZONE)
+	if card == null:
+		return null
+	if card.controller_id != ctx.controller_id:
+		return null
+	if face_up_only and not card.is_face_up():
+		return null
+	return card
+
+
 # ---------------------------------------------------------------------------
 # Chain state. RULES_SPEC.md 4.1, CARD_RULINGS.md R4.
 #
@@ -453,6 +479,25 @@ static func return_self_by_chain_link(ctx: EffectContext) -> String:
 ## Face-down monsters are excluded when `face_up_only` is set, because a face-down monster's
 ## Attribute is not a property either player may act on — the same reading
 ## `Champion's Vigilance` uses for "a Level 7 or higher Normal Monster".
+## "Target 1 face-up monster YOU control" — the mirror of `opponent_monsters()`, and the
+## candidate set `Interdimensional Matter Transporter` and
+## `The Phantom Knights of Shadow Veil` both publish.
+##
+## Deliberately its own primitive rather than `cards_on_field()` filtered by the caller: the
+## controller check and the face-up check are what the text says, and a card that forgets
+## either one silently becomes a different card.
+static func own_monsters(ctx: EffectContext, face_up_only: bool = true) -> Array:
+	var out: Array = []
+	for entry in ctx.state.player(ctx.controller_id).monsters():
+		var card: CardInstance = entry
+		if card == null or card.definition == null:
+			continue
+		if face_up_only and not card.is_face_up():
+			continue
+		out.append(card)
+	return out
+
+
 static func opponent_monsters(ctx: EffectContext, attribute: String = "",
 		face_up_only: bool = true) -> Array:
 	var out: Array = []
@@ -876,13 +921,18 @@ static func banish_target(ctx: EffectContext, required_zone: Enums.Zone) -> Card
 ## The whole return mechanism lives in `GameState.banish_temporarily()` / the
 ## `banish_leases` register, not here and emphatically not in the card's script: the
 ## authoritative state is what must know a card is due back, so a replay reproduces the
-## return without consulting the card that caused it. This primitive is only the
-## resolution-time target re-check plus the call. RULES_SPEC.md 8.3, CARD_RULINGS.md R30.
-static func banish_target_temporarily(ctx: EffectContext,
+## return without consulting the card that caused it. RULES_SPEC.md 8.3, CARD_RULINGS.md R30.
+##
+## `target` is passed in ALREADY RE-CHECKED, rather than being resolved here, for the same
+## reason `banish_target()` takes a `required_zone`: which re-check a clause needs is a
+## property of that clause's wording — "1 monster on the field", "1 card your opponent
+## controls" and "1 face-up monster you control" are three different questions — and a
+## primitive that picked one of them for every card would quietly make some of them wrong.
+## A null target is not an error; the clause simply does nothing.
+static func banish_target_temporarily(ctx: EffectContext, target: CardInstance,
 		duration: Enums.BanishDuration) -> CardInstance:
-	var target := surviving_field_target(ctx)
 	if target == null:
-		ctx.log_note("the target is no longer on the field")
+		ctx.log_note("the target is no longer legal for this clause")
 		return null
 	if not ctx.state.banish_temporarily(target, ctx.source.id, duration):
 		ctx.log_note("the banish did not happen")
