@@ -74,6 +74,7 @@ func _initialize() -> void:
 	suites.append(InterdimensionalMatterTransporterTests.run())
 	suites.append(JudgeOfTheIceBarrierTests.run())
 	suites.append(JunkBladerTests.run())
+	suites.append(ThePhantomKnightsOfShadowVeilTests.run())
 
 	# --- Interaction suites (Phase 5). Cross-card behaviour, no card-under-test. ---
 	suites.append(SpecialSummonInteractionTests.run())

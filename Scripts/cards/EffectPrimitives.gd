@@ -1017,6 +1017,29 @@ static func gain_atk_until_end_of_turn(ctx: EffectContext, card: CardInstance,
 	return true
 
 
+## "It gains 300 ATK/DEF." — ATK **and** DEF, and with **no printed duration**.
+##
+## The absence of a duration is the whole specification, and it makes this a third thing,
+## distinct from both neighbours:
+##
+##   * NOT `"end_of_turn"` — nothing in the text says "until the end of this turn", so
+##     `gain_atk_until_end_of_turn()` would silently expire a gain the card never limited;
+##   * NOT `"while_source_on_field"` — a Normal Trap is in the Graveyard moments after it
+##     resolves, so tying the gain to its source would delete it almost immediately.
+##
+## `"permanent"` is what is left, and it is right: the modifier lives on the TARGET and is
+## cleared by `CardInstance.on_leave_field()` when that monster leaves the field or is
+## flipped face-down, which is exactly how long an untimed gain lasts. RULES_SPEC.md 8.
+static func gain_atk_and_def_permanently(ctx: EffectContext, card: CardInstance,
+		amount: int) -> bool:
+	if card == null or amount == 0:
+		return false
+	var mod_id := "%d:%s:permanent" % [ctx.source.id, ctx.effect.effect_id]
+	card.add_atk_modifier(ctx.source.id, amount, "permanent", mod_id)
+	card.add_def_modifier(ctx.source.id, amount, "permanent", mod_id)
+	return true
+
+
 # ---------------------------------------------------------------------------
 # Banishing as an EFFECT (not as a cost — see pay_banish_cost)
 # ---------------------------------------------------------------------------
