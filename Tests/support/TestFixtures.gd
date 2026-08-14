@@ -218,6 +218,36 @@ static func activation_negator(card_name: String) -> CardDef:
 	return with_effect(d, e)
 
 
+## A synthetic Spell Speed 2 Trap that negates the EFFECT — not the activation — of the
+## Chain Link directly below it, and destroys nothing.
+##
+## Deliberately the counterpart of `activation_negator()`, because the two are genuinely
+## different and a card must be tested against both [master prompt 18]:
+##
+##   * negating the ACTIVATION means the card was not successfully activated;
+##   * negating the EFFECT means the activation happened — the cost stays paid and anything
+##     that watched the activation still saw it — but nothing the effect would do happens.
+##
+## A card whose cost is paid at activation must survive BOTH with the cost still spent, and
+## a card that reads its own Chain Link position must still have been activated at that
+## position. Neither could be asserted before this fixture existed.
+static func effect_negator(card_name: String) -> CardDef:
+	var d := trap(card_name)
+	var e := EffectDef.new("negate_effect", "Test: negate that effect.")
+	e.of_type(Enums.EffectType.CARD_ACTIVATION)
+	e.with_spell_speed(Enums.SpellSpeed.SS2)
+	e.activation_locations = [Enums.ActivationLocation.FIELD_FACE_DOWN]
+	e.condition = func(ctx: EffectContext) -> bool:
+		return EffectPrimitives.spell_trap_activation_below(ctx) != null
+	e.resolve = func(ctx: EffectContext) -> void:
+		var link_number: int = ctx.link.link_number if ctx.link != null else 0
+		var below := EffectPrimitives.spell_trap_activation_below(ctx, link_number)
+		if below == null or ctx.engine == null or ctx.engine.chain == null:
+			return
+		ctx.engine.chain.negate_effect(below.link_number, ctx.source)
+	return with_effect(d, e)
+
+
 ## A Counter Trap that negates a pending Summon and does NOT destroy the monster.
 ##
 ## Deliberately weaker than `Champion's Vigilance`: "Negate the Summon" on its own is what
@@ -371,6 +401,53 @@ static func activate_effect(engine: DuelEngine, pid: int, card: CardInstance,
 		return false
 	pass_until_open(engine)
 	return true
+
+
+## Put exactly `count` no-op Spell Speed 2 Trap links on the Chain and leave it BUILDING, so
+## the next card activated in the open response window becomes Chain Link `count + 1`.
+##
+## Shared by `ChainDetonationTests` and `ChainHealingTests`, which are the only two cards in
+## the V1 pool whose behaviour depends on the Chain Link position they were activated at
+## (CARD_RULINGS.md R4). Building that state by hand in each suite would be the ad-hoc
+## Chain-number bookkeeping the cards themselves deliberately avoid.
+##
+## Two constraints this encodes:
+##
+##   * every spacer is Set BEFORE the first activation, because placing a card while the
+##     timing machine is mid-window would inject events into a window that is already open;
+##   * sides alternate starting with the TURN PLAYER, because `get_legal_actions()` only
+##     offers an action to the turn player in an open game state, so Chain Link 1 must be
+##     theirs; every later link goes through `get_legal_responses()`.
+##
+## Returns the spacers actually activated, or [] if the Chain could not be built that deep.
+static func build_chain_to_depth(engine: DuelEngine, count: int) -> Array:
+	if count <= 0:
+		return []
+	var order_log: Array = []
+	var tp := engine.state.turn_player_id
+	var op := engine.state.opponent_id(tp)
+	var spacers: Array = []
+	for i in range(count):
+		var pid: int = tp if i % 2 == 0 else op
+		var e := card_activation("chain_spacer_%d" % i, Enums.SpellSpeed.SS2, order_log,
+			"spacer%d" % i)
+		# `card_activation()` allows FIELD_FACE_UP, which a real Normal Trap does not: an
+		# already-activated spacer would then be offered again from its own face-up position,
+		# the engine would never auto-pass that side, and the Chain would stall one link
+		# short of the requested depth.
+		e.activation_locations = [Enums.ActivationLocation.FIELD_FACE_DOWN]
+		spacers.append(give_set_spell_trap(engine, pid, with_effect(
+			trap("Chain Spacer %d" % i), e)))
+	var activated: Array = []
+	for i in range(count):
+		var spacer: CardInstance = spacers[i]
+		var actions: Array = engine.get_legal_actions(spacer.controller_id) if i == 0 \
+			else engine.get_legal_responses(spacer.controller_id)
+		var a = find_action(actions, Enums.ActionKind.ACTIVATE_CARD, spacer.id)
+		if a == null or not engine.submit_action(a):
+			return []
+		activated.append(spacer)
+	return activated
 
 
 ## Everyone who is asked to respond passes, until the engine leaves the response windows.

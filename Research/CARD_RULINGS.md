@@ -181,6 +181,26 @@ an official source will be escalated rather than guessed (master prompt §86).
 Recorded as each card was written, so a later session does not re-litigate them. Each entry
 says what was decided, on what basis, and how confident that basis is.
 
+### R4 — CLOSED (Phase 5 batch 7 unit C): the Chain Link number is read from the Chain Link
+
+`Chain Detonation` and `Chain Healing` behave differently depending on the Chain Link position
+they were **activated** at. The §4 flag asked for that position to be recorded on the Chain Link
+and readable at resolution; it now is, and both cards read it.
+
+`ChainLink.link_number` is 1-based authoritative state written when the link is created, and both
+cards reach it through one shared primitive, `EffectPrimitives.activated_chain_link_number()`.
+**Counting the chain array at resolution would give a different and wrong answer**, because a
+Chain resolves in reverse: by the time Chain Link 2 resolves, Chain Link 3 above it has already
+resolved. `ChainDetonationTests :: the branch is chosen from the ACTIVATION position recorded on
+the Chain Link` builds exactly that three-link Chain and pins the difference down.
+
+Two consequences of the printed text, both asserted on each card: **Chain Link 1 takes neither
+conditional half** (the damage / LP gain still happens, and the Trap goes to the Graveyard the
+ordinary way), and **"Chain Link 4 or higher" is open-ended** (Chain Link 5 behaves like 4).
+
+Confidence: **HIGH** — this is the cards' own printed text, verified against the official
+database, not an inference.
+
 ### R16 — `Five Brothers Explosion`: does a face-down Set card count as "a Continuous Spell/Trap Card you control"?
 
 **DECIDED: no — FACE-UP cards only.**
@@ -445,6 +465,51 @@ The difference is observable (`last_move_reason` becomes `DESTROYED_BY_EFFECT` i
 
 *Source:* community transcriptions of the `Heavy Storm` rulings, **not** an S1–S4 official
 source. Consulted 2026-08-13. Recorded honestly as reasoned-from-precedent.
+
+### R29 — "1 card your opponent controls" is re-checked for CONTROL at resolution
+
+**Decided (Phase 5 batch 7 unit C). Confidence: MEDIUM.**
+
+`Phoenix Wing Wind Blast` and `Spiritual Wind Art - Miyabi` both target "1 card **your opponent
+controls**". If control of the target changes between activation and resolution — the V1 pool can
+do this with `Enemy Controller` and the three Charmers — is the target still legal?
+
+Implemented as **NO: the effect does not apply to it.** The reasoning, stated in order of
+strength:
+
+* **Miyabi's own resolution clause names it.** Its current official text is "place **that
+  opponent's card** on the bottom of the Deck" (the older printing said "that card"; the
+  discrepancy is recorded in §2.1 above and resolved in favour of the official source). The
+  resolution sentence itself says whose card it must be, so for this card the re-check is
+  textual and not merely inferred. This half is **HIGH** confidence.
+* **The general targeting rule.** A target is chosen at activation and must still be a legal
+  target when the effect resolves; one that no longer is, is not affected. `Phoenix Wing Wind
+  Blast`'s resolution clause says only "place **that target** on the top of the Deck", so it
+  rests on this general rule rather than on its own wording. This half is **MEDIUM**: no single
+  S1–S4 sentence states the rule in the form "a targeting condition is re-evaluated at
+  resolution", and the engine's own prior convention (`EffectPrimitives.surviving_target()`,
+  design decision 16) had only ever re-checked the target's ZONE.
+* **Uniformity.** The two cards publish the same candidate set with the same wording, so reading
+  the clause one way on one card and the other way on the other would be worse than either
+  reading applied consistently.
+
+**What is NOT part of this ruling:** ownership. Control is what the text names, so a card the
+effect's controller OWNS but the opponent CONTROLS remains a legal target, and a card the
+opponent owns but the controller has borrowed does not. Both directions are asserted.
+
+Implemented once, generically, as `EffectPrimitives.surviving_opponent_field_target()` — built on
+`surviving_field_target()`, which is the other thing these two cards needed and the movement gate
+did not have: "1 **card**" reaches a monster, a Set or face-up Spell/Trap and a Field Spell alike,
+so the zone re-check has to be "still on the field" rather than "still in the Monster Zone".
+
+*Source:* reasoned from the cards' own current official text (S-quality for the Miyabi half) plus
+the general targeting rule as the engine already applies it. **Not** a quoted Konami ruling on
+either card. Consulted 2026-08-13.
+*Tests:* `MovementTests :: an opponent field target is re-checked for control` (generic, both
+directions including the ownership mirror), plus
+`PhoenixWingWindBlastTests :: a target that changed control` and
+`SpiritualWindArtMiyabiTests :: a target that changed control`. A later correction therefore
+fails loudly rather than drifting.
 
 ---
 

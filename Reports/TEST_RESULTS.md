@@ -1,6 +1,6 @@
 # TEST_RESULTS
 
-**Last run:** 2026-08-13 (Phase 5 batch 7, units A and B)
+**Last run:** 2026-08-13 (Phase 5 batch 7 COMPLETE — units A, B, C and D)
 **Engine:** Godot 4.7.1.stable.official.a13da4feb (headless)
 
 Command:
@@ -32,20 +32,34 @@ The raw command still works and produces the same numbers:
 
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
-| Core rules tests | 16 | 1040 | **1040** | 0 |
-| Per-card tests | 31 | 2238 | **2238** | 0 |
+| Core rules tests | 16 | 1056 | **1056** | 0 |
+| Per-card tests | 36 | 3016 | **3016** | 0 |
 | Interaction tests | 1 | 46 | **46** | 0 |
 | Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **48** | **3324** | **3324** | **0** |
+| **TOTAL** | **53** | **4118** | **4118** | **0** |
 
-Batch 7 units A and B added **462** assertions and changed **nothing** that already existed.
-**All 2862 assertions from the batch-6 checkpoint pass unchanged** — none was weakened,
-retargeted or deleted, and no test expectation was altered this batch.
+Batch 7 units C and D added **794** assertions and changed **no existing test expectation at
+all**. **All 3324 assertions from the units-A+B checkpoint pass unchanged** — none was weakened,
+retargeted or deleted. Every pre-existing suite reports exactly its previous count; the single
+suite whose number moved is `MovementTests`, which **grew** from 194 to 210 because two generic
+tests were added to it, not because anything in it was rewritten.
 
-* New: `MovementTests` **194** (the movement / excavation gate — written and passing before
-  any batch-7 card existed, the way `EquipTests` and `ControlTests` were),
-  `CompulsoryEvacuationDeviceTests` **88**, `KaiserGliderTests` **93**,
-  `AWingbeatOfGiantDragonTests` **87**.
+* New per-card suites: `PhoenixWingWindBlastTests` **162**, `SpiritualWindArtMiyabiTests` **150**,
+  `ChainDetonationTests` **168**, `ChainHealingTests` **147**, `CrystalSeerTests` **151**.
+* `MovementTests` 194 → **210**: two new generic tests for the resolution-time target re-checks
+  units C and D needed (`surviving_field_target()` / `surviving_opponent_field_target()`), written
+  against synthetic cards so they prove the ENGINE is right rather than that one printed card is.
+  See `CARD_RULINGS.md` **R29**.
+
+The units-A+B summary below is kept for the record.
+
+> Batch 7 units A and B added **462** assertions and changed **nothing** that already existed.
+> **All 2862 assertions from the batch-6 checkpoint passed unchanged.**
+>
+> * New: `MovementTests` **194** (the movement / excavation gate — written and passing before
+>   any batch-7 card existed, the way `EquipTests` and `ControlTests` were),
+>   `CompulsoryEvacuationDeviceTests` **88**, `KaiserGliderTests` **93**,
+>   `AWingbeatOfGiantDragonTests` **87**.
 
 The batch-6 summary below is kept for the record.
 
@@ -69,7 +83,8 @@ A suite that loops over nine cards runs many more assertions than it has `t.` ca
 and the earlier hand-written `ShiningAngelTests` breakdown was wrong for exactly that
 reason — it has been corrected against the measurement.
 
-Card library: **39 / 77 implemented, 39 / 77 tested** — computed by `Tools/build_matrix.py`
+Card library: **44 / 77 implemented, 44 / 77 tested, 33 remaining** — computed by
+`Tools/build_matrix.py`
 from `Scripts/cards/registry/*.gd`, the card database's `is_normal` flag and
 `Tests/cards/*.gd`, never by hand.
 
@@ -103,7 +118,7 @@ removed.
 | `RulesQuestionTests` | 37 | `RULES_SPEC.md §8.1, §12.1`, `§6/§7`, `§2.3` |
 | `ReplayTests` | 33 | master prompt §8 / §70 |
 | `EquipTests` | 83 | `RULES_SPEC.md §16, §17` [S1 p.29, p.53, p.55] |
-| `MovementTests` | 194 | `RULES_SPEC.md §8, §8.2, §9, §12.1` [S1 p.5, p.28, p.52–53] |
+| `MovementTests` | 210 | `RULES_SPEC.md §8, §8.2, §9, §10, §12.1` [S1 p.5, p.28, p.52–53] |
 | `ShiningAngelTests` | 43 | per-card |
 | `NormalMonsterTests` | 76 | per-card (9 cards) |
 | `MonsterRebornTests` | 48 | per-card |
@@ -135,6 +150,11 @@ removed.
 | `CompulsoryEvacuationDeviceTests` | 88 | per-card |
 | `KaiserGliderTests` | 93 | per-card |
 | `AWingbeatOfGiantDragonTests` | 87 | per-card |
+| `PhoenixWingWindBlastTests` | 162 | per-card |
+| `SpiritualWindArtMiyabiTests` | 150 | per-card |
+| `ChainDetonationTests` | 168 | per-card |
+| `ChainHealingTests` | 147 | per-card |
+| `CrystalSeerTests` | 151 | per-card |
 | `SpecialSummonInteractionTests` | 46 | interaction |
 
 ### ChainTests — 27/27
@@ -347,7 +367,54 @@ guessed, each now decided against an official source and pinned down.
 
 ## Defects found and fixed by these tests
 
-### This milestone (Phase 5 batch 7 units A+B — the movement gate and the return-to-hand group)
+### This milestone (Phase 5 batch 7 units C+D — Deck placement, Chain state, excavation)
+
+**No engine defect was found by units C or D, and none was fixed.** That is a real result rather
+than an absence of looking: the movement/excavation gate (unit A) had already been written and had
+already flushed out the two live movement defects recorded under units A+B below, so the five
+cards written here landed on an API that was correct before they arrived. It is what a gate is
+for, and it is the second batch in a row where the gate did its job.
+
+Three things did have to be **added** generically rather than open-coded per card, and each is
+recorded as an addition, not a fix:
+
+1. **The movement gate re-checked a target's ZONE but had no way to re-check the FIELD.**
+   `EffectPrimitives.surviving_target()` takes ONE zone, which is exactly right for
+   `Compulsory Evacuation Device`'s "1 monster on the field". Units C's two Deck-placement cards
+   target "1 **card** your opponent controls", which reaches a monster, a Set or face-up
+   Spell/Trap and a Field Spell alike — asking the single-zone check with `MONSTER_ZONE` would
+   have silently dropped every Spell/Trap target the cards legally chose. Added
+   `surviving_field_target()`, and asserted the difference directly in the gate:
+   `MovementTests :: a surviving field target spans every field zone` shows the single-zone check
+   returning null for the very target the new one accepts.
+2. **"Your opponent controls" was not re-checked at all.** Added
+   `surviving_opponent_field_target()`, plus generic coverage in both directions including the
+   ownership mirror. This is a **ruling**, not a mechanical gap — see `CARD_RULINGS.md` **R29**,
+   recorded at MEDIUM confidence with the reasoning and the sources stated honestly.
+3. **The Chain Link position had no card-facing reader.** `ChainLink.link_number` already existed
+   and was already 1-based authoritative state (it was written for exactly this, R4), but nothing
+   read it. Added `EffectPrimitives.activated_chain_link_number()` and
+   `return_self_by_chain_link()`, so `Chain Detonation` and `Chain Healing` share the sentence
+   pair they print identically instead of duplicating ad-hoc Chain-number bookkeeping.
+
+One **test-harness** defect was found and fixed, and it is worth recording because it produced a
+convincing wrong answer rather than an error:
+
+* **`TestFixtures.card_activation()` allows `FIELD_FACE_UP`**, which a real Normal Trap does not.
+  A synthetic spacer Trap used to build a deep Chain was therefore offered *again* from its own
+  face-up position after it had been activated, so the engine never auto-passed that side, and
+  `build_chain_to_depth()` stalled one link short — but only at the depths where the last spacer
+  belonged to the same player as the card under test. The result was that Chain Link 2, 3 and 5
+  tests passed while Chain Link 4 failed, which looks like a card bug and is not one.
+  `TestFixtures.build_chain_to_depth()` now restricts its spacers to `FIELD_FACE_DOWN`.
+  No engine behaviour was involved and no rules expectation was changed.
+
+Two test-side additions were made for coverage that could not be written before:
+`TestFixtures.effect_negator()` (negating an EFFECT, as distinct from the existing
+`activation_negator()`'s negating an ACTIVATION — a card whose cost is paid at activation must
+survive both with the cost still spent) and `TestFixtures.build_chain_to_depth()`.
+
+### Previous milestone (Phase 5 batch 7 units A+B — the movement gate and the return-to-hand group)
 
 Three defects. The first two are **pre-existing engine defects** that had been live since the
 movement API was written and that nothing before now needed; the third is a defect in a card
@@ -807,15 +874,17 @@ No test expectation was weakened to make the implementation pass.
 
 ## Known issues in the harness (not rules defects)
 
-* The run reports **`97559 ObjectDB instances were leaked at exit`**, up from 85668 at the
-  batch-6 checkpoint, 74049 at batch 5 and 61457 at batch 4 — purely because the suite now builds
-  more duels (462 more assertions across four new suites). The growth stays proportional to the
-  number of duels built, not to anything batch 7 introduced: ~11.9k more for 462 more assertions
-  is the same ratio as batch 6's ~11.6k for 465. No test fails, hangs, or becomes unreliable
-  because of it, no rules outcome changes, and there is no memory pressure, so it was correctly
-  not allowed to derail batch 7 — but it **must be characterised or fixed before Phase 7**, when
-  the UI keeps a single duel alive for a long session. Measured again this milestone so the trend
-  stays visible. These are RefCounted
+* The run reports **`113897 ObjectDB instances were leaked at exit`**, up from 97559 at the
+  units-A+B checkpoint, 85668 at batch 6, 74049 at batch 5 and 61457 at batch 4 — purely because
+  the suite now builds more duels (794 more assertions across five new suites). The growth stays
+  proportional to the number of duels built, not to anything units C or D introduced: **~16.3k
+  more for 794 more assertions is ~20.6 per assertion, against units A+B's ~25.7 and batch 6's
+  ~25.0** — the ratio did not worsen, it improved slightly, which is consistent with these suites
+  building somewhat larger duels rather than more of them. No test fails, hangs, or becomes
+  unreliable because of it, no rules outcome changes, and there is no memory pressure, so it was
+  correctly not allowed to derail batch 7 — but it **must be characterised or fixed before Phase
+  7**, when the UI keeps a single duel alive for a long session. Measured again this milestone so
+  the trend stays visible. These are RefCounted
   reference cycles between `GameState`, `DuelLog` (connected signal) and the closures the
   tests capture. The count grows with the number of duels the suite builds. It does not
   affect any rules outcome and does not fail the suite, but it must be cleaned up before
@@ -831,9 +900,20 @@ No test expectation was weakened to make the implementation pass.
 
 ## Not yet covered (required by master prompt §64 — tracked, not claimed)
 
-**A. Core rules** — still missing: **simultaneous-LP-zero draws**. Card movement, Deck
-placement (top / bottom / shuffle), revealing and excavation were on this list and are now
-covered end to end by `MovementTests` (194 assertions). Effect damage (as
+**A. Core rules** — still missing: **simultaneous-LP-zero draws**, and that is now the ONLY item
+left on this list. Units C and D did not make it reachable: `Chain Detonation` damages only the
+opponent and `Chain Healing` only gains LP, so neither can take two players to 0 at once. Both are
+asserted from that side rather than assumed — `ChainDetonationTests :: it can end the duel` proves
+the burn ends the Duel with a single winner and not a draw, and
+`ChainHealingTests :: it cannot end the duel` runs with both players on 100 LP and proves nothing
+ends. The gap is therefore preserved as a known future item, deliberately and with evidence.
+
+Card movement, Deck placement (top / bottom / shuffle), revealing and excavation were on this list
+and are now covered end to end by `MovementTests` (210 assertions) **and, since units C and D, by
+printed cards**: `Phoenix Wing Wind Blast` (top), `Spiritual Wind Art - Miyabi` (bottom),
+`Chain Detonation` / `Chain Healing` (the only two cards in the pool that shuffle into the Deck,
+and therefore the printed-card exercise of the `revealed_to`-cleared branch) and `Crystal Seer`
+(excavate, and the printed-card exercise of the `revealed_to`-KEPT branch). Effect damage (as
 opposed to battle damage), banishing as a COST, continuous negation of another card's effects,
 and a turn-scoped ATK modifier that outlives its source were on this list and are now covered by
 batch 4. Equip mechanics were on this list
@@ -843,11 +923,19 @@ are now exercised by `Inari Fire`, `Ranryu` and `Nefarious Archfiend Eater of
 Nefariousness`. Special Summon execution, piercing battle damage and the duel log / replay
 payload were covered in the previous milestone.
 
-**B. Per-card** — **36 of 77** cards implemented and tested; **41 remain**, honestly reported as
-`NOT_IMPLEMENTED` / `NOT_TESTED` in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`. Batch 6 added
-`Aussa the Earth Charmer`, `Eria the Water Charmer`, `Wynn the Wind Charmer` and
-`Enemy Controller`, which completes the pool's **control-change group** — every card in the V1
-pool that changes control is now implemented and tested.
+**B. Per-card** — **44 of 77** cards implemented and tested; **33 remain**, honestly reported as
+`NOT_IMPLEMENTED` / `NOT_TESTED` in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`. Batch 7 added
+`Compulsory Evacuation Device`, `Kaiser Glider`, `A Wingbeat of Giant Dragon` (unit B),
+`Phoenix Wing Wind Blast`, `Spiritual Wind Art - Miyabi`, `Chain Detonation`, `Chain Healing`
+(unit C) and `Crystal Seer` (unit D), which completes the pool's **movement group** — every card
+in the V1 pool that returns a card to the hand, places one on the Deck, shuffles one in, or
+excavates is now implemented and tested.
+
+The paragraph below describes the state at the end of batch 6 and is kept for the record.
+
+**B (batch 6 snapshot)** — **36 of 77** cards implemented and tested; **41 remained**. Batch 6
+added `Aussa the Earth Charmer`, `Eria the Water Charmer`, `Wynn the Wind Charmer` and
+`Enemy Controller`, which completes the pool's **control-change group**.
 
 The paragraph below describes the state at the end of batch 5 and is kept for the record.
 
@@ -1196,6 +1284,57 @@ purpose: a card is only counted as TESTED because it has its own suite.
 | none spend the Normal Summon | 9 | two Special Summons later the Normal Summon is still available, and only a real Normal Summon spends it [S1 p.24] |
 
 **D. Scripted full duels** — none yet.
+
+---
+
+## Phase 5 batch 7 units C and D — per-card suites
+
+Deck placement (top / bottom / shuffle), Chain-Link-position-aware effects, and excavation.
+Every card below is IMPLEMENTED and TESTED in full; none is partial, approximated or stubbed.
+
+| Card | EffectDefs | Suite | Result |
+|---|---:|---|---|
+| `Phoenix Wing Wind Blast` | 1 | `PhoenixWingWindBlastTests` | 162/162 |
+| `Spiritual Wind Art - Miyabi` | 1 | `SpiritualWindArtMiyabiTests` | 150/150 |
+| `Chain Detonation` | 1 | `ChainDetonationTests` | 168/168 |
+| `Chain Healing` | 1 | `ChainHealingTests` | 147/147 |
+| `Crystal Seer` | 1 | `CrystalSeerTests` | 151/151 |
+
+What each suite pins down that the generic gate cannot:
+
+* **`Phoenix Wing Wind Blast`** — that it is a Normal **Trap** at Spell Speed 2 (§2.4: it is
+  commonly misremembered as a Quick-Play Spell); that the discard is a **COST**, observable in the
+  Graveyard *before* any resolution and not refunded by either kind of negation; that "1 card"
+  reaches a Set Trap and a face-down monster and never the controller's own side; that the target
+  lands on the **TOP** of its **OWNER's** Deck with the rest of the Deck in unchanged order and
+  `revealed_to` **kept**; and both resolution-time drops — target left the field, and target
+  changed control (**R29**).
+* **`Spiritual Wind Art - Miyabi`** — the same shape with the two deliberate differences asserted
+  hardest: a **WIND Tribute** cost (a non-WIND monster does not pay it; a face-down WIND monster
+  you control does; the cost is *not* paid when the card cannot legally activate), and the
+  **BOTTOM** of the Deck rather than the top. Its clause text is checked to carry the current
+  official "that opponent's card" wording rather than the older "that card".
+* **`Chain Detonation`** — all three Chain Link branches driven at real Chain depths built by
+  `TestFixtures.build_chain_to_depth()`: CL1 (damage only, Trap to the Graveyard), CL2 and CL3
+  (shuffled into the Deck, `revealed_to` cleared for the whole Deck), CL4 and CL5 (returned to the
+  hand). Plus: the damage always hits the opponent, asserted from both seats; the branch comes
+  from the position **recorded on the Chain Link**, proved on a three-link Chain where a count
+  taken at resolution would differ; a higher link destroying the card first leaves the damage done
+  and the self-return impossible; and the card that moved itself off the field is **not** also
+  swept to the Graveyard by `_cleanup_resolved_spell_traps()`.
+* **`Chain Healing`** — the same three branches on this card rather than inherited from the shared
+  primitive, plus the half it does not share: the LP go to the **activating player**, asserted
+  from both seats, and the card cannot end a Duel even with both players on 100 LP. One test
+  asserts the relationship itself — separate registry files, separate effect ids, and the shared
+  two sentences printed verbatim on both — so "same shape, not one implementation" cannot rot.
+* **`Crystal Seer`** — that it is a **FLIP** effect, fired by all three routes (Flip Summon, a card
+  effect, an attacker) and never while face-down; that an excavate is **not a draw** (no
+  `CARD_DRAWN`) and **not a search** (nothing shuffled, so the leftover card **keeps**
+  `revealed_to` — the printed-card exercise of design decision 11's other branch); that the player
+  really chooses which card goes to hand and the choice is logged for replay; that 1 card left
+  excavates 1 and 0 left does nothing **without decking the player out**; that nothing is left in
+  the `EXCAVATED` zone; and that a negated effect and a negated Flip Summon each leave the Deck
+  byte-for-byte untouched.
 
 ### Open rules questions — all four now RESOLVED (Phase 4c)
 

@@ -344,6 +344,100 @@ static func surviving_target(ctx: EffectContext,
 	return card
 
 
+## The single card this effect targeted, but only if it is still ON THE FIELD — any of the
+## field zones.
+##
+## `surviving_target()` asks about ONE named zone, which is exactly right for a clause
+## worded "1 MONSTER on the field". A clause worded "1 CARD your opponent controls" reaches
+## a monster, a Set or face-up Spell/Trap and a Field Spell alike, so its re-check is "is it
+## still on the field", not "is it still in the Monster Zone". Asking `surviving_target()`
+## with `MONSTER_ZONE` would silently drop every Spell/Trap target such a card legally chose.
+## Design decision 16 is unchanged: the target is still DROPPED rather than chased.
+static func surviving_field_target(ctx: EffectContext) -> CardInstance:
+	var chosen = ctx.first_target()
+	if chosen == null:
+		return null
+	var card: CardInstance = chosen
+	if not card.is_on_field():
+		return null
+	return card
+
+
+## The same, for a clause that targets "1 card **your opponent controls**".
+##
+## "your opponent controls" is part of what makes the target a legal target, so it is
+## re-checked at resolution alongside the zone: a target this effect's own controller has
+## since taken control of is no longer a card the opponent controls, and the effect does not
+## apply to it. OWNERSHIP is never consulted — control is what the text names, and a card the
+## opponent owns but the controller has borrowed is NOT a legal target for these clauses.
+##
+## `Research/CARD_RULINGS.md` **R29** records this decision, its reasoning and its confidence.
+## It is asserted directly by `PhoenixWingWindBlastTests` and `SpiritualWindArtMiyabiTests`,
+## so a later correction fails loudly rather than drifting.
+static func surviving_opponent_field_target(ctx: EffectContext) -> CardInstance:
+	var card := surviving_field_target(ctx)
+	if card == null:
+		return null
+	if card.controller_id != ctx.opponent_id():
+		return null
+	return card
+
+
+# ---------------------------------------------------------------------------
+# Chain state. RULES_SPEC.md 4.1, CARD_RULINGS.md R4.
+#
+# `ChainLink.link_number` is 1-based authoritative state written when the link is created,
+# so a card that reads its own Chain Link position reads it from there. Counting the chain
+# array at resolution would give a different — and wrong — answer, because by then the links
+# above have already resolved.
+# ---------------------------------------------------------------------------
+
+## The 1-based Chain Link position this effect was activated at.
+##
+## 0 when there is no Chain Link yet, which is what a pure-legality evaluation looks like
+## (`condition` and `can_pay_cost` both run before the link exists). A card must therefore
+## never make an ACTIVATION decision from this — only a resolution one.
+static func activated_chain_link_number(ctx: EffectContext) -> int:
+	return ctx.link.link_number if ctx.link != null else 0
+
+
+## "If this card was activated as Chain Link 2 or 3, add this card to the Deck and shuffle
+## it. If this card was activated as Chain Link 4 or higher, return this card to the hand."
+##
+## Printed word for word on both `Chain Detonation` and `Chain Healing`, which is why the
+## SECOND half of those two cards is one primitive. Their first halves (500 damage / 500 LP)
+## are different sentences and each card writes its own — see design decision 22.
+##
+## Three things this encodes that are easy to get wrong:
+##
+##   1. **Chain Link 1 gets neither half.** The card then simply resolves and goes to the
+##      Graveyard the ordinary way, like any other Normal Trap.
+##   2. **The card must still be on the field to move itself.** A higher Chain Link resolves
+##      FIRST and can destroy it; a card already in the Graveyard is not "this card" on the
+##      field any more and cannot be added to the Deck or the hand. The first half of the
+##      effect still happened.
+##   3. **"add to the Deck and shuffle" is a SHUFFLE, and "return to the hand" is not.**
+##      They are two different primitives on purpose, and the shuffle is what clears
+##      `revealed_to`. RULES_SPEC.md 12.1, design decision 11.
+##
+## Returns a note describing what happened, for `ctx.log_note()`.
+static func return_self_by_chain_link(ctx: EffectContext) -> String:
+	var link_number := activated_chain_link_number(ctx)
+	if link_number < 2:
+		return "activated as Chain Link %d, so it stays where it is" % link_number
+	if not ctx.source.is_on_field():
+		# It left the field before its own link resolved — a higher link destroyed it.
+		return "activated as Chain Link %d, but this card is no longer on the field" \
+			% link_number
+	if link_number <= 3:
+		if shuffle_into_deck(ctx, ctx.source):
+			return "activated as Chain Link %d, so it is shuffled into the Deck" % link_number
+		return "the shuffle into the Deck did not happen"
+	if return_to_hand(ctx, ctx.source):
+		return "activated as Chain Link %d, so it is returned to the hand" % link_number
+	return "the return to the hand did not happen"
+
+
 # ---------------------------------------------------------------------------
 # Control. RULES_SPEC.md 5.6 [S1 p.52]
 #

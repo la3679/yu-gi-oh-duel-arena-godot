@@ -48,6 +48,9 @@ static func run() -> TestCase:
 	_test_excavate_is_not_a_draw(t)
 	_test_excavate_with_fewer_cards_than_asked(t)
 	_test_excavated_cards_are_placed_in_a_stated_order(t)
+	# Resolution-time target re-checks
+	_test_a_surviving_field_target_spans_every_field_zone(t)
+	_test_an_opponent_field_target_is_re_checked_for_control(t)
 	# Resolution-time behaviour
 	_test_a_target_that_left_the_field_before_resolution(t)
 	_test_several_cards_move_in_sequence(t)
@@ -76,6 +79,84 @@ static func _ctx(engine: DuelEngine, source: CardInstance, targets: Array = []) 
 		var card: CardInstance = entry
 		ctx.chosen_target_ids.append(card.id)
 	return ctx
+
+
+# ---------------------------------------------------------------------------
+# Resolution-time target re-checks. RULES_SPEC.md 10, CARD_RULINGS.md R29.
+#
+# `surviving_target()` asks about ONE named zone, which is what a clause worded "1 monster
+# on the field" needs. A clause worded "1 CARD your opponent controls" needs two other
+# questions instead, and both are asked here against synthetic cards so the answers are the
+# ENGINE's rather than one printed card's.
+# ---------------------------------------------------------------------------
+
+static func _test_a_surviving_field_target_spans_every_field_zone(t: TestCase) -> void:
+	t.start("surviving_field_target() accepts a target in ANY field zone, which the "
+		+ "single-zone check cannot, and still drops one that left the field")
+	var d := _duel(9401)
+	var engine: DuelEngine = d["engine"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0, TestFixtures.trap("Source"))
+	var monster := TestFixtures.give_monster_on_field(engine, 1,
+		TestFixtures.monster("A Monster", 4, 1000, 1000))
+	var backrow := TestFixtures.give_set_spell_trap(engine, 1,
+		TestFixtures.trap("A Set Trap"))
+
+	var on_monster := _ctx(engine, source, [monster])
+	t.eq(EffectPrimitives.surviving_field_target(on_monster), monster,
+		"a monster in the Monster Zone survives")
+	var on_backrow := _ctx(engine, source, [backrow])
+	t.eq(EffectPrimitives.surviving_field_target(on_backrow), backrow,
+		"and so does a Set card in the Spell & Trap Zone")
+	# The distinction this primitive exists for: the single-zone check would drop it.
+	t.is_null(EffectPrimitives.surviving_target(on_backrow, Enums.Zone.MONSTER_ZONE),
+		"which the MONSTER_ZONE-only check would have silently dropped")
+
+	# A target that left the field is dropped, exactly as the single-zone check does.
+	engine.state.move_card(backrow, Enums.Zone.GRAVEYARD,
+		Enums.MoveReason.SENT_TO_GY_BY_EFFECT)
+	t.is_null(EffectPrimitives.surviving_field_target(_ctx(engine, source, [backrow])),
+		"a target that left the field is dropped, never chased into the Graveyard")
+	# No target at all is not an error.
+	t.is_null(EffectPrimitives.surviving_field_target(_ctx(engine, source)),
+		"and an effect with no target at all gets null rather than a crash")
+
+
+static func _test_an_opponent_field_target_is_re_checked_for_control(t: TestCase) -> void:
+	t.start("surviving_opponent_field_target() re-checks CONTROL at resolution and never "
+		+ "consults ownership (CARD_RULINGS.md R29)")
+	var d := _duel(9402)
+	var engine: DuelEngine = d["engine"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0, TestFixtures.trap("Source"))
+	var theirs := TestFixtures.give_monster_on_field(engine, 1,
+		TestFixtures.monster("Theirs", 4, 1000, 1000))
+	var mine := TestFixtures.give_monster_on_field(engine, 0,
+		TestFixtures.monster("Mine", 4, 1000, 1000))
+
+	t.eq(EffectPrimitives.surviving_opponent_field_target(_ctx(engine, source, [theirs])),
+		theirs, "a card the opponent controls is a legal surviving target")
+	t.is_null(EffectPrimitives.surviving_opponent_field_target(_ctx(engine, source, [mine])),
+		"a card the effect's own controller controls is not")
+
+	# Control changes to the effect's controller: no longer "a card your opponent controls".
+	t.is_true(engine.state.change_control(theirs, 0, source.id,
+		Enums.ControlDuration.UNTIL_END_PHASE), "the effect's controller takes it")
+	t.eq(theirs.controller_id, 0, "they now control it")
+	t.eq(theirs.owner_id, 1, "while the opponent still OWNS it")
+	t.is_null(EffectPrimitives.surviving_opponent_field_target(_ctx(engine, source, [theirs])),
+		"so it is no longer a card the opponent controls, and the effect drops it")
+	t.eq(EffectPrimitives.surviving_field_target(_ctx(engine, source, [theirs])), theirs,
+		"even though it is still very much on the field — the two checks differ")
+
+	# Ownership is never consulted: a card the effect's controller OWNS but the opponent
+	# CONTROLS is a legal target, which is the mirror of the case above.
+	var lent := TestFixtures.give_monster_on_field(engine, 0,
+		TestFixtures.monster("Lent Out", 4, 1200, 1200))
+	t.is_true(engine.state.change_control(lent, 1, theirs.id,
+		Enums.ControlDuration.UNTIL_END_PHASE), "the opponent takes one of theirs")
+	t.eq(lent.owner_id, 0, "the effect's controller still owns it")
+	t.eq(lent.controller_id, 1, "but the opponent controls it")
+	t.eq(EffectPrimitives.surviving_opponent_field_target(_ctx(engine, source, [lent])),
+		lent, "and control is what the text names, so it IS a legal surviving target")
 
 
 ## The names of a player's Deck, top first. Deck order is engine state, never public — this
