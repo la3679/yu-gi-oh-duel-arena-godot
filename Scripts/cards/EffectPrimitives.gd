@@ -182,9 +182,9 @@ static func monster_of_level(level: int, race: String = "") -> Callable:
 	return func(card: CardInstance) -> bool:
 		if not card.is_monster():
 			return false
-		if card.definition.level != level:
+		if card.current_level() != level:
 			return false
-		return race == "" or card.definition.race == race
+		return race == "" or card.current_race() == race
 
 
 ## "1 <name>" — a clause that names one specific card, e.g. Kaibaman's
@@ -549,7 +549,7 @@ static func opponent_monsters(ctx: EffectContext, attribute: String = "",
 			continue
 		if face_up_only and not card.is_face_up():
 			continue
-		if attribute != "" and card.definition.attribute != attribute:
+		if attribute != "" and card.current_attribute() != attribute:
 			continue
 		out.append(card)
 	return out
@@ -1249,7 +1249,7 @@ static func controls_no_other_copy(ctx: EffectContext) -> bool:
 static func controls_face_up_monster_of_race(ctx: EffectContext, race: String) -> bool:
 	for entry in ctx.me().face_up_monsters():
 		var card: CardInstance = entry
-		if card.definition != null and card.definition.race == race:
+		if card.definition != null and card.current_race() == race:
 			return true
 	return false
 
@@ -1270,6 +1270,67 @@ static func special_summon_self(ctx: EffectContext,
 	var position := choose_face_up_position(ctx,
 		"Special Summon %s in which position?" % ctx.source.card_name())
 	return ctx.engine.special_summon(ctx.source, ctx.controller_id, position, ctx.source.id)
+
+
+# ---------------------------------------------------------------------------
+# Trap Monsters. RULES_SPEC.md 5.8 [S1 p.53]
+# ---------------------------------------------------------------------------
+
+## Build the runtime monster identity a Trap-Monster clause grants.
+##
+## `treated_as_original_type` is false by default because the one card in the V1 pool prints
+## "(This card is NOT treated as a Trap.)", but it is a parameter rather than a constant: most
+## printed Trap Monsters DO stay Traps, and a card that says so must be able to say so.
+static func trap_monster_identity(race: String, attribute: String, level: int,
+		atk: int, def_: int, is_normal: bool, effect_id: String,
+		treated_as_original_type: bool = false) -> Dictionary:
+	return {
+		"race": race, "attribute": attribute, "level": level,
+		"atk": atk, "def": def_, "is_normal_monster": is_normal,
+		"treated_as_original_type": treated_as_original_type,
+		"source_effect_id": effect_id,
+	}
+
+
+## "Special Summon this card … as a Normal Monster (Warrior/DARK/Level 4/ATK 0/DEF 300)."
+##
+## The identity is granted BEFORE the Summon, and that order is forced rather than chosen:
+## `SummonRules.begin_special_summon()` refuses a card that is not a monster, so a Trap Card
+## has to already BE one for the ordinary Special Summon route to accept it. Going THROUGH
+## that route instead of around it is the whole point — the Summon emits the real
+## `SPECIAL_SUMMON_DECLARED` / `SPECIAL_SUMMON_SUCCEEDED` events, respects the free-Monster-
+## Zone and control-limit checks, and is collected by triggers like any other Special Summon.
+##
+## If the Summon does not happen, the identity is revoked again, so a Trap that failed to be
+## Summoned is never left sitting in the Graveyard still answering `is_monster()`.
+static func special_summon_self_as_trap_monster(ctx: EffectContext,
+		required_zone: Enums.Zone, identity: Dictionary,
+		position: Enums.Position) -> bool:
+	if ctx.engine == null:
+		push_error("EffectPrimitives.special_summon_self_as_trap_monster: no engine attached")
+		return false
+	var card := ctx.source
+	if card.zone != required_zone:
+		ctx.log_note("this card is no longer where the clause needs it")
+		return false
+	if not ctx.me().has_free_monster_zone():
+		ctx.log_note("no free Monster Zone")
+		return false
+
+	card.become_monster(identity)
+	if not ctx.engine.special_summon(card, ctx.controller_id, position, card.id):
+		card.clear_monster_identity()
+		ctx.log_note("the Special Summon did not happen")
+		return false
+	return true
+
+
+## "If Summoned this way, banish this card when it leaves the field." Marks the obligation on
+## the card so `GameState.move_card()` honours it on whatever departure comes first. Call it
+## only after the Summon actually succeeded — the clause is conditional on it.
+static func banish_when_it_leaves_the_field(ctx: EffectContext,
+		card: CardInstance) -> void:
+	ctx.state.remember(card, GameState.BANISH_WHEN_LEAVING_FIELD_KEY, true)
 
 
 ## "…and make its ATK/DEF 0." An OVERRIDE of the printed values rather than a modifier:

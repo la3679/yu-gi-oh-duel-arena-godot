@@ -71,9 +71,9 @@ func effects() -> Array:
 			var card: CardInstance = entry
 			if card.definition == null:
 				continue
-			if not card.definition.is_normal_monster:
+			if not card.is_normal_monster():
 				continue
-			if card.definition.level >= REQUIRED_LEVEL:
+			if card.current_level() >= REQUIRED_LEVEL:
 				return true
 		return false
 

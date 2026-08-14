@@ -297,6 +297,47 @@ static func summon_negator(card_name: String) -> CardDef:
 
 
 # ---------------------------------------------------------------------------
+# Trap Monsters. RULES_SPEC.md 5.8.
+# ---------------------------------------------------------------------------
+
+## A synthetic Trap Card that Special Summons ITSELF from the Graveyard as a monster.
+##
+## Deliberately an IGNITION effect rather than the printed card's direct-attack trigger: the
+## gate is about what a Trap Monster IS, not about when one particular card is allowed to
+## become one, and an Ignition can be driven straight from an open game state. The trigger
+## timing is `The Phantom Knights of Shadow Veil`'s own business and is tested in its suite.
+##
+## Every part of the type line is a parameter because the gate has to prove the runtime
+## identity is really carried rather than hard-coded — a fixture that could only ever be
+## Warrior/DARK/Level 4 would pass against an implementation that ignored its arguments.
+static func trap_monster(card_name: String, race: String = "Warrior",
+		attribute: String = "DARK", level: int = 4, atk: int = 0, def_: int = 300,
+		is_normal: bool = true, treated_as_original_type: bool = false,
+		position: Enums.Position = Enums.Position.FACE_UP_DEFENSE,
+		banish_when_leaving: bool = false) -> CardDef:
+	var d := trap(card_name)
+	var e := EffectDef.new("summon_self_as_trap_monster",
+		"Test: Special Summon this card as a monster (%s/%s/Level %d/ATK %d/DEF %d)."
+		% [race, attribute, level, atk, def_])
+	e.of_type(Enums.EffectType.IGNITION)
+	e.from_locations([Enums.ActivationLocation.GRAVEYARD])
+
+	e.condition = func(ctx: EffectContext) -> bool:
+		return ctx.source.zone == Enums.Zone.GRAVEYARD and ctx.me().has_free_monster_zone()
+
+	e.resolve = func(ctx: EffectContext) -> void:
+		var identity := EffectPrimitives.trap_monster_identity(race, attribute, level,
+			atk, def_, is_normal, "summon_self_as_trap_monster", treated_as_original_type)
+		if not EffectPrimitives.special_summon_self_as_trap_monster(ctx,
+				Enums.Zone.GRAVEYARD, identity, position):
+			return
+		if banish_when_leaving:
+			EffectPrimitives.banish_when_it_leaves_the_field(ctx, ctx.source)
+
+	return with_effect(d, e)
+
+
+# ---------------------------------------------------------------------------
 # Paying LIFE POINTS as an activation cost. RULES_SPEC.md 10.4.
 # ---------------------------------------------------------------------------
 #

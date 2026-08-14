@@ -552,6 +552,53 @@ emission order, which is what makes a replay reproduce it.
 `CardRegistry` rejects a `respond_to_event` clause that is not CONTINUOUS or that names no
 event, so one cannot be added and silently never fire.
 
+### 5.8 Trap Monsters — a card with two identities [S1 p.53]
+
+Added in batch 8, for `The Phantom Knights of Shadow Veil`: a **Normal Trap** that Special
+Summons itself "as a Normal Monster (Warrior/DARK/Level 4/ATK 0/DEF 300)".
+
+**The printed identity and the runtime identity are two different things and are stored
+separately.** `CardDef` is the immutable canonical definition and is **shared by every copy** of
+that card, so a temporary type line may never be written into it — doing so would rewrite the
+card for the whole duel and for every other copy. The runtime identity lives on the
+`CardInstance` as `monster_identity`, granted by `become_monster()` and revoked by
+`clear_monster_identity()`.
+
+| Question | While in a Monster Zone | Everywhere else |
+|---|---|---|
+| `is_monster()` | **yes** | printed answer |
+| `is_trap()` | only if the text says it is still a Trap | printed answer |
+| `current_level()` / `current_attribute()` / `current_race()` | from the granting effect | from `CardDef` |
+| `base_atk()` / `base_def()` / `original_atk()` | from the granting effect | from `CardDef` |
+| `original_card_category()` | **TRAP** — always | TRAP |
+| Zone occupancy | one **Monster** Zone, no Spell & Trap Zone | — |
+
+Three rules the implementation is built on:
+
+1. **The Summon goes through the ordinary Special Summon route**, not around it.
+   `SummonRules.begin_special_summon()` refuses a card that is not a monster, so the identity is
+   granted *first* and revoked again if the Summon does not happen. The result is a real Special
+   Summon with real `SPECIAL_SUMMON_DECLARED` / `SPECIAL_SUMMON_SUCCEEDED` events, subject to
+   the free-Monster-Zone and control-limit checks, negatable like any other.
+2. **Leaving the Monster Zone revokes the identity**, on every route out — destroyed, banished,
+   returned to hand or Deck, sent to the Graveyard, tributed, or put back because the effect was
+   negated. `GameState.move_card()` owns this, in one place, and deliberately *not* inside
+   `on_leave_field()`: that runs only when the card was on the field, and a negated Summon never
+   gets there, which would strand a Trap in the Graveyard still answering `is_monster()`.
+   `Zone.IN_TRANSIT` keeps the identity, because that is mid-Summon.
+3. **"(This card is NOT treated as a Trap.)" is text, not a rule.** Most printed Trap Monsters
+   remain Traps; this one does not. `treated_as_original_type` carries what the card says.
+
+**"Banish this card when it leaves the field" is a DESTINATION replacement**, and a different
+mechanism from the destruction replacement of §17: that one swaps *which card* is destroyed,
+this one swaps *where this card ends up*, and it applies to every departure the clause names
+rather than to destruction alone. It is held in `card_memory`
+(`GameState.BANISH_WHEN_LEAVING_FIELD_KEY`) rather than in `CardInstance.flags`, for the reason
+§15 gives: `on_leave_field()` clears the flags during the very move that has to honour the
+obligation. **Only the destination changes; the reason does not** — a redirected destruction is
+still a destruction and still fires `CARD_DESTROYED`, so a clause worded "when this card is
+destroyed" still sees it. The obligation is consumed the moment it fires.
+
 ---
 
 ## 11. Once-per-turn tracking (master prompt §47)

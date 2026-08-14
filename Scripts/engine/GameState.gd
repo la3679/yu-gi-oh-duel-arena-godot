@@ -28,6 +28,12 @@ const DESTRUCTION_PREVENTION_EFFECT_ID := "destruction_prevention"
 ## receives the same params and returns the card to destroy instead, or null.
 const DESTRUCTION_REPLACEMENT_EFFECT_ID := "destruction_replacement"
 
+## Card-memory key for "banish this card when it leaves the field"
+## [`The Phantom Knights of Shadow Veil`]. Held in `card_memory` rather than in
+## `CardInstance.flags` for the reason RULES_SPEC.md 15 gives: `on_leave_field()` clears the
+## flags during the very move that has to honour the obligation. Read once, in `move_card()`.
+const BANISH_WHEN_LEAVING_FIELD_KEY := "banish_when_leaving_field"
+
 ## Effect id convention for a COUNTER CAPACITY clause: "this card can have Spell Counters
 ## placed on it". `Apprentice Magician` reads it — "Target 1 face-up card on the field **that
 ## you can place a Spell Counter on**" is a filter on a property of the TARGET, and a card
@@ -335,6 +341,31 @@ func move_card(card: CardInstance, to_zone: Enums.Zone, reason: Enums.MoveReason
 	# about where the card came from. RULES_SPEC.md 15.
 	var was_face_up := card.is_face_up()
 
+	# "If Summoned this way, banish this card when it leaves the field."
+	# [`The Phantom Knights of Shadow Veil`]
+	#
+	# A DESTINATION replacement, and a different thing from the destruction replacement below:
+	# that one swaps WHICH CARD is destroyed, this one swaps WHERE THIS CARD ends up, and it
+	# applies to every departure the clause names — destroyed, tributed, returned to the hand,
+	# sent to the Graveyard — not to destruction alone. It has to be decided here, before
+	# `_detach()`, because after the move the destination is already fixed.
+	#
+	# Only the DESTINATION is redirected; the REASON is left exactly as it was. That
+	# distinction is load-bearing. The card really was destroyed / tributed / returned — it
+	# simply does not arrive where that normally sends it — so a clause worded "when this card
+	# is destroyed" must still see a destruction. Rewriting the reason to BANISHED would
+	# silently delete the destruction event and every trigger keyed on it.
+	var redirected_to_banishment := false
+	if was_on_field and not Enums.is_on_field_zone(to_zone) \
+			and to_zone != Enums.Zone.BANISHED and to_zone != Enums.Zone.IN_TRANSIT \
+			and bool(recall(card, BANISH_WHEN_LEAVING_FIELD_KEY, false)):
+		to_zone = Enums.Zone.BANISHED
+		to_player = card.owner_id
+		redirected_to_banishment = true
+		# Consumed the moment it fires: the obligation was about THIS stay on the field, and a
+		# card that somehow returns later has not been "Summoned this way" again.
+		forget(card, BANISH_WHEN_LEAVING_FIELD_KEY)
+
 	_detach(card)
 
 	card.prior_zone = from_zone
@@ -380,6 +411,23 @@ func move_card(card: CardInstance, to_zone: Enums.Zone, reason: Enums.MoveReason
 		# It has already gone to its OWNER's zone (forced above), so there is nothing to
 		# hand back — the lease is simply over. RULES_SPEC.md 5.6.
 		drop_control_leases_for(card)
+
+	# A Trap Monster is a monster ONLY while it occupies a Monster Zone. The instant it goes
+	# anywhere else — Graveyard, banished, hand, Deck, or back to where it came from because
+	# its Summon was negated — the runtime monster identity is revoked and the card is an
+	# ordinary Trap again. RULES_SPEC.md 5.8.
+	#
+	# This is deliberately NOT folded into `on_leave_field()`, which is the reason it is a
+	# separate block: `on_leave_field()` runs only when the card was on the field, and the
+	# negated-Summon path never gets there. A monster whose Summon is negated sits in
+	# `IN_TRANSIT` and is then put back where it came from, so leaving the identity to
+	# `on_leave_field()` would strand a Trap in the Graveyard still answering `is_monster()`.
+	# `IN_TRANSIT` itself keeps the identity because that is mid-Summon: the card has to still
+	# be a monster for the Summon it is halfway through to be a monster's Summon at all, and
+	# for the response window to see one.
+	if to_zone != Enums.Zone.MONSTER_ZONE and to_zone != Enums.Zone.EXTRA_MONSTER_ZONE \
+			and to_zone != Enums.Zone.IN_TRANSIT:
+		card.clear_monster_identity()
 
 	# A card that was TEMPORARILY banished and has now gone somewhere else — another effect
 	# moved it to the Graveyard, the hand, the Deck — is never coming back at its scheduled
@@ -434,6 +482,13 @@ func move_card(card: CardInstance, to_zone: Enums.Zone, reason: Enums.MoveReason
 			emit(GameEvent.Kind.CARD_RETURNED_TO_DECK, payload)
 		Enums.MoveReason.TRIBUTED:
 			emit(GameEvent.Kind.CARD_TRIBUTED, payload)
+
+	# A departure redirected into banishment IS a banishment as well as whatever it already
+	# was, so the banish event fires too. Guarded against double-emitting when the move was a
+	# banishment to begin with — that case cannot reach the redirect, but the guard keeps the
+	# two emitters from ever disagreeing.
+	if redirected_to_banishment and reason != Enums.MoveReason.BANISHED:
+		emit(GameEvent.Kind.CARD_BANISHED, payload)
 
 	# "Sent to the Graveyard" is a distinct concept from "destroyed" [S1 p.53].
 	# A banished card later moved to the GY is NOT "sent to the GY".
@@ -1395,9 +1450,12 @@ func _visible_card(card: CardInstance, viewer_id: int, force_visible: bool) -> D
 		d["def"] = card.current_def()
 		d["original_atk"] = card.original_atk()
 		d["original_def"] = card.original_def()
-		d["level"] = card.definition.level
-		d["attribute"] = card.definition.attribute
-		d["race"] = card.definition.race
+		# Through the CardInstance accessors, not `definition`: a Trap Monster's Level,
+		# Attribute and Type come from the effect that summoned it and the printed Trap
+		# carries none of them. RULES_SPEC.md 5.8.
+		d["level"] = card.current_level()
+		d["attribute"] = card.current_attribute()
+		d["race"] = card.current_race()
 	return d
 
 

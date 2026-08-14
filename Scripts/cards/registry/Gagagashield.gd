@@ -55,7 +55,7 @@ func _equip() -> EffectDef:
 		var out: Array = []
 		for entry in ctx.me().face_up_monsters():
 			var card: CardInstance = entry
-			if card.definition != null and card.definition.race == "Spellcaster":
+			if card.definition != null and card.current_race() == "Spellcaster":
 				out.append(card)
 		return out
 

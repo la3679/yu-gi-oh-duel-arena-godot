@@ -32,6 +32,7 @@ func _initialize() -> void:
 	suites.append(MovementTests.run())
 	suites.append(BanishTests.run())
 	suites.append(LifePointCostTests.run())
+	suites.append(TrapMonsterTests.run())
 
 	# --- Per-card suites (Phase 5). One per implemented card. ---
 	suites.append(ShiningAngelTests.run())

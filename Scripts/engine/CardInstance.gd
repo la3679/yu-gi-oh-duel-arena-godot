@@ -94,6 +94,34 @@ var unaffected_by_effects: bool = false
 ## Used by hidden-information filtering (master prompt 40) for revealed cards.
 var revealed_to: Array = []
 
+# --- Trap Monsters. RULES_SPEC.md 5.8 [S1 p.53] ---
+## A runtime MONSTER identity for a card whose printed `CardDef` is not a monster.
+##
+## `The Phantom Knights of Shadow Veil` is a Normal Trap that Special Summons ITSELF "as a
+## Normal Monster (Warrior/DARK/Level 4/ATK 0/DEF 300)". While it sits in a Monster Zone it
+## really is a monster — it can be attacked, tributed, targeted by "1 monster on the field"
+## and destroyed by battle — and in every other zone it is an ordinary Trap Card again.
+##
+## Two things this deliberately does NOT do:
+##
+##   * it does not touch `definition`. A `CardDef` is the immutable printed identity and is
+##     SHARED by every copy of that card, so writing a temporary type line into it would
+##     rewrite the card for the whole duel and for every other copy. Master prompt 9.
+##   * it does not pretend the card is an ordinary monster. The printed card is still a Trap,
+##     which is why `original_card_category()` keeps answering TRAP and why the card returns
+##     to being a plain Trap the moment it leaves the Monster Zone.
+##
+## Empty on every ordinary card, which is the whole pool bar one. Keys:
+##   `race`, `attribute`, `level`, `atk`, `def`, `is_normal_monster`,
+##   `treated_as_original_type` (Phantom Knights prints "(This card is NOT treated as a
+##   Trap.)", but most Trap Monsters stay Traps, so the text has to say which), and
+##   `source_effect_id` for the clause that granted it.
+##
+## Written only through `become_monster()` and cleared only through
+## `clear_monster_identity()`, which `GameState.move_card()` calls on every departure from a
+## Monster Zone. Nothing else may write it.
+var monster_identity: Dictionary = {}
+
 
 func _init(def: CardDef = null, p_owner: int = 0) -> void:
 	definition = def
@@ -109,16 +137,84 @@ func card_name() -> String:
 	return definition.name if definition else "<none>"
 
 
+## Is this card CURRENTLY a monster? A Trap Monster answers yes while it holds a runtime
+## monster identity and no everywhere else, which is exactly what the rules ask.
 func is_monster() -> bool:
+	if not monster_identity.is_empty():
+		return true
 	return definition != null and definition.is_monster()
 
 
 func is_spell() -> bool:
+	if not monster_identity.is_empty():
+		# A card being treated as a monster is a Spell only if its own text says it is still
+		# also its printed type. Phantom Knights says it is not.
+		return definition != null and definition.is_spell() and _treated_as_original_type()
 	return definition != null and definition.is_spell()
 
 
 func is_trap() -> bool:
+	if not monster_identity.is_empty():
+		return definition != null and definition.is_trap() and _treated_as_original_type()
 	return definition != null and definition.is_trap()
+
+
+# ---------------------------------------------------------------------------
+# Trap Monsters. RULES_SPEC.md 5.8
+# ---------------------------------------------------------------------------
+
+func has_monster_identity() -> bool:
+	return not monster_identity.is_empty()
+
+
+func _treated_as_original_type() -> bool:
+	return bool(monster_identity.get("treated_as_original_type", false))
+
+
+## The PRINTED category, which a runtime monster identity never changes. A Trap Monster in a
+## Monster Zone is a monster, but the card it is printed on is still a Trap — which is what
+## decides where it goes when it leaves, and what it is again once it gets there.
+func original_card_category() -> Enums.Category:
+	return definition.category if definition else Enums.Category.MONSTER
+
+
+## Grant this card a runtime monster identity. Called only from the summoning path, and only
+## for a card whose own text says it becomes a monster.
+func become_monster(identity: Dictionary) -> void:
+	monster_identity = identity.duplicate(true)
+
+
+func clear_monster_identity() -> void:
+	monster_identity.clear()
+
+
+## Current Level / Attribute / Type. These are the readers every rules-layer and card-layer
+## question must use, because for a Trap Monster the printed `CardDef` carries none of them —
+## `definition.level` is 0 on a Trap and would silently make it a Level 0 monster.
+func current_level() -> int:
+	if not monster_identity.is_empty():
+		return int(monster_identity.get("level", 0))
+	return definition.level if definition else 0
+
+
+func current_attribute() -> String:
+	if not monster_identity.is_empty():
+		return str(monster_identity.get("attribute", ""))
+	return definition.attribute if definition else ""
+
+
+func current_race() -> String:
+	if not monster_identity.is_empty():
+		return str(monster_identity.get("race", ""))
+	return definition.race if definition else ""
+
+
+## Is this card currently a NORMAL Monster? Phantom Knights is summoned "as a Normal
+## Monster", which matters to any clause that names one.
+func is_normal_monster() -> bool:
+	if not monster_identity.is_empty():
+		return bool(monster_identity.get("is_normal_monster", false))
+	return definition != null and definition.is_normal_monster
 
 
 ## Are this card's effects negated right now?
@@ -174,11 +270,20 @@ func is_in_defense_position() -> bool:
 # Stats. Master prompt 35 — never bake modified values into CardDef.
 # ---------------------------------------------------------------------------
 
+## The base ATK/DEF this card currently has. For a Trap Monster the granting text states
+## them ("ATK 0/DEF 300") and they ARE its printed values while it is a monster — a Trap has
+## no printed ATK at all, so there is nothing else they could be. `original_atk()` therefore
+## reads them too, which is right: a clause asking for this monster's original ATK while it
+## is on the field must get 0, not the 0 that a Trap's empty stat block coincidentally shares.
 func base_atk() -> int:
+	if not monster_identity.is_empty():
+		return int(monster_identity.get("atk", 0))
 	return definition.base_atk if definition else 0
 
 
 func base_def() -> int:
+	if not monster_identity.is_empty():
+		return int(monster_identity.get("def", 0))
 	return definition.base_def if definition else 0
 
 

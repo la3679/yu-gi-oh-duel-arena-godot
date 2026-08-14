@@ -46,8 +46,8 @@ static func _returnable_dragon() -> Callable:
 	return func(card: CardInstance) -> bool:
 		return card != null and card.definition != null and card.is_monster() \
 			and card.is_face_up() \
-			and card.definition.level >= 5 \
-			and card.definition.race == "Dragon"
+			and card.current_level() >= 5 \
+			and card.current_race() == "Dragon"
 
 
 func effects() -> Array:
