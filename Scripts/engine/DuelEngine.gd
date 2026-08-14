@@ -80,12 +80,37 @@ var _has_pending_transition: bool = false
 ## Guards against re-entrant advancing while a submit is already being processed.
 var _advancing: bool = false
 
+## Pending events for CONTINUOUS clauses that respond to a discrete event
+## (`ContinuousEffects.respond_to()`). A response changes state and so emits events of its
+## own; queueing rather than recursing keeps the order of application equal to the order of
+## emission, which is what makes a replay reproduce it. RULES_SPEC.md 5.7.
+var _event_response_queue: Array = []
+var _dispatching_event_responses: bool = false
+
 
 func _init(seed_value: int = 0) -> void:
 	state = GameState.new(seed_value)
 	chain = ChainManager.new(state, self)
 	log = DuelLog.new()
 	state.event_emitted.connect(log.record_event)
+	state.event_emitted.connect(_queue_continuous_event_response)
+
+
+## Every emitted event is offered to the continuous clauses that respond to events.
+##
+## `continuous` does not exist until `setup_duel()`, and events emitted while the Decks are
+## being built have no field to respond from, so a null system simply drops them.
+func _queue_continuous_event_response(event: GameEvent) -> void:
+	if continuous == null:
+		return
+	_event_response_queue.append(event)
+	if _dispatching_event_responses:
+		return
+	_dispatching_event_responses = true
+	while not _event_response_queue.is_empty():
+		var next: GameEvent = _event_response_queue.pop_front()
+		continuous.respond_to(next)
+	_dispatching_event_responses = false
 
 
 # ---------------------------------------------------------------------------

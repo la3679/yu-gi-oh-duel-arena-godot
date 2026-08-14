@@ -82,6 +82,44 @@ func _apply_pass(negation_only: bool) -> void:
 			effect.apply_continuous.call(ctx)
 
 
+# ---------------------------------------------------------------------------
+# Continuous clauses that react to a discrete EVENT. RULES_SPEC.md 5.7.
+# ---------------------------------------------------------------------------
+
+## Apply every CONTINUOUS clause that responds to `event`, immediately and exactly once.
+##
+## This is not the trigger system and it must never become it. A Trigger Effect is
+## activated, goes on the Chain, and can be responded to and negated. A continuous clause
+## like `Judge of the Ice Barrier`'s "each time your opponent activates a card or effect by
+## paying LP, they lose 500 LP" does none of that: it applies at the moment the event
+## happens, puts no link on the Chain, and is never offered as a choice. RULES_SPEC.md 4.3
+## already records that paying a cost is not an activation and cannot be chained to, which
+## is exactly why this cannot be modelled as a Trigger Effect.
+##
+## Sources are the same set `recompute()` uses — face-up, on the field, not negated, own
+## activation resolved — so a clause switches off by itself under precisely the conditions
+## its continuous stat modifiers would. Order is board order, which is deterministic, so a
+## replay reproduces the same LP changes in the same sequence.
+func respond_to(event: GameEvent) -> void:
+	if event == null or state.is_duel_over():
+		return
+	for card in _continuous_sources():
+		for effect in card.definition.effects:
+			if effect.effect_type != Enums.EffectType.CONTINUOUS:
+				continue
+			if not effect.respond_to_event.is_valid():
+				continue
+			if not effect.trigger_events.has(event.kind):
+				continue
+			var ctx := EffectContext.new(state, card, effect)
+			ctx.controller_id = card.controller_id
+			ctx.continuous = self
+			ctx.trigger_event = event
+			if effect.condition.is_valid() and not bool(effect.condition.call(ctx)):
+				continue
+			effect.respond_to_event.call(ctx)
+
+
 func _clear() -> void:
 	for card in state.all_instances():
 		card.remove_modifiers_with_duration(CONTINUOUS_DURATION)

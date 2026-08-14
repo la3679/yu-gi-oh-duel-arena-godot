@@ -730,6 +730,84 @@ static func cost_card_count(ctx: EffectContext) -> int:
 	return (ids as Array).size() if ids is Array else 0
 
 
+# ---------------------------------------------------------------------------
+# Paying LIFE POINTS as an activation cost. RULES_SPEC.md 10.4, CARD_RULINGS.md R31.
+# ---------------------------------------------------------------------------
+#
+# This is deliberately NOT "LP went down". Life Points fall for many unrelated reasons —
+# effect damage, battle damage, an arbitrary loss written by a resolving effect — and a
+# clause that keys on "activated by PAYING LP" (`Judge of the Ice Barrier`) must see none
+# of them. The provenance therefore rides the COST channel that already exists rather than
+# the LP channel: `pay_life_points_cost()` writes `LP_COST_KEY` into `ctx.cost_payload`,
+# which `DuelEngine._perform_activation()` copies into BOTH the `COST_PAID` event and the
+# `ChainLink`. So the authoritative answer to "was this activation paid for with LP?" is a
+# property of the ACTIVATION, per Chain Link, and is never inferred from an LP delta.
+#
+# No card in the V1 pool pays LP as a cost, so every path here is exercised by synthetic
+# fixtures and by `LifePointCostTests`. That is the same treatment R21/R23 established.
+
+## Key under which an LP payment is recorded in `cost_payload`. The value is the amount.
+const LP_COST_KEY := "life_points_paid"
+
+## `GameState.change_life_points()` reason for an LP payment made as an activation cost.
+## Distinct from every card-name reason so the LP_CHANGED event is classifiable too — but
+## the COST channel above, not this string, is what a card effect is allowed to key on.
+const LP_COST_REASON := "activation cost"
+
+
+## Can this player afford to pay `amount` LP as a cost right now?
+##
+## CARD_RULINGS.md **R31**: an activation that requires paying LP cannot be activated at
+## all if the payment cannot be made, and the engine requires the payer to be left with at
+## least 1 LP. The strict inequality is the TCG reading and is the disputed half of R31 —
+## the OCG allows paying LP exactly equal to your remaining LP, losing the Duel. It is
+## isolated in this one function on purpose; nothing in the V1 pool can reach it.
+static func can_pay_life_points_cost(ctx: EffectContext, amount: int) -> bool:
+	if amount <= 0:
+		return false
+	return ctx.state.player(ctx.controller_id).life_points > amount
+
+
+## Pay `amount` LP as an activation COST, and record that this activation paid it.
+##
+## A cost is paid at ACTIVATION and is never refunded — not when the activation is negated
+## and not when the effect is negated (RULES_SPEC.md 10). Nothing here reverses the payment,
+## and nothing anywhere else may.
+static func pay_life_points_cost(ctx: EffectContext, amount: int) -> bool:
+	if not can_pay_life_points_cost(ctx, amount):
+		return false
+	ctx.state.change_life_points(ctx.controller_id, -amount, LP_COST_REASON, ctx.source.id)
+	ctx.cost_payload[LP_COST_KEY] = amount
+	return true
+
+
+## How much LP a cost payload records as having been paid. 0 when none was.
+## Takes the payload rather than a Chain Link so the same reader serves the `COST_PAID`
+## event, a live `ChainLink`, and `ctx.cost_payload` at resolution.
+static func life_points_paid_in(payload: Dictionary) -> int:
+	var amount = payload.get(LP_COST_KEY, 0)
+	return int(amount) if amount is int or amount is float else 0
+
+
+## Was this activation paid for with LP? The single question `Judge of the Ice Barrier`
+## asks, and the only supported way to ask it.
+static func activation_paid_life_points(payload: Dictionary) -> bool:
+	return life_points_paid_in(payload) > 0
+
+
+## Did THIS `COST_PAID` event report an activation by a given player that paid LP?
+## Kept as one primitive so no card re-derives the event shape.
+static func cost_event_paid_life_points(ev: GameEvent, payer_id: int) -> bool:
+	if ev == null or ev.kind != GameEvent.Kind.COST_PAID:
+		return false
+	if int(ev.data.get("player", -1)) != payer_id:
+		return false
+	var payload = ev.data.get("payload", {})
+	if not (payload is Dictionary):
+		return false
+	return activation_paid_life_points(payload as Dictionary)
+
+
 ## Record what a cost consumed on the context, so the Chain Link carries it and the duel
 ## log can show what was actually paid.
 static func record_cost(ctx: EffectContext, key: String, cards: Array) -> void:

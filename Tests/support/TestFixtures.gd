@@ -275,6 +275,129 @@ static func summon_negator(card_name: String) -> CardDef:
 
 
 # ---------------------------------------------------------------------------
+# Paying LIFE POINTS as an activation cost. RULES_SPEC.md 10.4.
+# ---------------------------------------------------------------------------
+#
+# No card in the V1 pool pays LP as a cost, so every fixture below is synthetic — the same
+# treatment R21 (`Apprentice Magician`'s Spell Counter) and R23 (`Fairy Tail - Rella`'s
+# Equip clause) established. `LifePointCostTests` asserts against the real pool that none
+# of the 77 cards pays LP, so the fact cannot rot silently.
+
+## A Spell/Trap whose CARD ACTIVATION costs `amount` LP.
+static func lp_cost_activation(card_name: String, amount: int,
+		kind: Enums.STKind = Enums.STKind.NORMAL_TRAP) -> CardDef:
+	var d := trap(card_name, kind) if kind == Enums.STKind.NORMAL_TRAP \
+		else spell(card_name, kind)
+	var e := EffectDef.new("lp_cost_activation",
+		"Test: pay %d LP; this card does nothing." % amount)
+	e.of_type(Enums.EffectType.CARD_ACTIVATION)
+	e.with_spell_speed(Enums.SpellSpeed.SS2)
+	e.activation_locations = [Enums.ActivationLocation.HAND,
+		Enums.ActivationLocation.FIELD_FACE_DOWN]
+	e.can_pay_cost = func(ctx: EffectContext) -> bool:
+		return EffectPrimitives.can_pay_life_points_cost(ctx, amount)
+	e.pay_cost = func(ctx: EffectContext) -> bool:
+		return EffectPrimitives.pay_life_points_cost(ctx, amount)
+	e.resolve = func(ctx: EffectContext) -> void:
+		ctx.log_note("resolved having paid %d LP" % amount)
+	return with_effect(d, e)
+
+
+## A monster with an IGNITION EFFECT that costs `amount` LP. Judge's clause says "a card
+## OR EFFECT", so the two must be exercised separately.
+static func lp_cost_ignition(card_name: String, amount: int) -> CardDef:
+	var d := monster(card_name, 4, 1000, 1000)
+	var e := EffectDef.new("lp_cost_ignition",
+		"Test: pay %d LP; this effect does nothing." % amount)
+	e.of_type(Enums.EffectType.IGNITION)
+	e.from_locations([Enums.ActivationLocation.FIELD_FACE_UP])
+	e.can_pay_cost = func(ctx: EffectContext) -> bool:
+		return EffectPrimitives.can_pay_life_points_cost(ctx, amount)
+	e.pay_cost = func(ctx: EffectContext) -> bool:
+		return EffectPrimitives.pay_life_points_cost(ctx, amount)
+	e.resolve = func(ctx: EffectContext) -> void:
+		ctx.log_note("resolved having paid %d LP" % amount)
+	return with_effect(d, e)
+
+
+## A Spell/Trap whose activation has a cost that is NOT Life Points. The control case for
+## every "…did NOT pay LP" assertion: it emits `COST_PAID` exactly as an LP payment does,
+## so a watcher that keys on the EVENT rather than on the payload would wrongly fire.
+static func non_lp_cost_activation(card_name: String) -> CardDef:
+	var d := trap(card_name)
+	var e := EffectDef.new("non_lp_cost_activation",
+		"Test: discard 1 card; this card does nothing.")
+	e.of_type(Enums.EffectType.CARD_ACTIVATION)
+	e.with_spell_speed(Enums.SpellSpeed.SS2)
+	e.activation_locations = [Enums.ActivationLocation.FIELD_FACE_DOWN]
+	e.can_pay_cost = func(ctx: EffectContext) -> bool:
+		return not ctx.me().hand.is_empty()
+	e.pay_cost = func(ctx: EffectContext) -> bool:
+		var paid := EffectPrimitives.pay_discard_cost(ctx, ctx.me().hand.duplicate(), 1,
+			"Discard 1 card")
+		if paid.is_empty():
+			return false
+		EffectPrimitives.record_cost(ctx, EffectPrimitives.COST_CARDS_KEY, paid)
+		return true
+	e.resolve = func(_ctx: EffectContext) -> void:
+		pass
+	return with_effect(d, e)
+
+
+## A Spell/Trap that changes Life Points at RESOLUTION by a route that is not a cost.
+## `mode` is "damage" (effect damage to the opponent) | "gain" (the controller gains) |
+## "arbitrary_loss" (the opponent simply loses LP). None of these is a payment, and the
+## generic gate asserts that a Judge-style watcher sees none of them.
+static func lp_changer(card_name: String, mode: String, amount: int) -> CardDef:
+	var d := trap(card_name)
+	var e := EffectDef.new("lp_change", "Test: %s %d LP at resolution." % [mode, amount])
+	e.of_type(Enums.EffectType.CARD_ACTIVATION)
+	e.with_spell_speed(Enums.SpellSpeed.SS2)
+	e.activation_locations = [Enums.ActivationLocation.FIELD_FACE_DOWN]
+	e.resolve = func(ctx: EffectContext) -> void:
+		match mode:
+			"damage":
+				ctx.state.change_life_points(ctx.opponent_id(), -amount,
+					card_name, ctx.source.id)
+				ctx.state.check_life_point_loss()
+			"gain":
+				ctx.state.change_life_points(ctx.controller_id, amount,
+					card_name, ctx.source.id)
+			"arbitrary_loss":
+				ctx.state.change_life_points(ctx.opponent_id(), -amount,
+					card_name, ctx.source.id)
+				ctx.state.check_life_point_loss()
+			_:
+				push_error("TestFixtures.lp_changer: unknown mode '%s'" % mode)
+	return with_effect(d, e)
+
+
+## A monster carrying the GENERIC shape of `Judge of the Ice Barrier`'s first clause: a
+## CONTINUOUS clause that responds to an event immediately, without a Chain Link.
+##
+## Every activation by `watch_player` that paid LP appends a Dictionary to `seen`:
+## {"card_name", "effect_id", "amount"}. Tests read `seen` rather than an LP total, so a
+## coincidental LP change can never be mistaken for the clause having fired.
+static func lp_cost_watcher(card_name: String, watch_player: int, seen: Array) -> CardDef:
+	var d := monster(card_name, 4, 1800, 900, "WATER")
+	var e := EffectDef.new("watch_lp_cost",
+		"Test: each time that player activates a card or effect by paying LP, record it.")
+	e.of_type(Enums.EffectType.CONTINUOUS)
+	e.on_events([GameEvent.Kind.COST_PAID])
+	e.condition = func(ctx: EffectContext) -> bool:
+		return EffectPrimitives.cost_event_paid_life_points(ctx.trigger_event, watch_player)
+	e.respond_to_event = func(ctx: EffectContext) -> void:
+		var ev: GameEvent = ctx.trigger_event
+		var payload: Dictionary = ev.data.get("payload", {})
+		seen.append({
+			"card_name": str(ev.data.get("card_name", "")),
+			"effect_id": str(ev.data.get("effect_id", "")),
+			"amount": EffectPrimitives.life_points_paid_in(payload),
+		})
+	return with_effect(d, e)
+
+
+# ---------------------------------------------------------------------------
 # Decks and engines
 # ---------------------------------------------------------------------------
 

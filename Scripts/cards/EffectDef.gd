@@ -90,6 +90,17 @@ var targets_valid: Callable = Callable()
 var resolve: Callable = Callable()
 ## func(ctx: EffectContext) -> void — apply/refresh a continuous effect.
 var apply_continuous: Callable = Callable()
+## func(ctx: EffectContext) -> void — a CONTINUOUS clause that reacts to a discrete EVENT
+## immediately and exactly once, without starting a Chain. `trigger_events` says which
+## events; `condition` gates it; `ctx.trigger_event` carries the event.
+##
+## This is NOT a Trigger Effect and must not be confused with one. "Each time your opponent
+## activates a card or effect by paying LP, they lose 500 LP" (`Judge of the Ice Barrier`)
+## is a continuous effect: it applies at the moment the event happens, it puts no link on
+## the Chain, and it is never offered as a choice. `apply_continuous` cannot express it —
+## that runs on every recompute, and an LP loss applied on every recompute would fire an
+## unbounded number of times for one event. See `ContinuousEffects.respond_to()`.
+var respond_to_event: Callable = Callable()
 ## func(ctx: EffectContext) -> CardInstance — a destruction REPLACEMENT query:
 ## "If a monster equipped with this card would be destroyed, destroy this card instead."
 ## `ctx.params` carries {"card": the card that would be destroyed, "reason": MoveReason}.

@@ -113,7 +113,8 @@ func _load_one(path: String) -> void:
 			errors.append("'%s' effect '%s' starts a Chain but has no resolve()"
 				% [card_name, effect.effect_id])
 			return
-		if effect.is_continuous() and not effect.apply_continuous.is_valid():
+		if effect.is_continuous() and not effect.apply_continuous.is_valid() \
+				and not effect.respond_to_event.is_valid():
 			if not RULES_QUERY_EFFECT_IDS.has(effect.effect_id):
 				errors.append("'%s' effect '%s' is continuous but has no apply_continuous()"
 					% [card_name, effect.effect_id])
@@ -122,6 +123,18 @@ func _load_one(path: String) -> void:
 			# or the rules layer would silently read it as "no opinion".
 			if not (effect.condition.is_valid() or effect.destruction_substitute.is_valid()):
 				errors.append("'%s' effect '%s' is a rules query but answers nothing"
+					% [card_name, effect.effect_id])
+				return
+
+		# An event-responding CONTINUOUS clause that names no event would never fire, and
+		# would do so silently. `ContinuousEffects.respond_to()` is the only consumer.
+		if effect.respond_to_event.is_valid():
+			if not effect.is_continuous():
+				errors.append("'%s' effect '%s' has respond_to_event but is not continuous"
+					% [card_name, effect.effect_id])
+				return
+			if effect.trigger_events.is_empty():
+				errors.append("'%s' effect '%s' responds to events but names none"
 					% [card_name, effect.effect_id])
 				return
 
