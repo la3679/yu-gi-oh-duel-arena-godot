@@ -47,7 +47,7 @@ its own suite and passes it in full. **49 unique playable cards remain.**
 With batch 4 the pool's **Continuous Spell/Trap group is complete** (all 6 Continuous Traps
 plus the single Continuous Spell).
 **Overall status:** IN PROGRESS — **not** acceptance-complete.
-**HEAD at checkpoint:** `613d68a` (Phase 5 batch 7 units A+B) — this checkpoint commits on top.
+**HEAD at checkpoint:** `2ae1298` (Phase 5 batch 7 units C and D — batch 7 COMPLETE).
 **Measured suite at checkpoint:** **4118 passed / 0 failed** across **53 suites**
 (1056 core rules + 3016 per-card + 46 interaction); SmokeCheck **PASS**.
 **Every assertion from the previous checkpoint passes unchanged.** Batch 7 changed no existing
