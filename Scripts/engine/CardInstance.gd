@@ -390,6 +390,62 @@ func record_use_this_turn(effect_id: String, turn: int) -> void:
 	}
 
 
+# ---------------------------------------------------------------------------
+# Per-card TURN COUNTERS. RULES_SPEC.md 11.
+# ---------------------------------------------------------------------------
+#
+# "You must destroy it during the End Phase of your opponent's 3rd turn"
+# (`Swords of Revealing Light`, CARD_RULINGS.md R6) needs a card to count TURNS, which is a
+# different thing from every counter already modelled here and must not be folded into one
+# of them:
+#
+#   * `counters` holds GAME counters — Spell Counters, Balloon Counters. Those are placed
+#     and removed by card effects and other cards can read and require them. A turn tally is
+#     none of those things and putting it there would make it visible to `Wonder Balloons`.
+#   * `effect_usage` / `effect_use_counts` answer "has this clause been used this turn?".
+#     They self-expire by comparing against the CURRENT turn number, which is exactly wrong
+#     for a tally that must survive every turn boundary until it reaches its limit.
+#
+# The counter is keyed by a card-chosen string and records the last turn it advanced on, so
+# advancing twice inside one turn — a phase re-entered, a recompute repeated — cannot
+# double-count. It is per INSTANCE and is cleared with the rest of the per-instance state
+# when the card leaves the field, because a card that left and came back starts over.
+
+## key -> {"count": int, "last_turn": int}
+var turn_counters: Dictionary = {}
+
+
+## Advance the counter named `key` if it has not already advanced during `turn`.
+## Returns the value AFTER this call, whether or not it changed.
+func advance_turn_counter(key: String, turn: int) -> int:
+	var record = turn_counters.get(key, null)
+	if record != null and int((record as Dictionary).get("last_turn", -1)) == turn:
+		return int((record as Dictionary).get("count", 0))
+	var next := turn_counter_value(key) + 1
+	turn_counters[key] = {"count": next, "last_turn": turn}
+	return next
+
+
+func turn_counter_value(key: String) -> int:
+	var record = turn_counters.get(key, null)
+	if record == null:
+		return 0
+	return int((record as Dictionary).get("count", 0))
+
+
+## Has this counter already advanced during `turn`? Lets a clause tell "I counted this turn
+## already" apart from "this turn does not count", which are different answers.
+func turn_counter_advanced_on(key: String, turn: int) -> bool:
+	var record = turn_counters.get(key, null)
+	if record == null:
+		return false
+	return int((record as Dictionary).get("last_turn", -1)) == turn
+
+
+func reset_turn_counter(key: String) -> void:
+	turn_counters.erase(key)
+
+
 func reset_turn_state() -> void:
 	has_attacked_this_turn = false
 	attacks_declared_this_turn = 0
@@ -403,6 +459,7 @@ func reset_turn_state() -> void:
 func on_leave_field() -> void:
 	effect_usage.clear()
 	effect_use_counts.clear()
+	turn_counters.clear()
 	summoned_by_procedure_id = ""
 	atk_modifiers.clear()
 	def_modifiers.clear()
@@ -428,6 +485,7 @@ func on_leave_field() -> void:
 func on_flipped_face_down() -> void:
 	effect_usage.clear()
 	effect_use_counts.clear()
+	turn_counters.clear()
 	effects_negated = false
 	unaffected_by_effects = false
 

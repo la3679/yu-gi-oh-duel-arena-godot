@@ -9,7 +9,43 @@ Gate B (the generic rules engine) is MET; nothing in Phase 4 needs revisiting.
 
 ---
 
-## 0. READ THIS FIRST — batch 8 is COMPLETE
+## 0. READ THIS FIRST — batch 9 is PARTIAL: unit A only
+
+**Batches 1–8 are complete. Batch 9 has ONE unit done — unit A, the generic gate — and NO card
+started.** The session that did it stopped at the Milestone A boundary for weekly-usage safety.
+
+| Batch 9 unit | Status |
+|---|---|
+| **Unit A — the generic attack-restriction / attack-negation gate (`AttackRestrictionTests`, 229)** | **COMPLETE** |
+| `Mirage Dragon` | **NOT STARTED — this is the exact next step** |
+| `Swords of Revealing Light` | NOT STARTED |
+| `Maiden with Eyes of Blue` | NOT STARTED |
+| `Soul Exchange` | NOT STARTED |
+| `Kaiser Sea Horse` | NOT STARTED |
+
+**Measured at this checkpoint: 5509 passed / 0 failed across 63 suites; SmokeCheck PASS;
+49 / 77 implemented, 49 / 77 tested, 28 remaining** (counts computed by
+`python Tools/build_matrix.py`, never written by hand). **The card counts are deliberately
+unchanged — unit A adds a gate, not a card.** **All 5280 assertions from the previous
+checkpoint pass unchanged**; every pre-existing suite reports exactly its previous count, and
+5509 − 5280 = 229 is precisely the new suite. ObjectDB at exit: **164444**.
+
+**Unit A pins down that ATTACK PREVENTION, ATTACK NEGATION and a CARD-CLASS ACTIVATION LOCK are
+three different things** and must never become one `attack_blocked` boolean. It also consumed two
+pieces of declared-but-unused vocabulary — `GameEvent.Kind.ATTACK_NEGATED` (zero emitters since
+Phase 4) and `EffectDef.restriction_group` (zero consumers since batch 5). Full write-up,
+including the three test-harness defects it caught and the generic mechanics it added, is in
+`Reports/TEST_RESULTS.md`. New spec sections **`RULES_SPEC.md §4.6, §6.4, §11.1, §11.2`**; new
+ruling **R34** (six parts, per-part confidence; **part D is MEDIUM-HIGH and explicitly flagged
+for re-checking against an official source**). **No engine defect was found and none was
+introduced.**
+
+**R3, R6, R7 and R8 remain OPEN.** Unit A settled the generic mechanisms those cards will use;
+it did not settle the per-card questions. Do not treat them as closed.
+
+---
+
+## 0a. The record of batch 8 — COMPLETE
 
 **Batches 1–8 are complete.** Every unit is done, tested and committed. Nothing is partial and
 nothing is left UNVERIFIED.
@@ -26,7 +62,7 @@ nothing is left UNVERIFIED.
 | The generic **Battle-Phase-restriction** gate (`BattlePhaseRestrictionTests`, 53) | **COMPLETE** |
 | `Runick Flashing Fire` (`RunickFlashingFireTests`, 123) | **COMPLETE** |
 
-**Measured at this checkpoint: 5280 passed / 0 failed across 62 suites; SmokeCheck PASS;
+**Measured at the batch-8 checkpoint: 5280 passed / 0 failed across 62 suites; SmokeCheck PASS;
 49 / 77 implemented, 49 / 77 tested, 28 remaining** (counts computed by
 `python Tools/build_matrix.py`, never written by hand). **All 4787 assertions from the previous
 checkpoint pass unchanged** — none was weakened, retargeted or deleted, and no existing suite
@@ -528,12 +564,12 @@ the pool that needs the behaviour. Full write-up in `Reports/TEST_RESULTS.md`.
 
 ### Known harness issues (not rules defects)
 
-* The run reports **`154223 ObjectDB instances were leaked at exit`** (measured at this
-  batch-8-COMPLETE checkpoint; 135266 at the partial batch-8 checkpoint, 123104 before it, 113897
-  at batch 7, 97559 at units A+B, 85668 at batch 6, 74049 at batch 5, 61457 at batch 4). At
-  **~38.5 per new assertion** this is the **fourth consecutive rise** and the highest
-  per-assertion figure so far. **No explanation may be recorded for it that has not been
-  measured.** The superseded batch-8 note is kept below for the trend.
+* The run reports **`164444 ObjectDB instances were leaked at exit`** (measured at this
+  batch-9-unit-A checkpoint; 154223 at batch-8-COMPLETE, 135266 at the partial batch-8
+  checkpoint, 123104 before it, 113897 at batch 7, 97559 at units A+B, 85668 at batch 6, 74049 at
+  batch 5, 61457 at batch 4). At **~44.6 per new assertion** this is the **fifth consecutive
+  rise** and again the highest per-assertion figure so far. **No explanation may be recorded for
+  it that has not been measured.** The superseded batch-8 note is kept below for the trend.
 
 * Superseded: **`123104 ObjectDB instances were leaked at exit`**. At **~27.6 per new assertion**
   this was the highest per-assertion figure at the time,
@@ -566,7 +602,7 @@ the pool that needs the behaviour. Full write-up in `Reports/TEST_RESULTS.md`.
 | 2 | Per-card official text + rulings research (77 cards) | **COMPLETE** |
 | 3 | Architecture / scaffolding + Graphify index | **COMPLETE** |
 | 4 | Core rules engine | **COMPLETE** — 4b-1/4b-2/4b-3/4c done+tested |
-| 5 | Card effect library (77 cards) | **IN PROGRESS** — **49 / 77** implemented and tested (batches 1-8 all complete; batch 9 not started) |
+| 5 | Card effect library (77 cards) | **IN PROGRESS** — **49 / 77** implemented and tested (batches 1-8 all complete; **batch 9 PARTIAL — unit A only, no card started**) |
 | 6 | Automated tests | NOT STARTED |
 | 7 | Basic playable UI | NOT STARTED |
 | 8 | Arena / presentation | NOT STARTED |
@@ -694,6 +730,7 @@ DuelArenaGame/
 │       ├── LifePointCostTests.gd 109 assertions (the LP-COST gate)
 │       ├── TrapMonsterTests.gd  192 assertions (the TRAP-MONSTER gate)
 │       ├── BattlePhaseRestrictionTests.gd 53 (the BATTLE-PHASE-RESTRICTION gate)
+│       ├── AttackRestrictionTests.gd 229 (the ATTACK-RESTRICTION / NEGATION gate)
 │       ├── ChainTests.gd        27 assertions
 │       ├── TimingTests.gd       37 assertions
 │       ├── TurnFlowTests.gd     40 assertions
@@ -1144,10 +1181,18 @@ Everything previously listed here is now done and tested; see §6a and
 
 ### Genuinely still open (carried through Phase 5, not hidden)
 
-* **33 of 77 cards are not implemented yet.** They are honestly `NOT_IMPLEMENTED` in the
-  matrix; see §8 for the next batch.
-* **Batch 7 is COMPLETE** — all four units, tested and committed. **Batch 8 has not been
-  started** and is specified in §8.
+* **28 of 77 cards are not implemented yet.** They are honestly `NOT_IMPLEMENTED` in the
+  matrix; see §8 for the exact next card.
+* **Batch 9 is PARTIAL.** Unit A (the generic attack-restriction / attack-negation gate) is
+  COMPLETE and green at 229 assertions. **No batch-9 card is started**; `Mirage Dragon` is the
+  exact resume point and is specified in §8.
+* **R3, R6, R7 and R8 are still OPEN.** Unit A settled the generic MECHANISMS those cards need,
+  not the per-card rulings. **R34 part D** — that "cannot activate Trap Cards" locks activating a
+  Trap CARD but not activating an EFFECT of an already-face-up Trap — is **MEDIUM-HIGH and was
+  reasoned from PSCT, not from a quoted ruling on `Mirage Dragon`.** It is the single most
+  worthwhile piece of research for the next session, and it is isolated behind one predicate
+  (`ActivationRules.card_class_activation_ok()`) so correcting it is a one-place change.
+* **Batch 7 is COMPLETE** — all four units, tested and committed. **Batch 8 is COMPLETE.**
 * **R29 is a reasoned decision resting partly on a general rule, not a quoted ruling on either
   card.** "1 card your opponent controls" (`Phoenix Wing Wind Blast`,
   `Spiritual Wind Art - Miyabi`) is re-checked for CONTROL at resolution, so a target the
@@ -1587,49 +1632,111 @@ Decisions in these two units that must not be reversed:
   reports "no legal choice", with a real-pool assertion — the R21/R23/R2 treatment, now used five
   times.
 
-### The NEXT step — batch 9 — start here
+### The NEXT step — batch 9 unit B, card 1: `Mirage Dragon` — start here
 
-**Batch 8 is closed. Do not reopen it and do not rewrite any gate.** Six gates are green and must
-stay so: `EquipTests`, `ControlTests`, `MovementTests`, `BanishTests`, `LifePointCostTests`,
-`TrapMonsterTests`, `BattlePhaseRestrictionTests`.
+**Batch 8 is closed and batch 9 unit A is closed. Do not reopen either, and do not rewrite any
+gate.** Eight gates are green and must stay so: `EquipTests`, `ControlTests`, `MovementTests`,
+`BanishTests`, `LifePointCostTests`, `TrapMonsterTests`, `BattlePhaseRestrictionTests`,
+**`AttackRestrictionTests`**.
 
-**28 cards remain.** The batch-9 group is the **attack- and battle-modification group**, which is
-the largest coherent mechanic group left in the pool and the one whose cards most depend on each
-other. Do it in units, each tested and committed before the next begins, and — as always — **the
-generic gate first**.
+**Unit A is DONE — do not rewrite it and do not re-derive its mechanics.** `AttackRestrictionTests`
+(229) is green. The generic machinery the five batch-9 cards need **already exists and is tested**:
 
-**UNIT A — the generic ATTACK-RESTRICTION / ATTACK-NEGATION gate.** Write
-`Tests/rules/AttackRestrictionTests.gd` and make it pass **before any batch-9 card**. What is
-genuinely new, and what the gate must pin down:
+| You need | Use this — it exists and is green | Do NOT |
+|---|---|---|
+| "your opponent's monsters cannot declare an attack" | `EffectPrimitives.restrict_opponent_attacks(ctx)` in `apply_continuous` | write per-monster `cannot_attack` flags in a loop |
+| "you can negate the attack" | `EffectPrimitives.negate_declared_attack(ctx)` | cancel the attack, or reuse the Replay path |
+| "cannot activate Trap Cards during the Battle Phase" | `EffectPrimitives.forbid_card_activation(ctx, pid, Enums.Category.TRAP, Enums.Phase.BATTLE)` | put `Mirage Dragon` by name into `ActivationRules` |
+| "was this card targeted for the attack?" | `EffectPrimitives.is_current_attack_target(ctx, card)` | read the trigger event payload directly |
+| "the End Phase of your opponent's 3rd turn" | `EffectPrimitives.count_turn_for(ctx, key, pid)` on `CardInstance.turn_counters` | use `counters` (game counters) or `effect_usage` (self-expiring) |
+| "only 1 *[name]* effect per turn" shared across clauses | `EffectDef.in_group("…")` + `opt_named_effect()` on **both** clauses | `opt_instance()`, or a separate `opt_named_effect()` per clause |
+| "skip / cannot conduct your Battle Phase THIS turn" | the existing turn-scoped `skip_battle_phase_this_turn` restriction | the `battle_phase_skips` list — a **different** lifetime (see §2.4) |
 
-* **negating an ATTACK** as distinct from negating an activation, an effect or a Summon —
-  the attack is stopped but the Battle Phase continues (`Maiden with Eyes of Blue`);
-* **preventing an attack from being declared at all**, continuously, for a bounded number of
-  turns (`Swords of Revealing Light`);
-* **a lock on ACTIVATING a card class during the Battle Phase** (`Mirage Dragon` — Traps);
-* **a per-card TURN COUNTER** ("destroy it during the End Phase of your opponent's 3rd turn",
-  **R6** — confirm exactly which End Phase is the 3rd);
-* how each interacts with the existing Replay rules, which are already tested and must not
-  change.
+**28 cards remain.** The batch-9 group is the **attack- and battle-modification group**. Do the
+remaining cards in units, each tested and committed before the next begins.
 
-**UNIT B — the attack-modification cards**, in this order:
-`Mirage Dragon` (2 copies, deck 1) · `Swords of Revealing Light` · `Maiden with Eyes of Blue`.
-**R3** governs `Maiden`: "You can only use 1 'Maiden with Eyes of Blue' effect per turn, and only
-once that turn" is a **combined** restriction across BOTH effects, per player, per name — it is
-neither `opt_named_effect()` on each nor `opt_instance()`, and it will need a shared key.
+#### UNIT B — the attack-modification cards, in this exact order
 
-**UNIT C — the Tribute-modification group**: `Soul Exchange` (**R7**, and note it needs the
-turn-scoped `skip_battle_phase_this_turn` restriction that already exists — **not** the new
-`battle_phase_skips` list, which is a different lifetime) and `Kaiser Sea Horse` (**R8**,
-"counts as 2 Tributes", which modifies the Tribute requirement computation in `SummonRules`).
+**1. `Mirage Dragon` — DO THIS FIRST.** Verified official text (`Data/cards/cards.json`,
+cid 6196), LIGHT / Dragon / Level 4 / **1600 ATK / 600 DEF**, **2 copies**, deck 1:
+
+> "Your opponent cannot activate Trap Cards during the Battle Phase."
+
+**One clause, CONTINUOUS.** It is the smallest card in the batch and it lands entirely on
+machinery unit A already built and tested — which is exactly why it is first. Notes:
+
+* one `EffectDef`, `of_type(Enums.EffectType.CONTINUOUS)`, `apply_continuous` calling
+  `forbid_card_activation(ctx, ctx.opponent_id(), Enums.Category.TRAP, Enums.Phase.BATTLE)`.
+  **No `resolve`** — a continuous clause never resolves and starts no Chain.
+* **No card-specific UI state and no card name in `ActivationRules`.** The generic channel is
+  there; use it.
+* The per-card suite must still cover, against the printed card: the exact phase; the affected
+  player (opponent only, not its own controller); source face-up requirement; source effects
+  negated; source leaves the field; source changes control (the restriction turns around);
+  source flipped face-down; **two `Mirage Dragon`s at once** (this is one of only two
+  quantity-2 cards in the pool — removing one must not lift the lock); a Chain already underway
+  before the lock begins; and that a Trap **effect** of an already-face-up Trap is still legal.
+* **R6 part B / R34 part D is the ruling that matters here** and its confidence is
+  **MEDIUM-HIGH**, reasoned from PSCT rather than from a quoted ruling on this card. If you have
+  budget for exactly one piece of research this session, make it this one, and prefer S1–S4.
+* Counter Traps: nothing in the pool makes them special here — a Counter Trap is a Trap Card and
+  the lock covers activating it. Assert that rather than leaving it implied.
+
+**2. `Swords of Revealing Light`.** Verified official text (cid 4354), **Normal Spell**:
+
+> "After this card's activation, it remains on the field, but you must destroy it during the End
+> Phase of your opponent's 3rd turn. When this card is activated: If your opponent controls a
+> face-down monster, flip all monsters they control face-up. While this card is face-up on the
+> field, your opponent's monsters cannot declare an attack."
+
+**Three clauses — implement all three.** (a) the lifetime/self-destruction, a CONTINUOUS clause
+with `respond_to_event` on `PHASE_CHANGED → END` using the turn counter — **not** a Trigger
+Effect, because it puts no link on the Chain; (b) the on-activation flip of **all** monsters the
+opponent controls, conditional on at least one being face-down, which generates real FLIP
+effects at the resulting trigger window; (c) the continuous attack prevention. **R6** governs
+which End Phase is the 3rd and is still OPEN — it is only ever activated on its controller's own
+turn (a Normal Spell), so the opponent's turns are the three that follow. Confirm before
+implementing.
+
+**3. `Maiden with Eyes of Blue`.** Verified official text (cid 10588), LIGHT / Spellcaster /
+Level 1 / Tuner / 0 ATK / 0 DEF:
+
+> "When a card or effect is activated that targets this card (Quick Effect): You can Special
+> Summon 1 "Blue-Eyes White Dragon" from your hand, Deck, or GY. When this card is targeted for
+> an attack: You can negate the attack, and if you do, change the battle position of this card,
+> then you can Special Summon 1 "Blue-Eyes White Dragon" from your hand, Deck, or GY. You can
+> only use 1 "Maiden with Eyes of Blue" effect per turn, and only once that turn."
+
+**Two effect clauses plus the shared restriction sentence.** Clause 1 is a **QUICK** effect;
+clause 2 is a **TRIGGER** on being targeted for an attack. **R3** is still OPEN and governs the
+shared use: both clauses take `opt_named_effect()` **and the same `in_group()` key**. Test BOTH
+orderings. Reuse the established Special Summon engine — **do not build a Maiden-specific summon
+path**. The attack-negation ordering (negate, then position change, then summon, with no Replay)
+is already proved generically in `AttackRestrictionTests`.
+
+#### UNIT C — the Tribute-modification group
+
+`Soul Exchange` (**R7**) and `Kaiser Sea Horse` (**R8**). Two things already established that
+must not be re-derived:
+
+* **`SummonRules.TRIBUTE_VALUE_EFFECT_ID` (`"counts_as_two_tributes"`) already exists** and
+  `tribute_value()` already consults it with `ctx.params["summoning_card"]` set. `Kaiser Sea
+  Horse` declares a CONTINUOUS `EffectDef` with that id whose `condition` returns true only for
+  the Tribute Summon of a **LIGHT** monster. **Do not globally set a numeric `tribute_value = 2`.**
+* **`Soul Exchange` needs the turn-scoped `skip_battle_phase_this_turn` restriction that already
+  exists** — **not** the `battle_phase_skips` list `Runick Flashing Fire` uses. Those are
+  different lifetimes and §2.4 says why. And **do not implement it by taking control of the
+  opponent's monster**: the text says "as if you controlled it", which permits the Tribute and
+  changes nothing about control or ownership. The card goes to its **owner's** Graveyard.
 
 Read `Reports/CARD_IMPLEMENTATION_MATRIX.csv` for the authoritative list of the 28 remaining
 cards; do not work from memory.
 
 **Also scheduled and NOT optional:** the **ObjectDB characterisation task** (§7). It is now at
-**154223 at exit, ~38.5 per new assertion — the fourth consecutive rising checkpoint.** It still
-fails nothing, so it must not derail a card unit, but it **must be characterised or fixed before
-Phase 7**, and no explanation may be recorded for it that has not been measured.
+**164444 at exit, ~44.6 per new assertion — the FIFTH consecutive rising checkpoint** and again
+the highest per-assertion figure so far. It still fails nothing, so it must not derail a card
+unit, but it **must be characterised or fixed before Phase 7**, and no explanation may be
+recorded for it that has not been measured.
 
 #### 1. `The Phantom Knights of Shadow Veil` — Trap Monsters first
 

@@ -714,6 +714,61 @@ Two sub-questions, both settled by the text rather than by a general rule:
 *Tests:* `TrapMonsterTests` (192) is the generic gate;
 `ThePhantomKnightsOfShadowVeilTests` (125) exercises the printed consumer.
 
+### R34 — attack PREVENTION, attack NEGATION and a card-class activation lock are three things
+
+Recorded by the **Phase 5 batch 9 unit A** gate, before any batch-9 card existed. This entry
+covers the generic mechanisms only; the per-card questions **R3**, **R6**, **R7** and **R8**
+remain **OPEN** and are settled when their cards are written.
+
+**Part A — prevention is not negation. Confidence: HIGH.** Directly from [S1 p.38–39] plus the
+plain wording of the two cards. "Monsters cannot declare an attack" (`Swords of Revealing
+Light`) removes the *ability to declare*; "negate the attack" (`Maiden with Eyes of Blue`)
+answers an attack that *has been* declared. The observable differences — whether
+`ATTACK_DECLARED` happens, whether a response window opens, whether the monster has spent its
+attack for the turn — follow from the wording and are asserted in both directions.
+
+**Part B — negation is checked before the Replay. Confidence: MEDIUM-HIGH.** No single official
+sentence names the ordering. It is reasoned: a Replay exists so the attacking player may choose
+again when *the attack is still live and the board changed under it* [S1 p.39]; once the attack
+has been negated there is no attack to replay, so the Replay condition is moot. The alternative
+ordering has a concrete absurd consequence — `Maiden`'s own Special Summon would hand the
+attacker a fresh declaration and undo the negation that had just been paid for. Recorded with
+this reasoning and asserted directly, so a later correction fails loudly rather than drifting.
+
+**Part C — the Damage Step is the boundary for negating an attack. Confidence: MEDIUM-HIGH.**
+Rests on [S1 p.41]: from the start of the Damage Step only Counter Traps and cards that directly
+change ATK/DEF may be activated. An effect that negates an attack is neither, so it cannot be
+activated there, and `BattleRules.negate_attack()` refuses rather than half-applying.
+
+**Part D — "cannot activate Trap Cards" locks activating a CARD, not activating an EFFECT of a
+Trap already face-up on the field. Confidence: MEDIUM-HIGH — and this is the one part of R34
+that a future session should re-check against an official source before relying on it further.**
+
+The reasoning: PSCT distinguishes "activate a Trap Card" from "activate the effect of a card",
+and the engine already carries the distinction structurally (`EffectType.CARD_ACTIVATION` versus
+an `IGNITION`/`QUICK`/`TRIGGER` clause of a card on the field). A Continuous Trap sitting face-up
+was *activated* on an earlier turn; using one of its effects now is not a second activation of
+the Trap Card. **This is reasoned from the general rule and from PSCT, not from a quoted ruling
+on `Mirage Dragon` itself, and no fresh research was done this session** — the confidence is
+recorded honestly rather than inflated. The behaviour is isolated behind one generic predicate
+(`ActivationRules.card_class_activation_ok()`) and asserted in both directions, so correcting it
+later is a change in one place with a failing test to point at it.
+
+**Part E — a per-card TURN COUNTER is not a game counter and not a once-per-turn flag.
+Confidence: HIGH** (an engine-modelling decision, not a rules claim). See RULES_SPEC.md §11.2.
+
+**Part F — two clauses may share ONE once-per-turn use. Confidence: HIGH** as a mechanism;
+whether `Maiden with Eyes of Blue` actually has that shape is **R3** and is still open. The
+mechanism is `EffectDef.restriction_group`, which had been declared since batch 5 with **zero
+consumers** and is now consumed and tested. See RULES_SPEC.md §11.1.
+
+*Implementation:* `ContinuousEffects.ATTACK_LOCK_KEY` / `ACTIVATION_LOCK_PREFIX`,
+`BattleRules.negate_attack()`, `ActivationRules.card_class_activation_ok()`,
+`CardInstance.turn_counters`, `EffectPrimitives` attack/turn-counter section.
+RULES_SPEC.md §4.6, §6.4, §11.1, §11.2.
+*Tests:* `AttackRestrictionTests` (229) — the generic gate. No printed card consumes it yet;
+`Mirage Dragon` is the first and is the next step.
+
 ---
 
 ## 5. Banlist note (master prompt §51)

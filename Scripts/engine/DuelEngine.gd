@@ -1135,6 +1135,26 @@ func _advance_battle() -> void:
 
 	match battle.stage:
 		BattleRules.Stage.AFTER_DECLARATION:
+			if battle.attack_is_negated():
+				# The attack was legally declared and then negated. The Battle Phase
+				# CONTINUES — only this attack is over — so the battle is cleared and the
+				# machine goes back to the Battle Step. RULES_SPEC.md 6.3.
+				#
+				# This is checked FIRST, ahead of both the attacker check and the Replay
+				# check, and the order is load-bearing rather than incidental. `Maiden with
+				# Eyes of Blue` negates the attack and then Special Summons a monster to the
+				# ATTACKED player's field, which changes the set of monsters the attacker
+				# faces — so `replay_required()` answers true on exactly the path where a
+				# negation just happened. Asking about a Replay first would turn a spent
+				# attack back into a fresh choice and hand the attacking player a second
+				# declaration the negation was supposed to have taken away.
+				#
+				# `clear_battle()`, not `begin_replay()`: the attacker keeps
+				# `has_attacked_this_turn`, because the attack really was declared.
+				battle.clear_battle()
+				_pending_events = _events_since(mark)
+				timing = Timing.TRIGGER_CHECK
+				return
 			if not battle.attacker_still_valid():
 				# The ATTACKER left the field: the attack does not happen at all.
 				# The target leaving is a different case and is handled by the Replay

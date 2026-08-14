@@ -222,3 +222,81 @@ func restrict_player(pid: int, key: String) -> void:
 
 func player_restricted(pid: int, key: String) -> bool:
 	return bool(state.player(pid).get_restriction(PLAYER_KEY_PREFIX + key, false))
+
+
+# ---------------------------------------------------------------------------
+# Player-level ATTACK restriction. RULES_SPEC.md 6.1.
+# ---------------------------------------------------------------------------
+
+## "While this card is face-up on the field, your opponent's monsters cannot declare an
+## attack." (`Swords of Revealing Light`)
+##
+## Deliberately a PLAYER-level restriction rather than the per-card `cannot_attack` flag
+## applied to each monster in turn, and the two must stay separate channels:
+##
+##   * `cannot_attack` names one monster. `Fiendish Chain` locks the monster it targeted and
+##     nothing else, so the restriction has to travel with that card — a monster that changes
+##     control keeps it, and a different monster arriving is unaffected.
+##   * this key names a PLAYER. "Your opponent's monsters cannot declare an attack" covers
+##     monsters that were not on the field when the source resolved and monsters whose
+##     control changed into that player's hands afterwards. Expressing it by flagging the
+##     monsters present at recompute time would answer the same for the board as it stands
+##     and the wrong thing for a monster that arrives between two recomputes.
+##
+## `BattleRules.can_declare_attack()` asks both, so neither is expressed in terms of the
+## other and neither can be quietly dropped.
+const ATTACK_LOCK_KEY := "cannot_declare_attacks"
+
+
+func restrict_attacks(pid: int) -> void:
+	restrict_player(pid, ATTACK_LOCK_KEY)
+
+
+## Static so `BattleRules` can ask without holding a `ContinuousEffects` instance. There is
+## deliberately one implementation of the question.
+static func attacks_restricted(p_state: GameState, pid: int) -> bool:
+	return bool(p_state.player(pid).get_restriction(
+		PLAYER_KEY_PREFIX + ATTACK_LOCK_KEY, false))
+
+
+# ---------------------------------------------------------------------------
+# Player-level CARD-CLASS activation lock. RULES_SPEC.md 4.4.
+# ---------------------------------------------------------------------------
+
+## "Your opponent cannot activate Trap Cards during the Battle Phase." (`Mirage Dragon`)
+##
+## A generic channel keyed by CARD CATEGORY and PHASE, not by card name. `ActivationRules`
+## asks it once, for every card activation, so no card ever appears by name in the legality
+## gate — the same reason `CONTROL_LIMIT_EFFECT_ID` and `TRIBUTE_VALUE_EFFECT_ID` are
+## declarative markers rather than a list of the three cards that use them.
+##
+## Two things this key is careful about:
+##
+##   * it locks the activation of a CARD of that category, not the activation of an EFFECT of
+##     a card of that category. See `ActivationRules.card_class_activation_ok()` and
+##     CARD_RULINGS.md R6.
+##   * `phase` may be null, meaning "in every phase". Nothing in the V1 pool needs that, but
+##     the key shape has to be able to say it or the next card that does would arrive as a
+##     second, differently-shaped mechanism.
+const ACTIVATION_LOCK_PREFIX := "cannot_activate_category:"
+
+
+static func activation_lock_key(category: Enums.Category, phase) -> String:
+	return "%s%d:%s" % [ACTIVATION_LOCK_PREFIX, int(category),
+		"any" if phase == null else str(int(phase))]
+
+
+func restrict_card_activation(pid: int, category: Enums.Category, phase = null) -> void:
+	restrict_player(pid, activation_lock_key(category, phase))
+
+
+## Is `pid` currently forbidden from activating a card of `category`, given `p_state.phase`?
+## True when either an every-phase lock or a lock naming the current phase applies.
+static func card_activation_locked(p_state: GameState, pid: int,
+		category: Enums.Category) -> bool:
+	var p := p_state.player(pid)
+	if bool(p.get_restriction(
+			PLAYER_KEY_PREFIX + activation_lock_key(category, null), false)):
+		return true
+	return bool(p.get_restriction(
+		PLAYER_KEY_PREFIX + activation_lock_key(category, p_state.phase), false))

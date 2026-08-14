@@ -48,6 +48,26 @@ var opponent_monsters_at_declaration: Array = []
 ## After a replay this monster may declare an attack again without it counting twice.
 var replay_attacker_id: int = -1
 
+## Set when a resolved effect NEGATED the declared attack (`Maiden with Eyes of Blue`).
+## RULES_SPEC.md 6.3.
+##
+## Attack NEGATION is not attack PREVENTION and the two are deliberately different mechanisms
+## living in different places:
+##
+##   * PREVENTION is asked by `can_declare_attack()` BEFORE anything happens. The attack is
+##     never declared, no `ATTACK_DECLARED` event exists, and the monster has not used its
+##     attack for the turn.
+##   * NEGATION happens AFTER a legal declaration. `ATTACK_DECLARED` really was emitted, the
+##     response window really opened, the attacking monster really has attacked this turn,
+##     and what stops is the rest of the battle: no Damage Step, no damage calculation.
+##
+## It is also not a REPLAY. A Replay hands the choice back — the attacker may attack again
+## with itself or another monster. A negated attack is spent. `begin_replay()` clears
+## `has_attacked_this_turn`; this path deliberately does not.
+var attack_negated: bool = false
+## Instance id of the card whose effect negated the attack, for the event payload.
+var attack_negated_by_id: int = -1
+
 var last_damage: Dictionary = {}
 
 
@@ -76,7 +96,18 @@ func can_declare_attack(card: CardInstance, pid: int) -> bool:
 	# One attack per turn by default. A monster that got a Replay may re-declare.
 	if card.has_attacked_this_turn and card.id != replay_attacker_id:
 		return false
+	# Two separate PREVENTION channels, asked here and only here, so that an attack which
+	# may not be declared is never declared and then unwound. RULES_SPEC.md 6.1.
+	#
+	#   per-CARD:   "that monster cannot attack" (`Fiendish Chain`, `Hieratic Dragon of
+	#               Tefnuit`) — travels with the monster.
+	#   per-PLAYER: "your opponent's monsters cannot declare an attack" (`Swords of
+	#               Revealing Light`) — covers monsters that arrive later.
+	#
+	# Neither is expressed in terms of the other; see ContinuousEffects.ATTACK_LOCK_KEY.
 	if bool(card.flags.get("cannot_attack", false)):
+		return false
+	if ContinuousEffects.attacks_restricted(state, pid):
 		return false
 	return true
 
@@ -127,6 +158,8 @@ func declare_attack(attacker: CardInstance, target, pid: int) -> bool:
 	pending_destroyed = []
 	flipped_before_damage = []
 	last_damage = {}
+	attack_negated = false
+	attack_negated_by_id = -1
 
 	state.emit(GameEvent.Kind.ATTACK_DECLARED, {
 		"attacker_id": attacker.id, "attacker_name": attacker.card_name(),
@@ -169,6 +202,42 @@ func begin_replay() -> void:
 	clear_battle()
 
 
+## Negate the attack that has been declared. RULES_SPEC.md 6.3.
+##
+## Only legal while an attack is live and the Damage Step has not begun: "negate the attack"
+## belongs to the Battle Step response window opened by the declaration, and once damage
+## calculation has started there is no attack left to negate — the effects legal from that
+## point change ATK/DEF instead [S1 p.41]. Returns false rather than half-applying, so a card
+## that asks at the wrong moment fails visibly instead of corrupting the battle.
+##
+## The `ATTACK_NEGATED` event is emitted HERE, at the moment the negation applies, rather
+## than later when `DuelEngine` unwinds the battle. That keeps the event ordering honest —
+## `ATTACK_DECLARED` … the negating Chain Link resolving … `ATTACK_NEGATED` — and lets
+## anything that wants to trigger off the negation see it in the same batch.
+func negate_attack(negated_by_id: int = -1) -> bool:
+	if state.current_attacker == null:
+		return false
+	if stage != Stage.AFTER_DECLARATION:
+		return false
+	if attack_negated:
+		return false
+	attack_negated = true
+	attack_negated_by_id = negated_by_id
+	state.emit(GameEvent.Kind.ATTACK_NEGATED, {
+		"attacker_id": state.current_attacker.id,
+		"player": state.current_attacker.controller_id,
+		"target_id": -1 if state.attack_is_direct \
+			else (state.current_attack_target.id if state.current_attack_target != null else -1),
+		"direct": state.attack_is_direct,
+		"negated_by": negated_by_id,
+	})
+	return true
+
+
+func attack_is_negated() -> bool:
+	return attack_negated
+
+
 ## The ATTACKER left the field or stopped being face-up before damage calculation: the
 ## attack simply does not happen.
 ##
@@ -196,6 +265,8 @@ func clear_battle() -> void:
 	state.current_attacker = null
 	state.current_attack_target = null
 	state.attack_is_direct = false
+	attack_negated = false
+	attack_negated_by_id = -1
 	state.battle_step = Enums.BattleStep.BATTLE
 	state.damage_substep = Enums.DamageSubStep.NONE
 	stage = Stage.NONE

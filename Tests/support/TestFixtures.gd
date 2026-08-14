@@ -297,6 +297,112 @@ static func summon_negator(card_name: String) -> CardDef:
 
 
 # ---------------------------------------------------------------------------
+# Attack restriction / attack negation. RULES_SPEC.md 6.1, 6.3.
+# ---------------------------------------------------------------------------
+
+## A face-up MONSTER whose continuous clause forbids one player from declaring attacks —
+## the `Swords of Revealing Light` restriction without the Spell's activation and lifetime.
+##
+## A monster rather than a Spell on purpose: the gate has to watch the restriction switch off
+## when its source is flipped face-down, negated, leaves the field or changes control, and a
+## monster can be put into every one of those states directly. Swords' own lifetime is Swords'
+## business and is tested in its own suite.
+##
+## `whose` is "opponent" or "self" so the gate can prove the restriction is AIMED. A fixture
+## that always hit the other side would pass against an implementation that ignored the
+## player id entirely.
+static func attack_lock_monster(card_name: String, whose: String = "opponent",
+		atk: int = 1000) -> CardDef:
+	var d := monster(card_name, 4, atk, 1000)
+	var e := EffectDef.new("attack_lock",
+		"Test: your %s's monsters cannot declare an attack." % whose)
+	e.of_type(Enums.EffectType.CONTINUOUS)
+	e.apply_continuous = func(ctx: EffectContext) -> void:
+		if whose == "self":
+			EffectPrimitives.restrict_attacks_of(ctx, ctx.controller_id)
+		else:
+			EffectPrimitives.restrict_opponent_attacks(ctx)
+	return with_effect(d, e)
+
+
+## A face-up MONSTER whose continuous clause forbids one player from activating a CATEGORY of
+## card during a PHASE — the `Mirage Dragon` restriction, parameterised.
+##
+## Every part is an argument for the same reason `trap_monster()` parameterises its type
+## line: a fixture hard-wired to "Traps, Battle Phase, opponent" would pass against an
+## implementation that ignored all three. `phase` may be null, meaning every phase.
+static func activation_lock_monster(card_name: String,
+		category: Enums.Category = Enums.Category.TRAP,
+		phase = Enums.Phase.BATTLE, whose: String = "opponent") -> CardDef:
+	var d := monster(card_name, 4, 1600, 600)
+	var e := EffectDef.new("activation_lock",
+		"Test: your %s cannot activate cards of category %d." % [whose, int(category)])
+	e.of_type(Enums.EffectType.CONTINUOUS)
+	e.apply_continuous = func(ctx: EffectContext) -> void:
+		var pid: int = ctx.controller_id if whose == "self" else ctx.opponent_id()
+		EffectPrimitives.forbid_card_activation(ctx, pid, category, phase)
+	return with_effect(d, e)
+
+
+## A Set Trap that NEGATES a declared attack, offered in the response window the declaration
+## opens. The `Maiden with Eyes of Blue` mechanism without the card.
+##
+## Deliberately a Spell/Trap CARD activation rather than a monster Trigger Effect: it is
+## driven from `get_legal_responses()` and so the test can choose whether to use it, which is
+## what lets the same board be run with and without the negation as a controlled pair.
+##
+## `only_when_targeting` restricts it to an attack aimed at a specific monster, so the gate
+## can build the "the attack was declared against ME" shape without a real card.
+static func attack_negator(card_name: String, only_when_targeting: Array = []) -> CardDef:
+	var d := trap(card_name)
+	var e := EffectDef.new("negate_attack", "Test: negate that attack.")
+	e.of_type(Enums.EffectType.CARD_ACTIVATION)
+	e.with_spell_speed(Enums.SpellSpeed.SS2)
+	e.activation_locations = [Enums.ActivationLocation.FIELD_FACE_DOWN]
+	e.trigger_events = [GameEvent.Kind.ATTACK_DECLARED]
+	e.condition = func(ctx: EffectContext) -> bool:
+		if ctx.state.current_attacker == null:
+			return false
+		if only_when_targeting.is_empty():
+			return true
+		var wanted = only_when_targeting[0]
+		return EffectPrimitives.is_current_attack_target(ctx, wanted)
+	e.resolve = func(ctx: EffectContext) -> void:
+		EffectPrimitives.negate_declared_attack(ctx)
+	return with_effect(d, e)
+
+
+## A face-up card that counts one player's turns and destroys itself when the count reaches
+## `limit`, during that player's End Phase — the `Swords of Revealing Light` lifetime, with
+## the count and the counted player as arguments.
+##
+## A CONTINUOUS clause with `respond_to_event`, not a Trigger Effect, and that is the point:
+## "you must destroy it during the End Phase of your opponent's 3rd turn" puts no link on the
+## Chain and is never offered as a choice. `counted` is "opponent" or "self".
+static func turn_counting_card(card_name: String, limit: int = 3,
+		counted: String = "opponent",
+		kind: Enums.STKind = Enums.STKind.NORMAL_SPELL) -> CardDef:
+	var d := spell(card_name, kind)
+	var e := EffectDef.new("turn_countdown",
+		"Test: destroy this card during the End Phase of the %s's %d turn(s)."
+		% [counted, limit])
+	e.of_type(Enums.EffectType.CONTINUOUS)
+	e.trigger_events = [GameEvent.Kind.PHASE_CHANGED]
+	e.condition = func(ctx: EffectContext) -> bool:
+		var ev := ctx.trigger_event
+		if ev == null or int(ev.data.get("to", -1)) != int(Enums.Phase.END):
+			return false
+		var counted_pid: int = ctx.controller_id if counted == "self" else ctx.opponent_id()
+		return ctx.state.turn_player_id == counted_pid
+	e.respond_to_event = func(ctx: EffectContext) -> void:
+		var counted_pid: int = ctx.controller_id if counted == "self" else ctx.opponent_id()
+		var n := EffectPrimitives.count_turn_for(ctx, "turn_countdown", counted_pid)
+		if n >= limit:
+			ctx.state.destroy(ctx.source, Enums.MoveReason.DESTROYED_BY_EFFECT, ctx.source.id)
+	return with_effect(d, e)
+
+
+# ---------------------------------------------------------------------------
 # Trap Monsters. RULES_SPEC.md 5.8.
 # ---------------------------------------------------------------------------
 

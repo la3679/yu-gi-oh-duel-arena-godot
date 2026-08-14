@@ -126,6 +126,36 @@ static func damage_step_ok(state: GameState, effect: EffectDef) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Card-class activation locks. RULES_SPEC.md 4.4, CARD_RULINGS.md R6.
+# ---------------------------------------------------------------------------
+
+## "Your opponent cannot activate Trap Cards during the Battle Phase." (`Mirage Dragon`)
+##
+## Asked generically, from the category of the card being activated and the current phase, so
+## no card name reaches this gate. The restriction itself is written by whatever continuous
+## clause imposes it, through `ContinuousEffects.restrict_card_activation()`.
+##
+## **It locks activating a CARD, not activating an EFFECT of a card.** The distinction is
+## real and the engine already carries it structurally: `EffectType.CARD_ACTIVATION` is the
+## activation of the Spell/Trap card itself, while an `IGNITION` / `QUICK` / `TRIGGER` clause
+## of a card that is ALREADY face-up on the field is the activation of an effect. A
+## Continuous Trap sitting face-up was activated on an earlier turn; using one of its effects
+## is not "activating a Trap Card". CARD_RULINGS.md R6 records this with its confidence.
+##
+## The PRINTED category is what counts (`original_card_category()`), so a Trap that is
+## currently a Trap Monster is still a Trap for the purpose of activating it as a card, and a
+## runtime monster identity cannot be used to slip a card activation past the lock.
+static func card_class_activation_ok(state: GameState, card: CardInstance,
+		effect: EffectDef, controller_id: int) -> bool:
+	if effect.effect_type != Enums.EffectType.CARD_ACTIVATION:
+		return true
+	if card.definition == null:
+		return true
+	return not ContinuousEffects.card_activation_locked(
+		state, controller_id, card.original_card_category())
+
+
+# ---------------------------------------------------------------------------
 # Once per turn. RULES_SPEC.md 11, master prompt 47.
 # ---------------------------------------------------------------------------
 
@@ -251,6 +281,8 @@ static func can_activate(state: GameState, card: CardInstance, effect: EffectDef
 	if not phase_ok(state, effect):
 		return false
 	if not damage_step_ok(state, effect):
+		return false
+	if not card_class_activation_ok(state, card, effect, controller_id):
 		return false
 	if not once_per_turn_ok(state, card, effect, controller_id):
 		return false

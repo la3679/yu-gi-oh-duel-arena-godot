@@ -1637,6 +1637,109 @@ static func negate_activation_and_destroy(ctx: EffectContext) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# ATTACK restriction and ATTACK negation. RULES_SPEC.md 6.1, 6.3.
+# ---------------------------------------------------------------------------
+#
+# Three separate concepts, three separate primitives, and they must not be collapsed into
+# one "attack is blocked" idea:
+#
+#   PREVENTION  the attack cannot be DECLARED. Nothing happens, no event is emitted, and the
+#               monster has not used its attack. `restrict_opponent_attacks()` /
+#               `restrict_attacks_of()`.
+#   NEGATION    the attack WAS declared — `ATTACK_DECLARED` really happened and the monster
+#               really has attacked this turn — and a resolving effect stops the rest of the
+#               battle. `negate_declared_attack()`.
+#   PHASE / CARD-CLASS RESTRICTION
+#               the rules engine refuses an action for the duration an authoritative
+#               restriction names: no Battle Phase at all, or no activation of a class of
+#               card during one. `forbid_card_activation()` and the existing
+#               `skip_battle_phase_this_turn` / `battle_phase_skips` state.
+
+## "While this card is face-up on the field, your opponent's monsters cannot declare an
+## attack." (`Swords of Revealing Light`)
+##
+## For an `apply_continuous` clause only: it writes through `ctx.continuous`, so it is wiped
+## and rebuilt on every recompute and switches itself off the moment the source stops being a
+## face-up, un-negated card on the field. There is deliberately no way for a card to set this
+## permanently — a restriction with no printed duration is not what any card in the pool says.
+static func restrict_opponent_attacks(ctx: EffectContext) -> void:
+	if ctx.continuous == null:
+		push_error("EffectPrimitives.restrict_opponent_attacks: not a continuous context")
+		return
+	ctx.continuous.restrict_attacks(ctx.opponent_id())
+
+
+## The same restriction aimed at a named player, for a clause that restricts its own
+## controller rather than the opponent. Nothing in the V1 pool needs it; it exists so that the
+## channel is symmetric and the next card does not arrive with a second mechanism.
+static func restrict_attacks_of(ctx: EffectContext, pid: int) -> void:
+	if ctx.continuous == null:
+		push_error("EffectPrimitives.restrict_attacks_of: not a continuous context")
+		return
+	ctx.continuous.restrict_attacks(pid)
+
+
+## "<player> cannot activate <category> Cards during <phase>." (`Mirage Dragon`)
+## Also `apply_continuous` only, for the same reason.
+static func forbid_card_activation(ctx: EffectContext, pid: int,
+		category: Enums.Category, phase = null) -> void:
+	if ctx.continuous == null:
+		push_error("EffectPrimitives.forbid_card_activation: not a continuous context")
+		return
+	ctx.continuous.restrict_card_activation(pid, category, phase)
+
+
+## Is `card` the monster the current attack was declared against?
+##
+## Reads the authoritative battle state rather than the trigger event, so it stays true for
+## the whole Battle Step window rather than only at the instant of declaration, and answers
+## false once the attack is over. A direct attack has no target, so this is false then.
+static func is_current_attack_target(ctx: EffectContext, card: CardInstance) -> bool:
+	if card == null or ctx.state.current_attacker == null:
+		return false
+	if ctx.state.attack_is_direct:
+		return false
+	return ctx.state.current_attack_target == card
+
+
+## "When this card is targeted for an attack: You can negate the attack." (`Maiden with Eyes
+## of Blue`)
+##
+## Goes through `BattleRules.negate_attack()`, which owns the battle, so the Damage Step
+## boundary is enforced in one place and the `ATTACK_NEGATED` event is emitted from one place.
+## Returns false when there is no live, un-negated attack in its Battle Step window — a
+## resolving effect that arrives too late says so rather than silently doing nothing.
+static func negate_declared_attack(ctx: EffectContext) -> bool:
+	if ctx.engine == null or ctx.engine.battle == null:
+		push_error("EffectPrimitives.negate_declared_attack: no battle attached")
+		return false
+	if not ctx.engine.battle.negate_attack(ctx.source.id):
+		ctx.log_note("there is no declared attack left to negate")
+		return false
+	ctx.log_note("negated the attack")
+	return true
+
+
+# ---------------------------------------------------------------------------
+# Per-card TURN COUNTERS. RULES_SPEC.md 11, CARD_RULINGS.md R6.
+# ---------------------------------------------------------------------------
+
+## Count one more of `pid`'s turns against this card, at most once per turn number, and
+## return the running total. `Swords of Revealing Light` counts its controller's OPPONENT's
+## turns; the player whose turns are counted is a parameter because the counter must not
+## assume the two players alternate — that is true in a two-player duel but is an inference,
+## not something this primitive should encode.
+static func count_turn_for(ctx: EffectContext, key: String, pid: int) -> int:
+	if ctx.state.turn_player_id != pid:
+		return ctx.source.turn_counter_value(key)
+	return ctx.source.advance_turn_counter(key, ctx.state.turn_number)
+
+
+static func turn_count(ctx: EffectContext, key: String) -> int:
+	return ctx.source.turn_counter_value(key)
+
+
+# ---------------------------------------------------------------------------
 # Predicates for Spell/Trap cards
 # ---------------------------------------------------------------------------
 

@@ -1,8 +1,7 @@
 # TEST_RESULTS
 
-**Last run:** 2026-08-14 (Phase 5 **batch 8 COMPLETE** — the Trap-Monster gate,
-`The Phantom Knights of Shadow Veil`, the Battle-Phase-restriction gate and
-`Runick Flashing Fire`)
+**Last run:** 2026-08-14 (Phase 5 **batch 9 PARTIAL — unit A only**: the generic
+attack-restriction / attack-negation gate. **No batch-9 card is implemented yet.**)
 **Engine:** Godot 4.7.1.stable.official.a13da4feb (headless)
 
 Command:
@@ -34,14 +33,136 @@ The raw command still works and produces the same numbers:
 
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
-| Core rules tests | 20 | 1568 | **1568** | 0 |
+| Core rules tests | 21 | 1797 | **1797** | 0 |
 | Per-card tests | 41 | 3666 | **3666** | 0 |
 | Interaction tests | 1 | 46 | **46** | 0 |
 | Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **62** | **5280** | **5280** | **0** |
+| **TOTAL** | **63** | **5509** | **5509** | **0** |
 
 SmokeCheck: **PASS**. Matrix: **49 / 77 implemented, 49 / 77 tested, 28 remaining** (computed by
-`python Tools/build_matrix.py`, not written by hand).
+`python Tools/build_matrix.py`, not written by hand). The card counts are **deliberately
+unchanged**: unit A adds a generic gate and no card.
+
+---
+
+## Batch 9 — PARTIAL. Unit A is COMPLETE; no card is started.
+
+**This session did unit A and stopped there, at the Milestone A boundary, for weekly-usage
+safety.** `Mirage Dragon` is the exact next step and was **not** begun.
+
+`Tests/rules/AttackRestrictionTests.gd` — **229 / 229** — is the **attack-restriction gate**,
+written and passing **before any batch-9 card exists**, the way `EquipTests`, `ControlTests`,
+`MovementTests`, `BanishTests`, `LifePointCostTests`, `TrapMonsterTests` and
+`BattlePhaseRestrictionTests` were.
+
+This session added **229** assertions and changed **no existing test expectation at all**.
+**All 5280 assertions from the previous checkpoint pass unchanged** — none was weakened,
+retargeted or deleted, and every pre-existing suite reports exactly its previous count
+(5509 − 5280 = 229, which is precisely the new suite).
+
+### What the gate pins down
+
+It exists to stop three genuinely different things from collapsing into one `attack_blocked`
+boolean. Each section asserts the difference rather than assuming it:
+
+| Concept | Where it lives | The observable difference |
+|---|---|---|
+| **PREVENTION** | `BattleRules.can_declare_attack()` | the declaration is never offered; **no `ATTACK_DECLARED` event**; the monster keeps its attack for the turn |
+| **NEGATION** | `BattleRules.negate_attack()` | `ATTACK_DECLARED` **did** happen, the window **did** open, the attack **is** spent; the rest of the battle stops |
+| **CARD-CLASS LOCK** | `ActivationRules.card_class_activation_ok()` | activating a class of card is refused for the duration of a phase |
+
+Prevention has **two channels that are not expressed in terms of each other**: the per-card
+`cannot_attack` flag (`Fiendish Chain`) and a new per-player key (`Swords of Revealing Light`),
+which is what covers a monster that arrives *after* the lock is in force. That case is asserted
+directly, and is the reason the player-level channel exists at all.
+
+Two ordering decisions are asserted rather than assumed:
+
+* **negation is checked before the Replay check.** `Maiden with Eyes of Blue` negates the attack
+  and then Special Summons to the defending field — the textbook Replay condition. The gate
+  builds exactly that shape with a synthetic card and proves no Replay occurs.
+* **negation is refused once the Damage Step has begun**, and refused when no attack is live,
+  rather than silently doing nothing.
+
+### Generic mechanics added — none left UNVERIFIED
+
+* `ContinuousEffects.ATTACK_LOCK_KEY` + `restrict_attacks()` / `attacks_restricted()` — the
+  per-PLAYER attack prevention channel.
+* `ContinuousEffects.ACTIVATION_LOCK_PREFIX` + `activation_lock_key()` /
+  `restrict_card_activation()` / `card_activation_locked()` — a card-class activation lock keyed
+  by **category and phase**, with no card name in the legality gate.
+* `BattleRules.attack_negated` / `negate_attack()` / `attack_is_negated()`, and the
+  negation branch in `DuelEngine._advance_battle()` placed ahead of the Replay check.
+* `ActivationRules.card_class_activation_ok()`.
+* `CardInstance.turn_counters` + `advance_turn_counter()` / `turn_counter_value()` /
+  `turn_counter_advanced_on()` / `reset_turn_counter()`, cleared by `on_leave_field()` and
+  `on_flipped_face_down()`.
+* `EffectPrimitives`: `restrict_opponent_attacks()`, `restrict_attacks_of()`,
+  `forbid_card_activation()`, `is_current_attack_target()`, `negate_declared_attack()`,
+  `count_turn_for()`, `turn_count()`.
+* Test-side `TestFixtures`: `attack_lock_monster()`, `activation_lock_monster()`,
+  `attack_negator()`, `turn_counting_card()`.
+
+New spec sections: **`RULES_SPEC.md §4.6`, `§6.4`, `§11.1`, `§11.2`**. New ruling: **R34**
+(six parts, honest per-part confidence — part D is MEDIUM-HIGH and is explicitly flagged for
+re-checking against an official source).
+
+### Two pieces of DECLARED-BUT-UNCONSUMED vocabulary are now consumed
+
+Both are the exact defect shape earlier batches recorded (batch 5's `cannot_be_targeted`,
+batch 6's `CONTROL_CHANGED`), found by re-reading the committed code rather than by a test:
+
+1. **`GameEvent.Kind.ATTACK_NEGATED` had zero emitters.** It had been in the event vocabulary
+   since Phase 4 and nothing ever raised it; the only reference anywhere was a
+   `KunaiWithChainTests` assertion that it was *not* emitted, which passed trivially. It is now
+   emitted by `BattleRules.negate_attack()` and asserted positively.
+2. **`EffectDef.restriction_group` / `in_group()` had zero consumers.** Declared in batch 5 with
+   a comment naming `Maiden with Eyes of Blue`, and never used. It is now consumed and tested in
+   both orderings.
+
+### Engine defects found
+
+**None.** No pre-existing engine defect was found and none was introduced: the whole of unit A is
+new code, and the full pre-existing suite passes unchanged.
+
+### Test-harness defects found and fixed in this session
+
+Three, all in the new gate's own tests, all caught by that test's own **path assertions** rather
+than by its conclusions — which is the point of writing them. All three are the same underlying
+shape and it is the one `PROJECT_STATE.md §0` warns about most loudly:
+
+1. **Two negation tests observed the battle after it had already finished.** `TestFixtures.attack()`
+   returns after `submit_action()`, and **the engine does not pause when nobody holds a legal
+   response** — it auto-passes both sides and resolves the entire attack inside that one call. So
+   `battle.stage` was `NONE` and `negate_attack()` correctly returned false. The tests *looked*
+   like an engine defect and were not one. Fixed by giving player 1 a Set Trap so the
+   post-declaration window genuinely opens, and by asserting
+   `battle.stage == AFTER_DECLARATION` **before** exercising the negation — so the observation
+   point itself is now checked.
+2. **The "Chain already underway" test had the same problem one level up**, and then a second,
+   subtler one: the responder that was supposed to hold the Chain open was given to **player 0**.
+   The timing machine offers the **turn player first**, so the engine stopped and waited on
+   player 0 before player 1 was ever asked, and `get_legal_responses(1)` correctly returned
+   nothing. Moving the spacer to player 1 fixed it. Both the wrong observation point and the
+   wrong-side responder are failure modes §12 names explicitly.
+3. **A per-player assertion could have passed against an empty ledger on both sides.** The test
+   asserted only that the *opponent's* named-effect record was untouched, which is also true when
+   nothing was ever recorded for anyone. A positive control was added asserting that player 0's
+   record really does hold the shared key.
+
+**The run was checked for `SCRIPT ERROR` lines, not for `RESULT: PASS` alone.** The only stderr
+in this run is the **two intentional** `push_error` lines from `ChainTests` and `ContinuousTests`,
+unchanged from the previous checkpoint.
+
+### ObjectDB at exit
+
+**164444**, up from 154223. That is **+10221 for 229 new assertions ≈ 44.6 per assertion** — the
+**fifth consecutive rising checkpoint** and again the highest per-assertion figure so far
+(previous high: ~38.5). It caused no failure, hang, memory pressure or unreliable result in this
+run, so it correctly did not derail unit A. **No explanation is recorded for it, because none has
+been measured.** The mandatory characterisation task before Phase 7 stands.
+
+---
 
 ### Batch 8 — COMPLETE. Nothing in it is partial or unverified.
 

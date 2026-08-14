@@ -201,6 +201,36 @@ Optional effects are never auto-activated — the owner is asked (master prompt 
 ### 4.5 Simultaneous resolution [S1 p.51]
 Where both players resolve/select at the same time, the **turn player selects first**.
 
+### 4.6 Locking a CLASS of card for the duration of a phase — **DECIDED** (Phase 5 batch 9)
+
+"Your opponent cannot activate Trap Cards during the Battle Phase." (`Mirage Dragon`)
+
+Modelled as an authoritative, state-derived restriction keyed by **card category** and
+**phase**, written by whatever continuous clause imposes it
+(`ContinuousEffects.restrict_card_activation()`) and asked once, generically, by
+`ActivationRules.card_class_activation_ok()`. **No card name appears in the legality gate** —
+the same discipline as `CONTROL_LIMIT_EFFECT_ID` and `TRIBUTE_VALUE_EFFECT_ID`.
+
+Four properties the gate pins down:
+
+* it names a **player**: the imposing card's own controller is unaffected;
+* it names a **phase**: the identical lock does not apply in Main Phase 2;
+* it names a **category**: a Trap lock leaves Spells alone;
+* it is **state-derived**: it lifts the instant its source leaves the field, is flipped
+  face-down, or has its effects negated.
+
+It gates **activation, not resolution.** A Chain Link created before the lock came into force
+resolves normally — the restriction is asked when an activation is offered and again when it is
+committed, and never afterwards.
+
+**It locks activating a CARD, not activating an EFFECT of a card of that category.** See
+`CARD_RULINGS.md` **R6 part B**, which records the reasoning and its confidence. The engine
+already carries the distinction structurally: `EffectType.CARD_ACTIVATION` is the activation of
+the Spell/Trap card itself, while an `IGNITION` / `QUICK` / `TRIGGER` clause of a card already
+face-up on the field is the activation of an effect. The **printed** category is what counts
+(`CardInstance.original_card_category()`), so a Trap currently carrying a Trap-Monster identity
+(§5.8) is still a Trap for this purpose and cannot slip a card activation past the lock.
+
 ---
 
 ## 5. Summoning
@@ -277,6 +307,51 @@ declared an attack and **cannot attack again this turn**. [S1 p.39]
 Only if the attack reached **damage calculation**. If the attack is stopped before damage
 calculation the monster did not "battle" — but the attack was still declared, so it generally
 cannot attack again.
+
+### 6.4 Attack PREVENTION vs attack NEGATION — **DECIDED** (Phase 5 batch 9)
+
+Two different rules operations that must never be collapsed into one "the attack is blocked"
+flag. The V1 pool contains one card of each, and they behave differently in ways a duel can
+observe. Proved generically by `Tests/rules/AttackRestrictionTests.gd` before either card was
+written.
+
+| | **PREVENTION** | **NEGATION** |
+|---|---|---|
+| Card | `Swords of Revealing Light` ("your opponent's monsters cannot declare an attack") | `Maiden with Eyes of Blue` ("you can negate the attack") |
+| When | asked **before** declaration | applies **after** a legal declaration |
+| `ATTACK_DECLARED` | never emitted | **emitted** — the attack really happened |
+| Response window | never opens | opens, and is where the negating effect is activated |
+| `has_attacked_this_turn` | unchanged — the monster keeps its attack | **set** — the attack is spent |
+| Where it lives | `BattleRules.can_declare_attack()` | `BattleRules.negate_attack()` |
+
+**Prevention must happen before declaration**, not as a declaration that is immediately
+cancelled: a cancelled declaration would emit `ATTACK_DECLARED`, open a window, and spend the
+monster's attack, all three of which are wrong. It has **two channels**, and neither is
+expressed in terms of the other:
+
+* **per CARD** — the `cannot_attack` flag (`Fiendish Chain`, `Hieratic Dragon of Tefnuit`).
+  It names one monster and travels with it.
+* **per PLAYER** — `ContinuousEffects.ATTACK_LOCK_KEY` (`Swords of Revealing Light`). It names
+  a player, so it covers monsters that reach that player's field *after* the source resolved,
+  and monsters whose control moved into their hands. Flagging the monsters present at recompute
+  time would answer correctly for the board as it stands and wrongly for the next monster.
+
+**Negation is not a Replay.** A Replay hands the choice back — the attacker may re-declare with
+the same or a different monster [S1 p.39]. A negated attack is spent. `begin_replay()` clears
+`has_attacked_this_turn`; the negation path deliberately does not.
+
+**Negation is checked BEFORE the Replay check**, and the order is load-bearing. `Maiden with
+Eyes of Blue` negates the attack and then Special Summons to the *defending* field, which
+changes the set of monsters the attacker faces — the textbook Replay condition. Asking about a
+Replay first would turn a spent attack back into a fresh declaration and undo the negation.
+
+**The Damage Step is the boundary.** `negate_attack()` refuses once the Damage Step has begun:
+"negate the attack" belongs to the Battle Step window the declaration opened, and from the start
+of the Damage Step the effects that are legal change ATK/DEF instead [S1 p.41]. It refuses
+rather than silently doing nothing, so a card asking at the wrong moment fails visibly.
+
+The battle pipeline is otherwise unchanged: no replay semantics were modified to support
+negation.
 
 ---
 
@@ -639,6 +714,52 @@ destroyed" still sees it. The obligation is consumed the moment it fires.
 Per-instance usage flags are cleared when the card changes zone or is flipped face-down unless
 the specific text says otherwise (master prompt §48). Named hard-once-per-turn counters live on
 the **player**, not the instance, so they survive the card leaving the field.
+
+### 11.1 Two effects SHARING one use — **DECIDED** (Phase 5 batch 9)
+
+"You can only use 1 *[name]* effect per turn, and only once that turn." (`Maiden with Eyes of
+Blue`, `CARD_RULINGS.md` **R3**) is a **sixth** form and is none of the five above: it is a
+single use shared *across* two different clauses, per player, per card name. Using either clause
+spends the one use and locks out both.
+
+Expressed with `EffectDef.restriction_group` — both clauses declare `opt_named_effect()` and the
+**same** `in_group("…")` key, so `named_key()` returns the shared key and the existing
+player-level named-effect ledger does the work. Nothing new was needed in the bookkeeping.
+
+It is deliberately **not**:
+
+* `opt_named_effect()` on each clause with its own id — that gives each clause its own use, so
+  a player could use both in one turn;
+* `opt_instance()` — that is per copy, so a second copy of the card would be unrestricted, and
+  the printed restriction names the card, not the copy.
+
+Both orderings are asserted (A-then-B and B-then-A), because a shared key implemented as
+"mark A, check A" passes only one of them.
+
+### 11.2 Per-card TURN COUNTERS — **DECIDED** (Phase 5 batch 9)
+
+"You must destroy it during the End Phase of your opponent's 3rd turn" (`Swords of Revealing
+Light`, **R6**) needs a card to count **turns**, which is a third kind of bookkeeping and is
+folded into neither of the existing two:
+
+* `CardInstance.counters` holds **game** counters (Spell Counter, Balloon Counter). Those are
+  placed by effects and are readable and requirable by other cards; a turn tally is none of
+  those things, and putting it there would expose it to `Wonder Balloons`.
+* `effect_usage` / `effect_use_counts` self-expire by comparing against the **current** turn
+  number, which is exactly wrong for a tally that must survive every turn boundary until it
+  reaches its limit.
+
+So: `CardInstance.turn_counters`, keyed by a card-chosen string, recording `{count, last_turn}`.
+Advancing twice within one turn number counts once, so a re-entered phase or a repeated
+recompute cannot double-count. It is **per instance** and is cleared with the rest of the
+per-instance state on leaving the field or being flipped face-down — a card that left and came
+back starts over.
+
+The lifetime is expressed in **authoritative duel/turn state only**: the counter advances from
+`PHASE_CHANGED → END` while the named player is the turn player. No wall-clock time, frame
+count or UI state is involved anywhere. The player whose turns are counted is a parameter rather
+than "the other one", so the primitive does not encode the inference that turns strictly
+alternate.
 
 ---
 
