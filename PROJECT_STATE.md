@@ -28,7 +28,8 @@ committed; **two cards are not started**.
 47 / 77 implemented, 47 / 77 tested, 30 remaining** (counts computed by
 `python Tools/build_matrix.py`, never written by hand). **All 4451 assertions from the previous
 checkpoint pass unchanged** — none was weakened, retargeted or deleted, and no existing suite
-changed its count. **HEAD at checkpoint:** `f094009`. ObjectDB at exit: **135266**.
+changed its count. **HEAD at checkpoint:** `77085b8` (the last code commit is `f094009`;
+this commit records the hash). ObjectDB at exit: **135266**.
 
 The batch was stopped here **deliberately, not because anything failed**. Each of the two
 remaining cards needs a **generic subsystem of its own first** — Trap Monsters for
