@@ -1,6 +1,7 @@
 # TEST_RESULTS
 
-**Last run:** 2026-08-13 (Phase 5 batch 8 PARTIAL — unit A and the first card of unit B)
+**Last run:** 2026-08-14 (Phase 5 batch 8 STILL PARTIAL — the LP-cost unit,
+`Judge of the Ice Barrier` and `Junk Blader`; two cards remain)
 **Engine:** Godot 4.7.1.stable.official.a13da4feb (headless)
 
 Command:
@@ -32,37 +33,92 @@ The raw command still works and produces the same numbers:
 
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
-| Core rules tests | 17 | 1214 | **1214** | 0 |
-| Per-card tests | 37 | 3191 | **3191** | 0 |
+| Core rules tests | 18 | 1323 | **1323** | 0 |
+| Per-card tests | 39 | 3418 | **3418** | 0 |
 | Interaction tests | 1 | 46 | **46** | 0 |
 | Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **55** | **4451** | **4451** | **0** |
+| **TOTAL** | **58** | **4787** | **4787** | **0** |
 
-SmokeCheck: **PASS**. Matrix: **45 / 77 implemented, 45 / 77 tested, 32 remaining** (computed by
+SmokeCheck: **PASS**. Matrix: **47 / 77 implemented, 47 / 77 tested, 30 remaining** (computed by
 `python Tools/build_matrix.py`, not written by hand).
 
-### Batch 8 so far — PARTIAL, and honestly so
+### Batch 8 so far — STILL PARTIAL, and honestly so
 
-Batch 8 is **not complete**. Two of its six units are done, tested and committed; the remaining
-four cards are **not started** and are **not** counted as implemented anywhere.
+Batch 8 is **not complete**. Four of its units are done, tested and committed; **two cards are
+not started** and are **not** counted as implemented anywhere.
 
-Batch 8 added **333** assertions and changed **no existing test expectation at all**. **All 4118
-assertions from the batch-7 checkpoint pass unchanged** — none was weakened, retargeted or
+This session added **336** assertions and changed **no existing test expectation at all**. **All
+4451 assertions from the previous checkpoint pass unchanged** — none was weakened, retargeted or
 deleted. Every pre-existing suite reports exactly its previous count; no suite was rewritten.
 
-* New core-rules suite: `BanishTests` **158** — the **banish / temporary-removal gate**, written
-  and passing before any batch-8 card existed, the way `EquipTests`, `ControlTests` and
-  `MovementTests` were.
-* New per-card suite: `InterdimensionalMatterTransporterTests` **175**.
+* New core-rules suite: `LifePointCostTests` **109** — the **LP-cost gate**, written and passing
+  before `Judge of the Ice Barrier` existed, the way `EquipTests`, `ControlTests`,
+  `MovementTests` and `BanishTests` were.
+* New per-card suites: `JudgeOfTheIceBarrierTests` **154**, `JunkBladerTests` **73**.
 
-**Done:** unit A (the gate) · `Interdimensional Matter Transporter`.
-**Not started:** `Judge of the Ice Barrier` · `Junk Blader` ·
-`The Phantom Knights of Shadow Veil` · `Runick Flashing Fire`.
+**Done:** unit A (the banish gate) · `Interdimensional Matter Transporter` · the LP-cost unit ·
+`Judge of the Ice Barrier` · `Junk Blader`.
+**Not started:** `The Phantom Knights of Shadow Veil` · `Runick Flashing Fire`.
 
-The batch was stopped at this point deliberately rather than pushed further: the next card's
-first clause needs a new "activated by paying LP" cost concept in the engine, which is a unit of
-its own, and starting it would have risked leaving a card half-implemented. `PROJECT_STATE.md §8`
-carries the exact continuation, including the clause enumeration already derived for that card.
+The batch was stopped at this point **deliberately, not because anything failed**. Each of the
+two remaining cards needs a generic subsystem of its own first — Trap Monsters for
+`The Phantom Knights of Shadow Veil`, and an authoritative Battle-Phase restriction for
+`Runick Flashing Fire` — and starting one without room to finish it and its gate would have
+risked leaving a card half-implemented. `PROJECT_STATE.md §8` carries the exact continuation.
+
+#### Generic mechanics added this session
+
+* **Paying LP as an activation cost.** `EffectPrimitives.LP_COST_KEY` / `LP_COST_REASON`,
+  `can_pay_life_points_cost()`, `pay_life_points_cost()`, `life_points_paid_in()`,
+  `activation_paid_life_points()`, `cost_event_paid_life_points()`. **No engine change was
+  needed to carry the provenance**: `_perform_activation()` already copied `ctx.cost_payload`
+  into both the `COST_PAID` event and the `ChainLink`, so the payment rides the cost channel
+  batch 4 built. New spec section `RULES_SPEC.md §10.4`; new ruling **R31**.
+* **A CONTINUOUS clause that reacts to a discrete event.** `EffectDef.respond_to_event` +
+  `ContinuousEffects.respond_to()`, dispatched from a non-reentrant queue in `DuelEngine` so
+  application order equals emission order and replays reproduce it. `CardRegistry` rejects such
+  a clause that is not continuous or that names no event. New spec section `RULES_SPEC.md §5.7`.
+* **Archetype membership by quoted name.** `name_matches_archetype()`, `archetype_monster()`,
+  `controls_archetype_monster()` (with the `exclude_id` that "another" needs).
+* **`chain_link_below()`** — the negation question that does not care what kind of card the link
+  below is. `spell_trap_activation_below()` deliberately answers only the narrower Spell/Trap
+  question and could not reach a monster's Ignition Effect at all.
+* Test-side: `TestFixtures.lp_cost_activation()`, `lp_cost_ignition()`,
+  `non_lp_cost_activation()`, `lp_changer()`, `lp_cost_watcher()`, `any_effect_negator()`.
+
+#### Defects found this session
+
+**No pre-existing engine defect, and no engine defect at all.** That is a result rather than an
+omission: the LP-cost gate was written and green before `Judge of the Ice Barrier` existed, so
+the card landed on an API that had already been exercised. Everything found was test-side.
+
+1. **Three tests observed the Chain after it had already resolved.** The engine does not pause
+   when neither player holds a legal response — it auto-passes and resolves the whole Chain
+   inside one `submit_action()` — so `state.chain` was correctly empty when read. Fixed by
+   giving the responding side a spare Set card, which keeps the window genuinely open. Not an
+   engine defect: the reminder in `PROJECT_STATE.md §8` describes exactly this behaviour.
+2. **A fixture gap, not a card bug.** `TestFixtures.effect_negator()` cannot negate a monster's
+   Ignition Effect, because `spell_trap_activation_below()` deliberately returns null for a
+   monster source. Judge's clauses 2 and 3 are the pool's first clauses that need it. Closed
+   with the generic `chain_link_below()` and `any_effect_negator()`, leaving the narrower
+   primitive and its existing consumers untouched.
+3. **A `JunkBladerTests` assertion read `copies_total` off `CardDef`, which does not carry it**
+   — the copy count is a property of the DECKS. The bad access aborted the test **after** its
+   passing assertions rather than failing it, so the suite reported a clean 70/70 while
+   silently dropping its final claim. This is the same class of false positive as the batch-8
+   `Interdimensional Matter Transporter` fallback-path pass, and it is why the run is now also
+   checked for `SCRIPT ERROR` lines rather than for `RESULT: PASS` alone. Rewritten to read the
+   verified card database directly; the suite is now 73/73 with no script errors.
+
+#### Not yet covered — additions from this session
+
+* **R31 part B (paying LP down to exactly 0) rests on weak evidence** and is a TCG/OCG split.
+  It is isolated in `can_pay_life_points_cost()` and is unreachable in the V1 pool.
+* **`ContinuousEffects.respond_to()` is exercised by two clause shapes only** — the synthetic
+  watcher and Judge's LP tax, both keyed on `COST_PAID`. No card in the pool responds to any
+  other event this way, so the dispatcher's behaviour for other event kinds is proven only by
+  its own structure, not by a printed card.
+* **The ObjectDB figure rose faster than assertions did this session** — see the harness note.
 
 ### Batch 7 — kept for the record
 
@@ -148,6 +204,7 @@ removed.
 | `EquipTests` | 83 | `RULES_SPEC.md §16, §17` [S1 p.29, p.53, p.55] |
 | `MovementTests` | 210 | `RULES_SPEC.md §8, §8.2, §9, §10, §12.1` [S1 p.5, p.28, p.52–53] |
 | `BanishTests` | 158 | `RULES_SPEC.md §8, §8.3, §12, §15` [S1 p.52–53], `CARD_RULINGS.md R30` |
+| `LifePointCostTests` | 109 | `RULES_SPEC.md §10, §10.4, §4.3, §5.7`, `CARD_RULINGS.md R31` |
 | `ShiningAngelTests` | 43 | per-card |
 | `NormalMonsterTests` | 76 | per-card (9 cards) |
 | `MonsterRebornTests` | 48 | per-card |
@@ -185,6 +242,8 @@ removed.
 | `ChainHealingTests` | 147 | per-card |
 | `CrystalSeerTests` | 151 | per-card |
 | `InterdimensionalMatterTransporterTests` | 175 | per-card |
+| `JudgeOfTheIceBarrierTests` | 154 | per-card (`CARD_RULINGS.md R2`, `R31`) |
+| `JunkBladerTests` | 73 | per-card |
 | `SpecialSummonInteractionTests` | 46 | interaction |
 
 ### BanishTests — 158/158
@@ -969,7 +1028,21 @@ No test expectation was weakened to make the implementation pass.
 
 ## Known issues in the harness (not rules defects)
 
-* **Batch 8 measurement: `123104 ObjectDB instances were leaked at exit`** (2026-08-13, at
+* **Latest measurement: `135266 ObjectDB instances were leaked at exit`** (2026-08-14, at
+  4787 assertions across 58 suites), up from 123104. That is **12162 more for 336 more
+  assertions, ~36.2 per assertion** — a further rise, and again **the highest per-assertion
+  figure recorded so far**. Reported as measured rather than explained away. The plausible
+  reading is unchanged and unchanged in status: the three new suites build many small duels
+  (`LifePointCostTests` alone constructs a fresh duel per test and runs one scenario twice for
+  determinism, and `JudgeOfTheIceBarrierTests` builds one per clause case), rather than the new
+  cost payload or the event-response queue retaining anything — the queue is drained
+  synchronously and is empty at the end of every dispatch. **That remains inference, not
+  measurement.** No test fails, hangs, or becomes unreliable, so per the batch rules it was
+  correctly not allowed to derail the card work — but the trend is now three checkpoints of
+  rising per-assertion cost, and the characterisation task below is **more** warranted than it
+  was, not less. It must be done before Phase 7.
+
+* **Superseded, kept for the trend: `123104 ObjectDB instances were leaked at exit`** (2026-08-13, at
   4451 assertions across 55 suites), up from 113897 at the batch-7 checkpoint. That is **9207
   more for 333 more assertions, ~27.6 per assertion**, against batch 7's ~20.6, units A+B's ~25.7
   and batch 6's ~25.0. It is the **highest per-assertion figure recorded so far**, modestly above

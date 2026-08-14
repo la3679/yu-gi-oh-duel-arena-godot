@@ -584,6 +584,56 @@ correction therefore fails loudly rather than drifting.
 
 ---
 
+### R31 — paying LIFE POINTS as an activation cost, and how "paid LP" is identified
+
+**Decided (Phase 5 batch 8, the LP-cost unit). Confidence: the two parts differ and are
+separated below.**
+
+Required by `Judge of the Ice Barrier`'s first clause: "each time your opponent activates a
+card or effect **by paying LP**, they lose 500 LP". Nothing in the V1 pool pays LP as a cost, so
+neither the payment nor the observation existed in the engine before this batch.
+
+**Part A — what counts as "paid LP". Confidence: HIGH.**
+"Paid LP" is a property of an **activation**, never of an LP delta. The engine records the
+payment on the activation's own cost payload (`EffectPrimitives.LP_COST_KEY`), which the
+existing pipeline already copies into both the `COST_PAID` event and the `ChainLink`. A clause
+asking "was this activated by paying LP?" reads that payload and nothing else. Consequently
+**none** of the following counts, and each is asserted in both directions in
+`LifePointCostTests` and again on the printed card in `JudgeOfTheIceBarrierTests`: effect
+damage · battle damage · an arbitrary LP loss written by a resolving effect · an LP reduction
+caused by another card resolving · **LP gain** · an activation whose cost is not LP. This part
+is not a judgement call — it is what the wording says, and inferring a payment from a falling
+LP total would be a straightforward misreading.
+
+**Part B — affordability, and the exactly-zero edge. Confidence: LOW-MEDIUM on the edge,
+HIGH on the rest.**
+The uncontested rule: *"If paying LP is a requirement to activate a card or effect and the
+player cannot, that card or effect cannot be activated."* The engine enforces that in
+`EffectPrimitives.can_pay_life_points_cost()`, which is the **only** place the question is
+answered.
+
+The contested edge is paying LP **exactly equal** to your remaining LP. The sources disagree by
+region: the OCG allows it (the player pays and loses the Duel), while the TCG is reported not to
+allow a payment that would immediately lose the Duel. The project's primary rules source is the
+TCG rulebook [S1], so the engine takes the **TCG reading — the payer must be left with at least
+1 LP** — implemented as a strict inequality. **This is honestly weak evidence:** the OCG half is
+documented on Yugipedia, the TCG half is attributed there to forum discussion rather than to a
+quoted Konami ruling, and no official TCG text stating it was found.
+
+It is isolated in one function precisely so a correction is a one-line change plus its test.
+**Nothing in the V1 pool can reach this edge**, because no printed card pays LP at all, so the
+decision affects no real duel. If stronger evidence appears, change
+`can_pay_life_points_cost()` and the three assertions in `LifePointCostTests`
+`_test_affordability_gates_the_activation`.
+
+*Source:* Yugipedia, "Pay" and "Paying Life Point costs" (community wiki, consulted 2026-08-14);
+the TCG/OCG split and the "cannot activate if you cannot pay" rule both come from there.
+**Community source, not an official Konami ruling** — recorded as such rather than dressed up.
+*Tests:* `LifePointCostTests` (109) is the generic gate; `JudgeOfTheIceBarrierTests` (154)
+exercises the printed consumer.
+
+---
+
 ## 5. Banlist note (master prompt §51)
 
 These are fixed casual decks built from an owned physical collection. Current Forbidden/Limited

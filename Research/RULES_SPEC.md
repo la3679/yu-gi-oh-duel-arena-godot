@@ -500,6 +500,58 @@ Additional distinctions the engine models explicitly (master prompt §15): `targ
 `choose/select` (non-targeting), `then` vs `and if you do` vs `also` vs `after that`,
 "negate the activation" vs "negate the effect", and the three once-per-turn text forms in §11.
 
+### 10.4 Paying LIFE POINTS as a cost, and identifying that it happened
+
+Added in Phase 5 batch 8 for `Judge of the Ice Barrier`. `CARD_RULINGS.md` **R31**.
+
+An LP payment is an ordinary activation cost and obeys §10 unchanged: paid at **activation**,
+all-or-nothing, and **never refunded** — not when the activation is negated and not when the
+effect is negated. `EffectPrimitives.pay_life_points_cost()` is the only way to make one, and
+`can_pay_life_points_cost()` is the only place affordability is decided (R31 part B fixes the
+exactly-zero edge and isolates it there).
+
+What is genuinely new is that a clause can ask **"was this card or effect activated by paying
+LP?"**. That question is answered from the **activation**, never from an LP delta:
+
+* `pay_life_points_cost()` writes the amount into `ctx.cost_payload` under
+  `EffectPrimitives.LP_COST_KEY`;
+* `DuelEngine._perform_activation()` already copies the payload into **both** the `COST_PAID`
+  event and the `ChainLink`, so no engine change was needed to carry it;
+* `cost_event_paid_life_points()` / `activation_paid_life_points()` / `life_points_paid_in()`
+  are the only supported readers.
+
+The provenance is therefore **per Chain Link**, so a Chain carrying several activations can
+never attribute one player's payment to another link. Because the answer comes from the cost
+channel and not from `LP_CHANGED`, **none** of these counts as a payment: effect damage, battle
+damage, an arbitrary LP loss, an LP reduction caused by another resolving effect, LP **gain**,
+or an activation whose cost is something other than LP. `LP_CHANGED` does carry a
+`LP_COST_REASON` tag, but that is for the log — a card must not key on it.
+
+Note that §4.3 already settles the timing question this raises: **paying a cost is not an
+activation and cannot be chained to**, so nothing may respond to the payment itself.
+
+### 5.7 Continuous clauses that react to a discrete event
+
+Also added in batch 8, and the shape `Judge of the Ice Barrier`'s first clause needs.
+
+"While you control another 'Ice Barrier' monster, **each time** your opponent activates a card
+or effect by paying LP, they lose 500 LP" is a **continuous effect**, not a Trigger Effect: it
+applies the instant the event happens, it puts **no link on the Chain**, and it is never offered
+as a choice. §4.3 is what forces this — the payment cannot be chained to, so a Trigger Effect
+could not express it — and `ContinuousEffects.recompute()` cannot either, because a recompute
+runs many times and an LP loss applied on each would fire without bound for one event.
+
+The mechanism is `EffectDef.respond_to_event` (with `trigger_events` naming the events and
+`condition` gating it) dispatched by `ContinuousEffects.respond_to()`. Its sources are exactly
+the set `recompute()` uses — face-up, on the field, not negated, own activation resolved — so
+such a clause switches itself off under precisely the conditions its continuous stat modifiers
+would. `DuelEngine` feeds it from a **non-reentrant queue**: a response changes state and so
+emits events of its own, and queueing rather than recursing keeps application order equal to
+emission order, which is what makes a replay reproduce it.
+
+`CardRegistry` rejects a `respond_to_event` clause that is not CONTINUOUS or that names no
+event, so one cannot be added and silently never fire.
+
 ---
 
 ## 11. Once-per-turn tracking (master prompt §47)

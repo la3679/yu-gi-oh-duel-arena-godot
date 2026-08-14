@@ -3,7 +3,7 @@
 > Persistent resume file. A new Claude Code session should read **this file first**,
 > then read only the targeted files named in §8. Do **not** recursively reread the repository.
 
-**Last updated:** 2026-08-13
+**Last updated:** 2026-08-14
 **Current phase:** **Phase 5 — the card effect library.** Phases 0–4 are complete and
 Gate B (the generic rules engine) is MET; nothing in Phase 4 needs revisiting.
 
@@ -11,36 +11,60 @@ Gate B (the generic rules engine) is MET; nothing in Phase 4 needs revisiting.
 
 ## 0. READ THIS FIRST — batch 8 is IN PROGRESS and PARTIAL
 
-**Batches 1–7 are complete. Batch 8 is NOT.** Two of its six units are done, tested and
-committed; **four cards are not started**.
+**Batches 1–7 are complete. Batch 8 is NOT.** Four of its units are done, tested and
+committed; **two cards are not started**.
 
 | Batch 8 unit | Status |
 |---|---|
 | Unit A — the generic banish / temporary-removal gate (`BanishTests`, 158) | **COMPLETE** |
 | `Interdimensional Matter Transporter` (`InterdimensionalMatterTransporterTests`, 175) | **COMPLETE** |
-| `Judge of the Ice Barrier` | **NOT STARTED** — start here, see §8 |
-| `Junk Blader` | **NOT STARTED** |
-| `The Phantom Knights of Shadow Veil` | **NOT STARTED** |
+| The generic LP-payment-as-cost unit (`LifePointCostTests`, 109) | **COMPLETE** |
+| `Judge of the Ice Barrier` (`JudgeOfTheIceBarrierTests`, 154) | **COMPLETE** |
+| `Junk Blader` (`JunkBladerTests`, 73) | **COMPLETE** |
+| `The Phantom Knights of Shadow Veil` | **NOT STARTED** — start here, see §8 |
 | `Runick Flashing Fire` | **NOT STARTED** |
 
-**Measured at this checkpoint: 4451 passed / 0 failed across 55 suites; SmokeCheck PASS;
-45 / 77 implemented, 45 / 77 tested, 32 remaining** (counts computed by
-`python Tools/build_matrix.py`, never written by hand). **All 4118 assertions from the batch-7
+**Measured at this checkpoint: 4787 passed / 0 failed across 58 suites; SmokeCheck PASS;
+47 / 77 implemented, 47 / 77 tested, 30 remaining** (counts computed by
+`python Tools/build_matrix.py`, never written by hand). **All 4451 assertions from the previous
 checkpoint pass unchanged** — none was weakened, retargeted or deleted, and no existing suite
-changed its count. **HEAD at checkpoint:** `7e8995e`. ObjectDB at exit: **123104**.
+changed its count. **HEAD at checkpoint:** `f094009`. ObjectDB at exit: **135266**.
 
-The batch was stopped here **deliberately, not because anything failed**: the next card's first
-clause needs a new "activated by paying LP" cost concept in the engine, which is a unit of its
-own, and starting it would have risked leaving a card half-implemented. The clause enumeration
-for that card is already derived and persisted in §8 so the next session starts executing rather
-than re-deriving it.
+The batch was stopped here **deliberately, not because anything failed**. Each of the two
+remaining cards needs a **generic subsystem of its own first** — Trap Monsters for
+`The Phantom Knights of Shadow Veil`, and an authoritative Battle-Phase restriction for
+`Runick Flashing Fire`. Starting either without room to finish it *and* its gate *and* the card
+would have risked leaving a card half-implemented, which is the one thing this project does not
+do. Both are specified in §8 so the next session starts executing rather than re-deriving.
 
-**Generic mechanics added by batch 8 so far — none left UNVERIFIED:** the whole banish /
-temporary-removal subsystem (`Enums.BanishDuration`, `MoveReason.RETURNED_FROM_BANISHMENT`,
-`GameEvent.Kind.CARD_RETURNED_FROM_BANISHMENT`, `GameState.banish_leases` and its six methods,
-`EffectPrimitives.banish_target_temporarily()` / `banish_top_of_deck()` / `own_monsters()` /
-`surviving_own_monster_target()`). New ruling: **R30** (five parts, per-part confidence).
-New spec section: **`RULES_SPEC.md §8.3`**.
+**Generic mechanics added by batch 8 so far — none left UNVERIFIED:**
+
+* the whole banish / temporary-removal subsystem (`Enums.BanishDuration`,
+  `MoveReason.RETURNED_FROM_BANISHMENT`, `GameEvent.Kind.CARD_RETURNED_FROM_BANISHMENT`,
+  `GameState.banish_leases` and its six methods, `EffectPrimitives.banish_target_temporarily()`
+  / `banish_top_of_deck()` / `own_monsters()` / `surviving_own_monster_target()`);
+* **paying LP as an activation cost** — `EffectPrimitives.LP_COST_KEY` / `LP_COST_REASON`,
+  `can_pay_life_points_cost()`, `pay_life_points_cost()`, `life_points_paid_in()`,
+  `activation_paid_life_points()`, `cost_event_paid_life_points()`. "Paid LP" is a property of
+  an **activation**, never of an LP delta. **No engine change was needed to carry it**:
+  `_perform_activation()` already copied `ctx.cost_payload` into both the `COST_PAID` event and
+  the `ChainLink`, so the payment rides the cost channel batch 4 built;
+* **a CONTINUOUS clause that reacts to a discrete event** — `EffectDef.respond_to_event` +
+  `ContinuousEffects.respond_to()`, dispatched from a non-reentrant queue in `DuelEngine`;
+* **archetype membership by quoted name** — `name_matches_archetype()`, `archetype_monster()`,
+  `controls_archetype_monster()`;
+* **`chain_link_below()`** — negation that does not care what kind of card the link below is.
+
+New rulings: **R30** (five parts) and **R31** (two parts, honest per-part confidence — part B
+rests on weak community evidence and is unreachable in the V1 pool).
+New spec sections: **`RULES_SPEC.md §8.3`, `§10.4`, `§5.7`**.
+
+**No engine defect was found this session** — the LP-cost gate was green before
+`Judge of the Ice Barrier` existed, so the card landed on an already-exercised API. Three
+test-side defects were found and fixed; they are written up in `Reports/TEST_RESULTS.md`,
+including a `JunkBladerTests` assertion that read a field `CardDef` does not carry and so
+**aborted after its passing assertions, reporting a clean 70/70 while silently dropping its
+last claim** — the same class of false positive as batch 8's earlier fallback-path pass.
 
 ---
 
@@ -255,8 +279,8 @@ Key research outputs:
 
 ## 4. Build/verification status
 
-> **The current measured numbers are in §0 above: 4451 / 4451 across 55 suites, SmokeCheck PASS,
-> 45 / 77.** The batch-4 run reproduced below is kept only as a historical record of the format;
+> **The current measured numbers are in §0 above: 4787 / 4787 across 58 suites, SmokeCheck PASS,
+> 47 / 77.** The batch-4 run reproduced below is kept only as a historical record of the format;
 > `Reports/TEST_RESULTS.md` is the authoritative per-suite breakdown.
 
 Historical run (2026-08-13, at commit `565ae0c` plus the Phase 5 batch-4 work):
@@ -497,7 +521,7 @@ the pool that needs the behaviour. Full write-up in `Reports/TEST_RESULTS.md`.
 | 2 | Per-card official text + rulings research (77 cards) | **COMPLETE** |
 | 3 | Architecture / scaffolding + Graphify index | **COMPLETE** |
 | 4 | Core rules engine | **COMPLETE** — 4b-1/4b-2/4b-3/4c done+tested |
-| 5 | Card effect library (77 cards) | **IN PROGRESS** — **45 / 77** implemented and tested (batches 1-7 complete, batch 8 PARTIAL) |
+| 5 | Card effect library (77 cards) | **IN PROGRESS** — **47 / 77** implemented and tested (batches 1-7 complete, batch 8 PARTIAL — 2 cards left) |
 | 6 | Automated tests | NOT STARTED |
 | 7 | Basic playable UI | NOT STARTED |
 | 8 | Arena / presentation | NOT STARTED |
@@ -592,6 +616,9 @@ DuelArenaGame/
 │   │       ├── ChainDetonation.gd        500 burn + self-return by Chain Link position (R4)
 │   │       ├── ChainHealing.gd           500 LP gain + the same self-return, its own first half
 │   │       ├── CrystalSeer.gd            FLIP: excavate 2, add 1, place the other on the bottom
+│   │       ├── JudgeOfTheIceBarrier.gd    the continuous LP-payment tax + two Ignition
+│   │       │                              effects, each once per turn on the name
+│   │       ├── JunkBlader.gd              banish a "Junk" monster as COST, +400 ATK
 │   │       └── InterdimensionalMatterTransporter.gd  banish your own monster until the End
 │   │                                     Phase — the pool's only stated return timing
 │   ├── rules/
@@ -615,6 +642,7 @@ DuelArenaGame/
 │       ├── ControlTests.gd      93 assertions (the CONTROL gate)
 │       ├── MovementTests.gd    210 assertions (the MOVEMENT / EXCAVATION gate)
 │       ├── BanishTests.gd      158 assertions (the BANISH / TEMPORARY-REMOVAL gate)
+│       ├── LifePointCostTests.gd 109 assertions (the LP-COST gate)
 │       ├── ChainTests.gd        27 assertions
 │       ├── TimingTests.gd       37 assertions
 │       ├── TurnFlowTests.gd     40 assertions
@@ -662,6 +690,8 @@ DuelArenaGame/
 │   ├── ChainHealingTests.gd             147
 │   ├── CrystalSeerTests.gd              151
 │   ├── InterdimensionalMatterTransporterTests.gd  175
+│   ├── JudgeOfTheIceBarrierTests.gd      154
+│   ├── JunkBladerTests.gd                 73
 │   └── SpecialSummonInteractionTests.gd  46   (no card-under-test marker, on purpose)
 ├── Tools/                             Python research + data pipeline (dev only)
 │   ├── run_tests.ps1                  headless test runner (parse-check + no pipe stall)
@@ -1433,7 +1463,15 @@ Notes that will otherwise cost a cycle:
 Measured at that checkpoint: **44 / 77 implemented and tested, 33 remaining** — the predicted
 number, computed and not assumed.
 
-### Batch 8 — UNIT A and the first card are DONE (nothing partial in them)
+### Batch 8 — FOUR units are DONE (nothing partial in them)
+
+**Done and committed:** unit A (the banish gate, `BanishTests` 158) ·
+`Interdimensional Matter Transporter` (175) · the generic LP-payment-as-cost unit
+(`LifePointCostTests` 109) · `Judge of the Ice Barrier` (154) · `Junk Blader` (73).
+**Remaining:** `The Phantom Knights of Shadow Veil` · `Runick Flashing Fire`.
+
+The unit-A description below is kept for the record.
+
 
 **Unit A — the generic banish / temporary-removal gate.** `BanishTests` (158 assertions) was
 written and passing **before any batch-8 card existed**, the way `EquipTests`, `ControlTests` and
@@ -1462,10 +1500,92 @@ test-harness false pass. All three are written up in `Reports/TEST_RESULTS.md`.
 
 ### The NEXT step — finish batch 8 — start here
 
-**Four cards remain. Do them in this order, each tested and committed before the next begins.**
-Do **not** rewrite the gate; it is done and green. Do **not** start batch 9.
+**TWO cards remain: `The Phantom Knights of Shadow Veil`, then `Runick Flashing Fire`.** Do them
+in that order, each tested and committed before the next begins. Do **not** rewrite any gate;
+`BanishTests` and `LifePointCostTests` are done and green. Do **not** start batch 9.
 
-#### 1. `Judge of the Ice Barrier` — the clause enumeration is already done, do not re-derive it
+**Each remaining card needs a generic subsystem BEFORE the card**, exactly the way unit A and the
+LP-cost unit were done. That is why the session stopped here rather than starting one.
+
+#### 1. `The Phantom Knights of Shadow Veil` — Trap Monsters first
+
+Verified official text (`Data/cards/cards.json`, cid 11404), **Normal Trap**, Spell Speed 2:
+
+> "Target 1 face-up monster you control; it gains 300 ATK/DEF. When an opponent's monster
+> declares a direct attack while this card is in your GY: Special Summon this card in Defense
+> Position as a Normal Monster (Warrior/DARK/Level 4/ATK 0/DEF 300). (This card is NOT treated as
+> a Trap.) If Summoned this way, banish this card when it leaves the field."
+
+**Three clauses — implement all three, not only the banish one.**
+
+| # | Clause | Type | Notes |
+|---|---|---|---|
+| 1 | "Target 1 face-up monster you control; it gains 300 ATK/DEF." | CARD_ACTIVATION (Normal Trap) | Reuse `own_monsters()` / `surviving_own_monster_target()` from unit A. It is ATK **and** DEF, and **no duration is printed**, so it is *not* an end-of-turn modifier — do not reach for `gain_atk_until_end_of_turn()`. |
+| 2 | "When an opponent's monster declares a direct attack while this card is in your GY: Special Summon this card in Defense Position as a Normal Monster (Warrior/DARK/Level 4/ATK 0/DEF 300). (This card is NOT treated as a Trap.)" | TRIGGER, from `GRAVEYARD` | Keys on `ATTACK_DECLARED` with `attack_is_direct`. **This is the Trap-Monster unit.** |
+| 3 | "If Summoned this way, banish this card when it leaves the field." | replacement | Conditional on the summon marker; use the existing `card_memory` / `summoned_by_procedure_id` channel rather than a new flag. |
+
+**Do the generic Trap-Monster gate first, as its own unit with its own tests**, the way
+`BanishTests` and `LifePointCostTests` were. What is genuinely new: a card that is a **Trap in
+the Graveyard and a MONSTER while in the Monster Zone**, with an **overridden type line** the
+printed `CardDef` does not have. Its Trap-card identity and its monster identity must be kept
+distinct — do **not** fake it as an ordinary monster, and do **not** mutate the shared `CardDef`
+(it is the immutable canonical definition and is shared by every copy). The gate must pin down:
+which zone it occupies, what `is_monster()` answers in each, the overridden Level / Attribute /
+Type / ATK / DEF, that it is **not** treated as a Trap while summoned, what happens when it
+leaves the Monster Zone, and that the Special Summon emits real summon events and opens a real
+summon-response window (so it can be negated). `SummonRules.begin_special_summon()` +
+`complete_summon()` is the existing route — go through it, do not bypass it.
+
+#### 2. `Runick Flashing Fire` — the Battle Phase restriction first
+
+Verified official text (`Data/cards/cards.json`, cid 17374), **Quick-Play Spell**, Spell Speed 2:
+
+> "Activate 1 of these effects, but skip your next Battle Phase after activation;●Target 1
+> Special Summoned monster your opponent controls; destroy it, then banish the top 2 cards of
+> your opponent's Deck.●Special Summon 1 "Runick" monster from your Extra Deck to the Extra
+> Monster Zone.You can only activate 1 "Runick Flashing Fire" per turn."
+
+**R1 governs it and must be honoured, not replaced by an assumption.** R1 fixes the hard part:
+**"skip your next Battle Phase" applies ON ACTIVATION, even if the chosen effect is later
+negated** — so it is paid at activation, not in `resolve`.
+
+**Do the generic Battle-Phase-restriction unit first**, as authoritative turn state, **never in
+the UI**. `ContinuousEffects.restrict_player()` is already consumed by
+`TurnFlow.can_enter_battle_phase()` (see §6a), but a *continuous* restriction is the wrong shape
+here: this one is acquired at a moment, belongs to a specific future turn, and is **consumed**.
+Model it as authoritative state on `PlayerState` in the shape the **leases** use, and test:
+acquisition · exactly which Battle Phase is affected · turn ownership · next-turn semantics ·
+what happens if that turn would not have had a Battle Phase anyway (turn 1) · consumption and
+reset · two activations across turns · replay determinism.
+
+Then the card. Both bullets must be implemented. Bullet 2 can **never** have a legal target —
+both Extra Decks are empty — so it must report "no legal choice" rather than being omitted, and
+must be tested synthetically with a real-pool assertion, the R21/R23/R2 treatment now used four
+times. Bullet 1 targets a **Special Summoned** monster specifically; `banish_top_of_deck()`
+already exists from unit A and already handles a Deck shorter than 2. "You can only activate 1
+per turn" is `opt_named_activation()`, which is a **different** restriction from
+`opt_named_effect()`.
+
+---
+
+The two completed cards below are kept for the record; they are **done**, not a plan.
+
+#### DONE — `Junk Blader` (`JunkBladerTests` 73/73)
+
+One clause, banish as a COST, `gain_atk_until_end_of_turn()`. **No once-per-turn is printed and
+none was added** — the limit is the cost running out. Never live in the pool: it is the only
+"Junk" card and there is one copy, so the only card that could pay the cost is the one that has
+to be face-up on the field to activate.
+
+#### DONE — `Judge of the Ice Barrier` (`JudgeOfTheIceBarrierTests` 154/154)
+
+All three clauses. Clause 1 is CONTINUOUS (`respond_to_event`), not a Trigger Effect. R2 honoured
+including its sub-question — Judge in the GY does **not** satisfy "if you control an 'Ice
+Barrier' monster". Clause 2 uses `EffectDef.targets_valid` for its heterogeneous target set;
+clause 3's banish is a COST. The clause enumeration that was persisted here has been consumed and
+is left below for reference.
+
+#### Reference — the persisted `Judge of the Ice Barrier` enumeration (CONSUMED)
 
 Verified official text (`Data/cards/cards.json`), WATER / Warrior / Level 4 / 1800 ATK / 900 DEF:
 
@@ -1504,7 +1624,7 @@ pays LP so the clause can actually be observed firing. **Treat that as its own s
 own targeted test, before writing the card**, exactly as unit A was done before the cards. Do not
 fake it with a flag only Judge reads, and do not skip the clause.
 
-#### 2. `Junk Blader`
+#### Reference (CONSUMED) — `Junk Blader`
 
 > "You can banish 1 "Junk" monster from your Graveyard; this card gains 400 ATK until the end of
 > this turn."
@@ -1517,7 +1637,7 @@ printed** — do not add one. Check whether any "Junk" monster exists in either 
 this is another never-live cost and needs the R21/R23 synthetic treatment plus a real-pool
 assertion.
 
-#### 3. `The Phantom Knights of Shadow Veil`
+#### Reference (STILL TO DO — see the plan above) — `The Phantom Knights of Shadow Veil`
 
 > "Target 1 face-up monster you control; it gains 300 ATK/DEF. When an opponent's monster declares
 > a direct attack while this card is in your GY: Special Summon this card in Defense Position as a
@@ -1536,7 +1656,7 @@ its Trap-card state and its monster state must be kept distinct.
 usual departure, conditional on `summoned_by_procedure_id` / a card-memory marker, using the
 existing `card_memory` channel rather than a new flag.
 
-#### 4. `Runick Flashing Fire`
+#### Reference (STILL TO DO — see the plan above) — `Runick Flashing Fire`
 
 > "Activate 1 of these effects, but skip your next Battle Phase after activation;●Target 1 Special
 > Summoned monster your opponent controls; destroy it, then banish the top 2 cards of your
