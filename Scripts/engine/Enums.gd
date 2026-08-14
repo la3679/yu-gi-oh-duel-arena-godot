@@ -181,6 +181,14 @@ enum MoveReason {
 	ADDED_TO_HAND,
 	## Taken off the top of the Deck by an EXCAVATE, pending placement. RULES_SPEC.md 8.2.
 	EXCAVATED,
+	## A TEMPORARILY banished card coming back at its stated return timing
+	## (`Interdimensional Matter Transporter`: "banish that target until the End Phase").
+	##
+	## Deliberately its own reason and deliberately NOT `SUMMONED`: the monster returns to
+	## the field but it is **not Summoned** — no Normal, Flip or Special Summon happens, so
+	## nothing that keys on a successful Summon may see it, and a Summon-negating card has
+	## nothing to answer. RULES_SPEC.md 8.3, CARD_RULINGS.md R30.
+	RETURNED_FROM_BANISHMENT,
 }
 
 ## Summon kinds. RULES_SPEC.md 5.
@@ -206,6 +214,23 @@ enum ControlDuration {
 	UNTIL_END_PHASE,
 	## No stated end condition. Nothing in the V1 pool uses it; it exists so that a card that
 	## genuinely says "take control" with no duration is not silently given one.
+	PERMANENT,
+}
+
+## How long a BANISHMENT lasts. RULES_SPEC.md 8.3.
+##
+## Deliberately the same shape as `ControlDuration`: a temporary banishment is a LEASE with
+## an explicit end condition, held by `GameState.banish_leases` and expired through
+## `GameState.expire_banish_leases()`, exactly as a control change is. Most banishing in the
+## pool is permanent and never creates a lease at all — only a card whose own text states a
+## return timing does.
+enum BanishDuration {
+	## "…banish that target until the End Phase" — `Interdimensional Matter Transporter`.
+	## Returns when the End Phase is ENTERED, at the same moment an UNTIL_END_PHASE control
+	## lease ends. CARD_RULINGS.md R25 fixes that moment.
+	UNTIL_END_PHASE,
+	## No stated return timing: the card stays banished. This is what
+	## `pay_banish_cost()` and `banish_target()` do, and it creates no lease.
 	PERMANENT,
 }
 

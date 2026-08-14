@@ -902,6 +902,12 @@ func _advance() -> void:
 		# continuous recompute. It is a state MUTATION rather than a derived flag, which is
 		# why it does not live inside recompute(). RULES_SPEC.md 5.6.
 		state.expire_control_leases()
+		# The temporary-banish leases are checked at exactly the same cadence, for the same
+		# reason and so the two can never disagree about a shared end condition. Nothing in
+		# the V1 pool has a banish duration that ends anywhere but the End Phase, so this
+		# call is a no-op today — it is here so that adding one cannot forget it.
+		# RULES_SPEC.md 8.3.
+		state.expire_banish_leases()
 
 		match timing:
 			Timing.TRIGGER_CHECK:

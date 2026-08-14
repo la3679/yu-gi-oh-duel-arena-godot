@@ -90,6 +90,14 @@ var pending_summon_card_id: int = -1
 ## [S1 p.52].
 var control_leases: Array = []
 
+## TEMPORARY banishments awaiting their stated return timing. RULES_SPEC.md 8.3.
+##
+## Deliberately the same shape as `control_leases`: a card banished "until the End Phase" is
+## a LEASE with an explicit end condition, not a special case bolted onto one card. Each
+## entry records where the card must come back to, in what position, and what banished it,
+## because none of that is recoverable from the Banished zone afterwards.
+var banish_leases: Array = []
+
 # --- Battle state ---
 var current_attacker = null           # CardInstance
 var current_attack_target = null      # CardInstance or null for a direct attack
@@ -373,6 +381,16 @@ func move_card(card: CardInstance, to_zone: Enums.Zone, reason: Enums.MoveReason
 		# hand back — the lease is simply over. RULES_SPEC.md 5.6.
 		drop_control_leases_for(card)
 
+	# A card that was TEMPORARILY banished and has now gone somewhere else — another effect
+	# moved it to the Graveyard, the hand, the Deck — is never coming back at its scheduled
+	# timing: the lease is over the moment the card stops being where the lease describes.
+	# Dropped here rather than checked at expiry so a card cannot be returned twice, and so a
+	# card that later re-enters the Banished zone by some other route is not caught by a stale
+	# lease. RULES_SPEC.md 8.3.
+	if from_zone == Enums.Zone.BANISHED and to_zone != Enums.Zone.BANISHED \
+			and reason != Enums.MoveReason.RETURNED_FROM_BANISHMENT:
+		drop_banish_leases_for(card)
+
 	# Recorded after on_leave_field() precisely so it survives it. RULES_SPEC.md 15.
 	card.last_move_reason = reason
 	card.last_move_from_zone = from_zone
@@ -596,6 +614,182 @@ func expire_control_leases(end_phase_reached: bool = false) -> void:
 			Enums.ControlDuration.UNTIL_END_PHASE:
 				if end_phase_reached:
 					end_control_lease(lease)
+			_:
+				pass
+
+
+# ---------------------------------------------------------------------------
+# TEMPORARY banishment. RULES_SPEC.md 8.3, CARD_RULINGS.md R30 [S1 p.53].
+#
+# Banishing is normally permanent and needs nothing here: `EffectPrimitives.pay_banish_cost()`
+# and `banish_target()` are plain `move_card()` calls and create no lease. What this subsystem
+# exists for is a card whose own text states a RETURN TIMING — in the V1 pool exactly one,
+# `Interdimensional Matter Transporter`, "banish that target until the End Phase".
+#
+# It is deliberately built as a LEASE, the same shape as `control_leases`, and NOT as a field
+# on the card or a hook inside one card's script:
+#
+#   * the authoritative GameState is the only thing that knows a card is due back, so a replay
+#     of the state reproduces the return without the card's script being consulted;
+#   * the lease records the return destination, the return position and the source, because a
+#     card sitting in the Banished zone has already been normalised and cannot be asked;
+#   * the expiry hook runs at the same two cadences the control leases use, so the two cannot
+#     drift apart about when "the End Phase" is (CARD_RULINGS.md R25);
+#   * a card that leaves the Banished zone by any other route drops its lease inside
+#     `move_card()`, so a return can never happen twice and never happens to the wrong card.
+#
+# The return is NOT a Summon. RULES_SPEC.md 8.3 and CARD_RULINGS.md R30 record the three
+# consequences that follow and are asserted in `BanishTests`: no Summon event is emitted, no
+# successful-Summon trigger may see it, and a Summon-negating card has nothing to answer.
+# ---------------------------------------------------------------------------
+
+## Can `card` be banished temporarily right now?
+##
+## Only a card ON THE FIELD can be, in this pool: the return destination is a field zone, and
+## a "banish until the End Phase" clause with nothing to return the card to is not a thing any
+## card in the pool prints. Asked separately so a card effect can report "no legal target"
+## rather than half-performing.
+func can_banish_temporarily(card: CardInstance) -> bool:
+	if card == null:
+		return false
+	if not card.is_on_field():
+		return false
+	if card.zone == Enums.Zone.IN_TRANSIT:
+		return false
+	return true
+
+
+## Banish `card` with a stated return timing. Returns false if it could not be done, in which
+## case nothing moved and no lease exists.
+##
+## `face_up` is the state of the card WHILE BANISHED [S1 p.53, RULES_SPEC.md 12]: a face-up
+## banished card is public information and a face-down banished one is not. It is a parameter
+## rather than a constant because the two are genuinely different and the distinction must not
+## be lost — the V1 pool only ever banishes face-up.
+func banish_temporarily(card: CardInstance, source_id: int,
+		duration: Enums.BanishDuration, face_up: bool = true) -> bool:
+	if not can_banish_temporarily(card):
+		return false
+	if duration == Enums.BanishDuration.PERMANENT:
+		# A permanent banishment is just a move; it must not create a lease that would later
+		# hand the card back. Routed through the same call so a caller cannot accidentally
+		# get a lease by asking for the wrong duration — and it still honours `face_up`,
+		# which is a statement about the banishment itself and has nothing to do with how
+		# long it lasts.
+		return move_card(card, Enums.Zone.BANISHED, Enums.MoveReason.BANISHED,
+			{"source_id": source_id,
+			 "position": Enums.Position.FACE_UP if face_up else Enums.Position.FACE_DOWN})
+
+	# Captured BEFORE the move: `move_card()` normalises a banished card's position, so
+	# afterwards there is no way to ask what it was. The battle position the monster returns
+	# in is the one it left in. CARD_RULINGS.md R30.
+	var return_zone := card.zone
+	var return_position = card.position
+	var return_index := card.zone_index
+	# The card returns under its OWNER's control, not under whoever controlled it at the
+	# moment it was banished. This is not a special rule for banishing: leaving the field
+	# already ends every control lease on the card (`drop_control_leases_for()` inside
+	# `move_card()`), and the Banished zone is owner-bound, so there is nothing left that
+	# says anyone else controls it. CARD_RULINGS.md R30, MEDIUM confidence, reasoned.
+	var return_controller := card.owner_id
+
+	if not move_card(card, Enums.Zone.BANISHED, Enums.MoveReason.BANISHED,
+			{"source_id": source_id,
+			 "position": Enums.Position.FACE_UP if face_up else Enums.Position.FACE_DOWN}):
+		return false
+
+	banish_leases.append({
+		"card_id": card.id, "source_id": source_id, "duration": duration,
+		"return_zone": return_zone, "return_position": return_position,
+		"return_index": return_index, "return_controller": return_controller,
+		"face_up": face_up,
+	})
+	return true
+
+
+## The temporary-banish leases currently in force for one card, oldest first.
+func banish_leases_for(card_id: int) -> Array:
+	return banish_leases.filter(func(l): return int(l["card_id"]) == card_id)
+
+
+## Is this card banished with a scheduled return?
+func is_temporarily_banished(card_id: int) -> bool:
+	return not banish_leases_for(card_id).is_empty()
+
+
+## End one lease, returning the card if it still can be returned.
+##
+## The lease is removed FIRST and unconditionally, so no path through this function can leave
+## a card scheduled to return twice — including the failure paths.
+func end_banish_lease(lease: Dictionary) -> bool:
+	var idx := banish_leases.find(lease)
+	if idx == -1:
+		return false
+	banish_leases.remove_at(idx)
+
+	var card = instance(int(lease["card_id"]))
+	if card == null or card.zone != Enums.Zone.BANISHED:
+		# Another effect moved it out of the Banished zone. `move_card()` normally drops the
+		# lease at that moment; this is the belt-and-braces branch and it returns nothing.
+		return false
+
+	var to_player := int(lease["return_controller"])
+	var to_zone: Enums.Zone = lease["return_zone"]
+	# Explicitly typed: `lease[...]` is a Variant and `:=` cannot infer through one.
+	var to_position = lease["return_position"]
+
+	if not move_card(card, to_zone, Enums.MoveReason.RETURNED_FROM_BANISHMENT,
+			{"to_player": to_player, "position": to_position,
+			 "source_id": int(lease["source_id"])}):
+		# The return destination is full — the owner's Monster Zones filled up while the card
+		# was away. The card cannot return, so it simply stays banished. Recorded as an event
+		# rather than papered over, and the lease is already gone so it is not retried
+		# forever. Exactly the shape `end_control_lease()` uses for the same situation.
+		emit(GameEvent.Kind.CARD_RETURNED_FROM_BANISHMENT, {
+			"card_id": card.id, "card_name": card.card_name(),
+			"to_player": to_player, "owner": card.owner_id,
+			"source_id": int(lease["source_id"]), "returned": false, "no_free_zone": true,
+		})
+		return false
+
+	emit(GameEvent.Kind.CARD_RETURNED_FROM_BANISHMENT, {
+		"card_id": card.id, "card_name": card.card_name(),
+		"to_player": to_player, "owner": card.owner_id,
+		"to_zone": to_zone, "position": to_position,
+		"source_id": int(lease["source_id"]), "returned": true,
+	})
+	return true
+
+
+## Drop every temporary-banish lease on a card without returning it.
+func drop_banish_leases_for(card: CardInstance) -> void:
+	if card == null:
+		return
+	for entry in banish_leases_for(card.id):
+		banish_leases.erase(entry)
+
+
+## Expire the temporary banishments whose return timing has arrived.
+##
+## Called at exactly the two places `expire_control_leases()` is called from — every
+## `DuelEngine._advance()` timing point, and `TurnFlow.enter_phase()` as the End Phase is
+## entered — so "until the End Phase" cannot come to mean two different moments for control
+## and for banishment. CARD_RULINGS.md R25 fixes that moment as the ENTRY to the End Phase,
+## before the hand-size discard, which this engine's two-step End Phase makes explicit.
+func expire_banish_leases(end_phase_reached: bool = false) -> void:
+	# Oldest first: unlike control, these leases do not stack on one card (a card can only be
+	# banished once at a time), so the order only fixes the event sequence when several
+	# different cards come back at the same moment. It is fixed on purpose — replay
+	# determinism depends on it.
+	var snapshot := banish_leases.duplicate()
+	for entry in snapshot:
+		var lease: Dictionary = entry
+		if not banish_leases.has(lease):
+			continue
+		match lease["duration"]:
+			Enums.BanishDuration.UNTIL_END_PHASE:
+				if end_phase_reached:
+					end_banish_lease(lease)
 			_:
 				pass
 

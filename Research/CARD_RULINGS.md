@@ -513,6 +513,66 @@ fails loudly rather than drifting.
 
 ---
 
+### R30 — what a TEMPORARY banishment returns, and under whose control
+
+**Decided (Phase 5 batch 8 unit A). Confidence: MEDIUM overall; the parts differ and are
+separated below.**
+
+`Interdimensional Matter Transporter` — "Target 1 face-up monster you control; banish that target
+until the End Phase" — is the V1 pool's only card with a stated return timing, and its text says
+nothing about *how* the monster comes back. Four sub-questions had to be answered before the
+generic `GameState.banish_leases` subsystem could be written. Each is recorded with its own
+evidence quality rather than being folded into one confidence rating.
+
+**(a) The return is NOT a Summon. Confidence: HIGH.** The card says "banish … until the End
+Phase", not "Special Summon it". Nothing in [S1 p.31-33] makes a card re-entering the field a
+Summon unless an effect Summons it, and PSCT is explicit whenever a Summon is meant. Consequences,
+all asserted: no `NORMAL_SUMMON_SUCCEEDED` / `SPECIAL_SUMMON_SUCCEEDED` / `FLIP_SUMMON_SUCCEEDED`
+/ `CARD_FLIPPED_FACE_UP` event is emitted, `pending_summon_card_id` is never set so a
+Summon-negating card (`Champion's Vigilance`) has nothing to answer, and
+`properly_special_summoned` is not set. Implemented as its own
+`Enums.MoveReason.RETURNED_FROM_BANISHMENT`.
+
+**(b) It returns in the battle position it left in. Confidence: MEDIUM.** No S1–S4 sentence states
+this, and the card does not. It is implemented this way because the alternative — picking a
+default position — would be an unstated choice the card never authorises, and because the lease
+can simply record what was true. The position is captured **before** the move, since `move_card()`
+normalises a banished card's position and the answer is unrecoverable afterwards. In practice the
+card can only target a face-up monster, so only the two face-up positions are live; the face-down
+case is covered generically anyway.
+
+**(c) It returns under its OWNER's control, not under the control of whoever held it when it was
+banished. Confidence: MEDIUM, reasoned rather than quoted.** This is *not* a special rule for
+banishing — it falls out of two things the engine already does and R29 already relies on:
+leaving the field ends every control lease on a card (`drop_control_leases_for()` inside
+`move_card()`, RULES_SPEC.md §5.6), and the Banished zone is owner-bound like every other
+non-field zone [S1 p.52]. After both, nothing remains that says any non-owner controls the card,
+so there is nothing to restore. Ownership is never mutated at any point in the cycle. Asserted in
+both directions: a borrowed monster banished temporarily comes back to its owner's Monster Zone,
+and its `owner_id` is unchanged throughout.
+
+**(d) If the return destination is full, the card stays banished. Confidence: MEDIUM.** The
+owner's Monster Zones can fill while the card is away. The card then simply cannot come back; the
+lease is discharged all the same so the return is not retried forever, and the failure is emitted
+as a `CARD_RETURNED_FROM_BANISHMENT` event carrying `returned: false, no_free_zone: true`. This is
+deliberately the identical shape `end_control_lease()` already uses when control cannot revert
+because the original controller's field is full — one precedent, applied twice, rather than two
+inconsistent answers to the same question.
+
+**Timing.** "Until the End Phase" is the same moment R25 already fixed for
+`Enemy Controller`'s control lease: the **entry** to the End Phase, before the hand-size discard.
+The two expiries are called side by side in `TurnFlow.enter_phase()` precisely so they cannot
+drift apart.
+
+*Source:* the card's own current official text plus the general rules the engine already applies;
+reasoned, **not** a quoted Konami ruling on this card. Consulted 2026-08-13.
+*Tests:* `BanishTests` — the return timing, "the return is not a Summon", the position, the
+owner's control, the full-zone case, the never-twice case and the stateless-return case are each
+their own test — plus `InterdimensionalMatterTransporterTests` on the printed card. A later
+correction therefore fails loudly rather than drifting.
+
+---
+
 ## 5. Banlist note (master prompt §51)
 
 These are fixed casual decks built from an owned physical collection. Current Forbidden/Limited

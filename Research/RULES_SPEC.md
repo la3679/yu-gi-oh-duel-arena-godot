@@ -396,6 +396,49 @@ destroy a card sitting in somebody's excavation.
 `PhoenixWingWindBlastTests`, `SpiritualWindArtMiyabiTests`, `ChainDetonationTests`,
 `ChainHealingTests`.
 
+### 8.3 Banishment and TEMPORARY removal — **DECIDED** (Phase 5 batch 8)
+
+Banishing separates a card from the field, the hand, the Deck or the Graveyard without sending
+it anywhere those words describe [S1 p.53]. Three consequences the engine enforces:
+
+* it is **not** a destruction — no `CARD_DESTROYED`;
+* it is **not** "sent to the Graveyard" — no `CARD_SENT_TO_GY`, and a card *later* moved from
+  the Banished zone to the Graveyard is still not "sent to the Graveyard" from the field;
+* a banished card is reachable by clauses that say "banished" and by nothing else.
+
+**Face-up vs face-down.** A face-up banished card is public information; a face-down one is not
+(§12). The two are different states and the engine keeps them apart. Every card in the V1 pool
+banishes face-up; the face-down path exists so the distinction cannot be silently lost.
+
+**COST vs EFFECT** stays exactly as batch 4 built it: `EffectPrimitives.pay_banish_cost()` is
+paid at activation and is all-or-nothing, never refunded when the effect is later negated;
+`banish_target()` runs at resolution and re-checks the target first. They are two primitives, not
+one call with a flag.
+
+**Banishing the top N of a Deck** (`banish_top_of_deck()`) is its own primitive and is *not* an
+excavation, a draw, a mill or a search — none of those events is emitted. It takes cards from the
+top one at a time in a fixed order, so a replay reproduces it; a Deck holding fewer than N loses
+what it has, which is not a loss condition, because decking out is a failure to **draw**
+[S1 p.35].
+
+**Temporary removal is a LEASE.** A card whose text states a return timing — in the V1 pool only
+`Interdimensional Matter Transporter`, "until the End Phase" — is registered in
+`GameState.banish_leases` in exactly the shape `control_leases` uses (§5.6), and expires through
+`expire_banish_leases()`, called from the same two places `expire_control_leases()` is called
+from. The authoritative state, not the card's script, records which card is away, what banished
+it, when it is due, where and in what position it returns, and under whose control. Consequences
+— the return is **not a Summon**, the position is the one it left in, it comes back under its
+**owner's** control, and a full destination leaves it banished — are all reasoned in
+CARD_RULINGS.md **R30**, with per-part confidence. A card moved out of the Banished zone by any
+other effect loses its lease at that moment, so a return can never happen twice.
+
+*Engine:* `Enums.BanishDuration`, `Enums.MoveReason.RETURNED_FROM_BANISHMENT`,
+`GameEvent.Kind.CARD_RETURNED_FROM_BANISHMENT`, `GameState.banish_temporarily()` /
+`banish_leases` / `banish_leases_for()` / `is_temporarily_banished()` / `end_banish_lease()` /
+`drop_banish_leases_for()` / `expire_banish_leases()`,
+`EffectPrimitives.banish_target_temporarily()` / `banish_top_of_deck()`.
+*Tests:* `BanishTests` (the banish gate), then the batch-8 cards.
+
 ### 8.1 When a Continuous Spell/Trap's continuous effect begins applying — **DECIDED**
 
 Recorded as an open question during Phase 4b and resolved in Phase 4c (2026-08-12).

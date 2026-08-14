@@ -56,6 +56,9 @@ enum Kind {
 	CARD_DESTROYED,
 	CARD_SENT_TO_GY,
 	CARD_BANISHED,
+	## A TEMPORARILY banished card came back at its stated return timing. Distinct from every
+	## Summon event on purpose: the monster returns but is NOT Summoned. RULES_SPEC.md 8.3.
+	CARD_RETURNED_FROM_BANISHMENT,
 	CARD_RETURNED_TO_HAND,
 	## "Add … to your hand" — distinct from CARD_RETURNED_TO_HAND. See MoveReason.ADDED_TO_HAND.
 	CARD_ADDED_TO_HAND,

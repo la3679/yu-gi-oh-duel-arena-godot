@@ -871,6 +871,54 @@ static func banish_target(ctx: EffectContext, required_zone: Enums.Zone) -> Card
 	return target
 
 
+## "Banish that target UNTIL THE END PHASE." `Interdimensional Matter Transporter`.
+##
+## The whole return mechanism lives in `GameState.banish_temporarily()` / the
+## `banish_leases` register, not here and emphatically not in the card's script: the
+## authoritative state is what must know a card is due back, so a replay reproduces the
+## return without consulting the card that caused it. This primitive is only the
+## resolution-time target re-check plus the call. RULES_SPEC.md 8.3, CARD_RULINGS.md R30.
+static func banish_target_temporarily(ctx: EffectContext,
+		duration: Enums.BanishDuration) -> CardInstance:
+	var target := surviving_field_target(ctx)
+	if target == null:
+		ctx.log_note("the target is no longer on the field")
+		return null
+	if not ctx.state.banish_temporarily(target, ctx.source.id, duration):
+		ctx.log_note("the banish did not happen")
+		return null
+	return target
+
+
+## "Banish the top N cards of <player>'s Deck." `Runick Flashing Fire`.
+##
+## A distinct primitive from `excavate()` on purpose, and the difference is REVEAL semantics:
+## an excavate shows the cards to both players and leaves them in a holding area awaiting
+## placement, while this sends them straight to the Banished zone. They go there FACE-UP, so
+## they do become public — but as banished cards that any "banished" clause can now reach,
+## which is not what an excavated card is. It is also not a draw, not a mill and not a search:
+## nothing that keys on any of those may see it. RULES_SPEC.md 8.2, 8.3.
+##
+## A Deck with fewer than `count` cards banishes as many as it has. That is not a failure and
+## it does not deck the player out — decking out is a failure to DRAW [S1 p.35].
+static func banish_top_of_deck(ctx: EffectContext, pid: int, count: int) -> Array:
+	var banished: Array = []
+	var deck: Array = ctx.state.player(pid).deck
+	# The order is fixed and taken from the top one at a time, so the event sequence is
+	# deterministic and a replay reproduces it exactly.
+	for i in range(count):
+		if deck.is_empty():
+			ctx.log_note("the Deck ran out after %d card(s)" % banished.size())
+			break
+		var card: CardInstance = deck[0]
+		if not ctx.state.move_card(card, Enums.Zone.BANISHED, Enums.MoveReason.BANISHED,
+				{"source_id": ctx.source.id}):
+			ctx.log_note("a top-of-Deck banish did not happen")
+			break
+		banished.append(card)
+	return banished
+
+
 # ---------------------------------------------------------------------------
 # Counting Continuous Spell/Trap Cards. `Five Brothers Explosion`.
 # ---------------------------------------------------------------------------

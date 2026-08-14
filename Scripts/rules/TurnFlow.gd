@@ -113,6 +113,11 @@ func enter_phase(new_phase: Enums.Phase) -> void:
 		# steps, so the moment has to be named explicitly rather than left to "some point in
 		# the End Phase". RULES_SPEC.md 5.6, CARD_RULINGS.md R25.
 		state.expire_control_leases(true)
+		# "…banish that target UNTIL THE END PHASE" (`Interdimensional Matter Transporter`)
+		# names the same moment as the control lease above and must not come to mean a
+		# different one, so the two expire side by side, here, at the ENTRY to the End Phase.
+		# RULES_SPEC.md 8.3, CARD_RULINGS.md R25/R30.
+		state.expire_banish_leases(true)
 
 
 ## "The player who goes first does not draw during the Draw Phase of their first turn."
