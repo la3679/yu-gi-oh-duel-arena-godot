@@ -6,7 +6,45 @@
 **Last updated:** 2026-08-13
 **Current phase:** **Phase 5 — the card effect library.** Phases 0–4 are complete and
 Gate B (the generic rules engine) is MET; nothing in Phase 4 needs revisiting.
-**Phase 5 progress:** batches 1-7 are complete. **Batch 7 is now COMPLETE — all four units.**
+
+---
+
+## 0. READ THIS FIRST — batch 8 is IN PROGRESS and PARTIAL
+
+**Batches 1–7 are complete. Batch 8 is NOT.** Two of its six units are done, tested and
+committed; **four cards are not started**.
+
+| Batch 8 unit | Status |
+|---|---|
+| Unit A — the generic banish / temporary-removal gate (`BanishTests`, 158) | **COMPLETE** |
+| `Interdimensional Matter Transporter` (`InterdimensionalMatterTransporterTests`, 175) | **COMPLETE** |
+| `Judge of the Ice Barrier` | **NOT STARTED** — start here, see §8 |
+| `Junk Blader` | **NOT STARTED** |
+| `The Phantom Knights of Shadow Veil` | **NOT STARTED** |
+| `Runick Flashing Fire` | **NOT STARTED** |
+
+**Measured at this checkpoint: 4451 passed / 0 failed across 55 suites; SmokeCheck PASS;
+45 / 77 implemented, 45 / 77 tested, 32 remaining** (counts computed by
+`python Tools/build_matrix.py`, never written by hand). **All 4118 assertions from the batch-7
+checkpoint pass unchanged** — none was weakened, retargeted or deleted, and no existing suite
+changed its count. **HEAD at checkpoint:** see §8. ObjectDB at exit: **123104**.
+
+The batch was stopped here **deliberately, not because anything failed**: the next card's first
+clause needs a new "activated by paying LP" cost concept in the engine, which is a unit of its
+own, and starting it would have risked leaving a card half-implemented. The clause enumeration
+for that card is already derived and persisted in §8 so the next session starts executing rather
+than re-deriving it.
+
+**Generic mechanics added by batch 8 so far — none left UNVERIFIED:** the whole banish /
+temporary-removal subsystem (`Enums.BanishDuration`, `MoveReason.RETURNED_FROM_BANISHMENT`,
+`GameEvent.Kind.CARD_RETURNED_FROM_BANISHMENT`, `GameState.banish_leases` and its six methods,
+`EffectPrimitives.banish_target_temporarily()` / `banish_top_of_deck()` / `own_monsters()` /
+`surviving_own_monster_target()`). New ruling: **R30** (five parts, per-part confidence).
+New spec section: **`RULES_SPEC.md §8.3`**.
+
+---
+
+**Phase 5 progress (batch 7 and earlier, kept for the record):** **Batch 7 is COMPLETE — all four units.**
 Unit A built the generic **movement / excavation gate** (`MovementTests`, written and passing
 before any batch-7 card) and closed two live engine defects in the movement API; unit B added
 `Compulsory Evacuation Device`, `Kaiser Glider` and `A Wingbeat of Giant Dragon`; **unit C** added
@@ -18,7 +56,7 @@ the hand, places one on the Deck, shuffles one in, or excavates is implemented a
 **Measured suite: 4118 passed / 0 failed across 53 suites; SmokeCheck PASS.**
 **Units C and D found NO engine defect** — the unit-A gate had already flushed the movement API's
 two real defects out before any card depended on it. One new ruling was recorded: **R29**.
-**Batch 8 has NOT been started** and is specified in §8.
+**Batch 8 is PARTIAL — see §0 above**; the remainder is specified in §8.
 
 The description of batch 6 below is unchanged and kept for the record: **batch 6** closed the
 Flip Summon negation engine gap and added `Aussa the Earth Charmer`, `Eria the Water Charmer`,
@@ -217,7 +255,11 @@ Key research outputs:
 
 ## 4. Build/verification status
 
-Last verified run (2026-08-13, at commit `565ae0c` plus the Phase 5 batch-4 work):
+> **The current measured numbers are in §0 above: 4451 / 4451 across 55 suites, SmokeCheck PASS,
+> 45 / 77.** The batch-4 run reproduced below is kept only as a historical record of the format;
+> `Reports/TEST_RESULTS.md` is the authoritative per-suite breakdown.
+
+Historical run (2026-08-13, at commit `565ae0c` plus the Phase 5 batch-4 work):
 
 ```
 powershell -File Tools\run_tests.ps1 SmokeCheck  -> SMOKE CHECK: PASS
@@ -275,6 +317,27 @@ Two things it handles that cost real time to discover:
 2. A suite that fails to **compile** makes `RunTests._initialize()` throw before it can
    call `quit()`, so the headless SceneTree runs forever at near-zero CPU. The runner does
    a `--check-only` parse pass first, turning that hang into an immediate readable error.
+
+### Defects the Phase 5 batch-8 work caught (unit A + the first card)
+
+Three, in three different categories, **none of them a pre-existing engine defect** — the banish
+subsystem is new this batch, so the two engine-side findings are defects in code written this
+batch and caught before any card depended on it. Full write-up in `Reports/TEST_RESULTS.md`.
+
+1. **`GameState.banish_temporarily()` dropped its `face_up` argument on the PERMANENT path**, so
+   a face-down banishment silently became face-up — a card the rules keep hidden [S1 p.53] would
+   have become public. Found by the gate on its first run, before any card existed. Nothing in
+   the V1 pool banishes face-down, so only a generic assertion could ever have caught it.
+2. **The lease recorded a `return_index` that nothing read** — the same shape as batch 5's
+   `cannot_be_targeted` and batch 6's `CONTROL_CHANGED`. Found by re-reading the committed code,
+   not by a test. **Removed rather than consumed**, and that direction matters: nothing in the
+   rules reserves the Monster Zone slot a banished monster left, so consuming it would have
+   encoded a rule that does not exist.
+3. **A test-harness false pass.** The `Interdimensional Matter Transporter`
+   rescue-from-destruction test put the interferer on the **non-turn player**, so
+   `get_legal_actions()` returned nothing, the test took a fallback branch, and it passed while
+   never building the two-link Chain it claimed to test. Rewritten so the Chain is real. The
+   §8 reminder about `get_legal_actions()` is what identified it.
 
 ### Defects the Phase 5 batch-7 unit C+D tests caught
 
@@ -402,8 +465,13 @@ the pool that needs the behaviour. Full write-up in `Reports/TEST_RESULTS.md`.
 
 ### Known harness issues (not rules defects)
 
-* The run reports **`113897 ObjectDB instances were leaked at exit`** (measured at this batch-7
-  checkpoint; 97559 at units A+B, 85668 at batch 6, 74049 at batch 5, 61457 at batch 4), growing
+* The run reports **`123104 ObjectDB instances were leaked at exit`** (measured at this batch-8
+  checkpoint; 113897 at batch 7, 97559 at units A+B, 85668 at batch 6, 74049 at batch 5, 61457 at
+  batch 4). At **~27.6 per new assertion** this is the highest per-assertion figure so far,
+  modestly above the previous high — reported as such rather than as "in band". The likely
+  reading is that the two new suites build many small duels rather than that `banish_leases`
+  retains anything, but **that is inference, not measurement**, and confirming it belongs to the
+  characterisation task. It keeps growing
   purely with the number of duels the suite
   builds. It causes **no** test failures, hangs, memory pressure or unreliable results, so it was
   correctly not allowed to derail batch 5 — but it **must be characterised or fixed before Phase
@@ -429,7 +497,7 @@ the pool that needs the behaviour. Full write-up in `Reports/TEST_RESULTS.md`.
 | 2 | Per-card official text + rulings research (77 cards) | **COMPLETE** |
 | 3 | Architecture / scaffolding + Graphify index | **COMPLETE** |
 | 4 | Core rules engine | **COMPLETE** — 4b-1/4b-2/4b-3/4c done+tested |
-| 5 | Card effect library (77 cards) | **IN PROGRESS** — **44 / 77** implemented and tested (batches 1-7) |
+| 5 | Card effect library (77 cards) | **IN PROGRESS** — **45 / 77** implemented and tested (batches 1-7 complete, batch 8 PARTIAL) |
 | 6 | Automated tests | NOT STARTED |
 | 7 | Basic playable UI | NOT STARTED |
 | 8 | Arena / presentation | NOT STARTED |
@@ -523,7 +591,9 @@ DuelArenaGame/
 │   │       ├── SpiritualWindArtMiyabi.gd WIND Tribute COST + the BOTTOM of the Deck
 │   │       ├── ChainDetonation.gd        500 burn + self-return by Chain Link position (R4)
 │   │       ├── ChainHealing.gd           500 LP gain + the same self-return, its own first half
-│   │       └── CrystalSeer.gd            FLIP: excavate 2, add 1, place the other on the bottom
+│   │       ├── CrystalSeer.gd            FLIP: excavate 2, add 1, place the other on the bottom
+│   │       └── InterdimensionalMatterTransporter.gd  banish your own monster until the End
+│   │                                     Phase — the pool's only stated return timing
 │   ├── rules/
 │   │   ├── ChainLink.gd               one chain link
 │   │   ├── ChainManager.gd            chain build / negate / reverse resolve
@@ -544,6 +614,7 @@ DuelArenaGame/
 │       ├── EquipTests.gd        83 assertions (the Equip gate)
 │       ├── ControlTests.gd      93 assertions (the CONTROL gate)
 │       ├── MovementTests.gd    210 assertions (the MOVEMENT / EXCAVATION gate)
+│       ├── BanishTests.gd      158 assertions (the BANISH / TEMPORARY-REMOVAL gate)
 │       ├── ChainTests.gd        27 assertions
 │       ├── TimingTests.gd       37 assertions
 │       ├── TurnFlowTests.gd     40 assertions
@@ -590,6 +661,7 @@ DuelArenaGame/
 │   ├── ChainDetonationTests.gd          168
 │   ├── ChainHealingTests.gd             147
 │   ├── CrystalSeerTests.gd              151
+│   ├── InterdimensionalMatterTransporterTests.gd  175
 │   └── SpecialSummonInteractionTests.gd  46   (no card-under-test marker, on purpose)
 ├── Tools/                             Python research + data pipeline (dev only)
 │   ├── run_tests.ps1                  headless test runner (parse-check + no pipe stall)
@@ -677,6 +749,10 @@ Legend: **DONE+TESTED** = implemented and covered by passing assertions ·
 | **A card reading its own CHAIN LINK POSITION** | **DONE+TESTED** | `EffectPrimitives.activated_chain_link_number()` / `return_self_by_chain_link()` reading `ChainLink.link_number`; `CARD_RULINGS.md` R4 | ChainDetonationTests, ChainHealingTests |
 | **A resolving Spell/Trap that moves ITSELF off the field** (and is not then swept to the GY) | **DONE+TESTED** | `DuelEngine._cleanup_resolved_spell_traps()` skipping a card no longer on the field | ChainDetonationTests, ChainHealingTests |
 | **EXCAVATION driven by a real card** | **DONE+TESTED** | `GameState.excavate()` consumed by `Crystal Seer`; the `revealed_to`-KEPT branch of design decision 11 | CrystalSeerTests |
+| **BANISHMENT as a subsystem** (face-up vs face-down; from field / GY / hand / Deck; the top N of a Deck as a primitive distinct from excavate, draw, mill and search) | **DONE+TESTED** | `EffectPrimitives.banish_top_of_deck()`, `Enums.MoveReason.BANISHED`, `RULES_SPEC.md §8.3` | BanishTests (158) |
+| **TEMPORARY removal with a stated return timing** (a LEASE, the same shape as `control_leases`) | **DONE+TESTED** | `Enums.BanishDuration`, `GameState.banish_leases` / `banish_temporarily()` / `end_banish_lease()` / `expire_banish_leases()`, `MoveReason.RETURNED_FROM_BANISHMENT`, `GameEvent.Kind.CARD_RETURNED_FROM_BANISHMENT`; `CARD_RULINGS.md` R30 | BanishTests, InterdimensionalMatterTransporterTests |
+| **A return to the field that is NOT a Summon** (no Summon event, nothing pending for a Summon-negating card to answer) | **DONE+TESTED** | `end_banish_lease()` moving the card with its own MoveReason rather than through any Summon path | BanishTests, InterdimensionalMatterTransporterTests |
+| **Resolution-time re-check of "1 face-up monster YOU control"** (zone + control + face, the mirror of R29) | **DONE+TESTED** | `EffectPrimitives.own_monsters()` / `surviving_own_monster_target()` | InterdimensionalMatterTransporterTests |
 
 ### Design decisions a future session must not silently reverse
 
@@ -1357,11 +1433,129 @@ Notes that will otherwise cost a cycle:
 Measured at that checkpoint: **44 / 77 implemented and tested, 33 remaining** — the predicted
 number, computed and not assumed.
 
-### The NEXT step — batch 8 — start here
+### Batch 8 — UNIT A and the first card are DONE (nothing partial in them)
 
-**The banish group, and temporary removal.** Now that movement is complete the next coherent
-mechanic group is banishing and returning. Do it in units, each tested and committed before the
-next begins, exactly as batches 6 and 7 were.
+**Unit A — the generic banish / temporary-removal gate.** `BanishTests` (158 assertions) was
+written and passing **before any batch-8 card existed**, the way `EquipTests`, `ControlTests` and
+`MovementTests` were. New generic mechanics, none left UNVERIFIED:
+
+* `Enums.BanishDuration` (`UNTIL_END_PHASE` / `PERMANENT`),
+  `Enums.MoveReason.RETURNED_FROM_BANISHMENT`,
+  `GameEvent.Kind.CARD_RETURNED_FROM_BANISHMENT`.
+* `GameState.banish_leases` + `can_banish_temporarily()` / `banish_temporarily()` /
+  `banish_leases_for()` / `is_temporarily_banished()` / `end_banish_lease()` /
+  `drop_banish_leases_for()` / `expire_banish_leases()` — **the same lease shape as
+  `control_leases`**, expired from the same two call sites (`DuelEngine._advance()` and
+  `TurnFlow.enter_phase()` at the End Phase), control first. Do not invent a second mechanism.
+* `move_card()` drops a temporary-banish lease the instant the card leaves the Banished zone by
+  any other route, so a return can never happen twice.
+* `EffectPrimitives.banish_target_temporarily()` (takes an **already re-checked** target),
+  `banish_top_of_deck()`, `own_monsters()`, `surviving_own_monster_target()`.
+* `RULES_SPEC.md §8.3` and `CARD_RULINGS.md` **R30** record the whole decision, per-part.
+
+**Unit B, card 1 — `Interdimensional Matter Transporter`.** 1 EffectDef,
+`InterdimensionalMatterTransporterTests` **175/175**.
+
+Defects: two in unit-A code, caught before any card depended on it (the dropped `face_up` on the
+permanent path; the `return_index` with no reader, removed rather than consumed), plus one
+test-harness false pass. All three are written up in `Reports/TEST_RESULTS.md`.
+
+### The NEXT step — finish batch 8 — start here
+
+**Four cards remain. Do them in this order, each tested and committed before the next begins.**
+Do **not** rewrite the gate; it is done and green. Do **not** start batch 9.
+
+#### 1. `Judge of the Ice Barrier` — the clause enumeration is already done, do not re-derive it
+
+Verified official text (`Data/cards/cards.json`), WATER / Warrior / Level 4 / 1800 ATK / 900 DEF:
+
+> "While you control another "Ice Barrier" monster, each time your opponent activates a card or
+> effect by paying LP, they lose 500 LP. You can only use each of the following effects of "Judge
+> of the Ice Barrier" once per turn. You can target 1 or 2 "Ice Barrier" monsters in your GY and
+> 1 or 2 cards in your opponent's GY; shuffle them into the Deck. If you control an "Ice Barrier"
+> monster: You can banish this card from your GY, then target 1 Attack Position monster on the
+> field; change it to Defense Position."
+
+**Three effect clauses**, plus a restriction sentence that governs two of them:
+
+| # | Clause | Type | Notes |
+|---|---|---|---|
+| 1 | "While you control **another** 'Ice Barrier' monster, each time your opponent activates a card or effect **by paying LP**, they lose 500 LP." | CONTINUOUS | "another" excludes Judge itself. **Needs a new engine concept** — see below. |
+| 2 | "You can target 1 or 2 'Ice Barrier' monsters in your GY **and** 1 or 2 cards in your opponent's GY; shuffle them into the Deck." | IGNITION, from `FIELD_FACE_UP` | Heterogeneous target set → use `EffectDef.targets_valid` (the batch-5 mechanism), **not** a flat candidate list plus a count. Both groups are required ("and"), 1–2 from each, so 2–4 targets. "Shuffle into the Deck" → `shuffle_into_deck()`, which clears `revealed_to`. |
+| 3 | "If you control an 'Ice Barrier' monster: You can **banish this card from your GY**, then target 1 Attack Position monster on the field; change it to Defense Position." | IGNITION, from `GRAVEYARD` | The banish is a **COST** (it sits before "then target"): `pay_banish_cost()` in `pay_cost`, never in `resolve`. Targets **either** player's Attack Position monsters. |
+| — | "You can only use **each** of the following effects … **once per turn**." | restriction | A hard once-per-turn on the **name**, applying to clauses 2 and 3 **separately**. Use `opt_named_effect()` on each — not `opt_instance()`, and not one shared key. |
+
+**R2 governs this card and must be preserved, not reinterpreted.** All three clauses are
+essentially **never live in the V1 pool**: Judge is the only "Ice Barrier" card in either deck.
+Handle exactly the way `Apprentice Magician`'s Spell Counter clause (R21) and
+`Fairy Tail - Rella`'s Equip clause (R23) were — implement in full, test against a **synthetic**
+"Ice Barrier" monster that can satisfy the clause, and assert against the **real pool** that no
+card can, so the fact cannot rot silently. **R2 also fixes one sub-question: Judge sitting in the
+GY does NOT satisfy "if you control an 'Ice Barrier' monster" — the GY is not "control".** Clause
+3 therefore needs a *different* Ice Barrier monster on the field, which is why it too is
+never-live. Assert that negative directly.
+
+**Clause 1 needs an engine addition and is why this session stopped here.** The engine has no
+notion of "a card or effect activated **by paying LP**": no card in the V1 pool pays LP as a
+cost, so the trigger source does not exist either. Doing it properly means a minimal generic
+LP-cost concept — a way for an activation to record that its cost included LP, carried on the
+existing `COST_PAID` event / `ChainLink.cost_payload` channel — and then a synthetic card that
+pays LP so the clause can actually be observed firing. **Treat that as its own sub-unit, with its
+own targeted test, before writing the card**, exactly as unit A was done before the cards. Do not
+fake it with a flag only Judge reads, and do not skip the clause.
+
+#### 2. `Junk Blader`
+
+> "You can banish 1 "Junk" monster from your Graveyard; this card gains 400 ATK until the end of
+> this turn."
+
+EARTH / Warrior / Level 4 / 1800 ATK / 1000 DEF. One clause, an **IGNITION** effect from
+`FIELD_FACE_UP`. The banish is a **COST** (before the semicolon): `pay_banish_cost()` in
+`pay_cost`. The gain is `gain_atk_until_end_of_turn()` (batch 4), which already expires in
+`TurnFlow._end_of_turn_cleanup()` and already outlives its source. **No once-per-turn is
+printed** — do not add one. Check whether any "Junk" monster exists in either deck; if none does,
+this is another never-live cost and needs the R21/R23 synthetic treatment plus a real-pool
+assertion.
+
+#### 3. `The Phantom Knights of Shadow Veil`
+
+> "Target 1 face-up monster you control; it gains 300 ATK/DEF. When an opponent's monster declares
+> a direct attack while this card is in your GY: Special Summon this card in Defense Position as a
+> Normal Monster (Warrior/DARK/Level 4/ATK 0/DEF 300). (This card is NOT treated as a Trap.) If
+> Summoned this way, banish this card when it leaves the field."
+
+Normal Trap. **Three clauses, and the banish is only one of them — implement all three.**
+(a) the Trap activation, targeting "1 face-up monster you control" — reuse
+`own_monsters()` / `surviving_own_monster_target()`, both added this batch; note it is
+ATK **and** DEF, and no duration is printed, so it is not an end-of-turn modifier.
+(b) the GY trigger on an opponent's monster declaring a **direct** attack (`ATTACK_DECLARED` with
+`attack_is_direct`), Special Summoning **itself from the GY** as a Normal Monster with an
+overridden type line — the card becomes a monster and is **not** a Trap while on the field, so
+its Trap-card state and its monster state must be kept distinct.
+(c) "if Summoned this way, banish this card when it leaves the field" — a **replacement** for the
+usual departure, conditional on `summoned_by_procedure_id` / a card-memory marker, using the
+existing `card_memory` channel rather than a new flag.
+
+#### 4. `Runick Flashing Fire`
+
+> "Activate 1 of these effects, but skip your next Battle Phase after activation;●Target 1 Special
+> Summoned monster your opponent controls; destroy it, then banish the top 2 cards of your
+> opponent's Deck.●Special Summon 1 "Runick" monster from your Extra Deck to the Extra Monster
+> Zone.You can only activate 1 "Runick Flashing Fire" per turn."
+
+Quick-Play Spell, Spell Speed 2. **R1 governs it and must be honoured, not replaced by an
+assumption.** Both bullets must be implemented even though the second can never have a legal
+target (both Extra Decks are empty) — it must report "no legal choice" rather than being omitted,
+and must be tested synthetically with a real-pool assertion that no legal target exists. **R1 also
+fixes the hard part: "skip your next Battle Phase" applies ON ACTIVATION, even if the chosen
+effect is later negated** — so it is paid at activation, not in `resolve`. Also: bullet 1 targets
+a **Special Summoned** monster specifically; `banish_top_of_deck()` already exists from unit A and
+already handles a Deck shorter than 2; and "You can only activate 1 per turn" is
+`opt_named_activation()`, which is a different restriction from `opt_named_effect()`.
+
+---
+
+The unit-A specification below is kept for the record; it is **done**, not a plan.
 
 **UNIT A — write the generic gate FIRST, before any card.** This is the pattern that has now paid
 off three times (`EquipTests`, `ControlTests`, `MovementTests`), and in batch 7 it is the reason

@@ -1,6 +1,6 @@
 # TEST_RESULTS
 
-**Last run:** 2026-08-13 (Phase 5 batch 7 COMPLETE — units A, B, C and D)
+**Last run:** 2026-08-13 (Phase 5 batch 8 PARTIAL — unit A and the first card of unit B)
 **Engine:** Godot 4.7.1.stable.official.a13da4feb (headless)
 
 Command:
@@ -32,11 +32,39 @@ The raw command still works and produces the same numbers:
 
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
-| Core rules tests | 16 | 1056 | **1056** | 0 |
-| Per-card tests | 36 | 3016 | **3016** | 0 |
+| Core rules tests | 17 | 1214 | **1214** | 0 |
+| Per-card tests | 37 | 3191 | **3191** | 0 |
 | Interaction tests | 1 | 46 | **46** | 0 |
 | Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **53** | **4118** | **4118** | **0** |
+| **TOTAL** | **55** | **4451** | **4451** | **0** |
+
+SmokeCheck: **PASS**. Matrix: **45 / 77 implemented, 45 / 77 tested, 32 remaining** (computed by
+`python Tools/build_matrix.py`, not written by hand).
+
+### Batch 8 so far — PARTIAL, and honestly so
+
+Batch 8 is **not complete**. Two of its six units are done, tested and committed; the remaining
+four cards are **not started** and are **not** counted as implemented anywhere.
+
+Batch 8 added **333** assertions and changed **no existing test expectation at all**. **All 4118
+assertions from the batch-7 checkpoint pass unchanged** — none was weakened, retargeted or
+deleted. Every pre-existing suite reports exactly its previous count; no suite was rewritten.
+
+* New core-rules suite: `BanishTests` **158** — the **banish / temporary-removal gate**, written
+  and passing before any batch-8 card existed, the way `EquipTests`, `ControlTests` and
+  `MovementTests` were.
+* New per-card suite: `InterdimensionalMatterTransporterTests` **175**.
+
+**Done:** unit A (the gate) · `Interdimensional Matter Transporter`.
+**Not started:** `Judge of the Ice Barrier` · `Junk Blader` ·
+`The Phantom Knights of Shadow Veil` · `Runick Flashing Fire`.
+
+The batch was stopped at this point deliberately rather than pushed further: the next card's
+first clause needs a new "activated by paying LP" cost concept in the engine, which is a unit of
+its own, and starting it would have risked leaving a card half-implemented. `PROJECT_STATE.md §8`
+carries the exact continuation, including the clause enumeration already derived for that card.
+
+### Batch 7 — kept for the record
 
 Batch 7 units C and D added **794** assertions and changed **no existing test expectation at
 all**. **All 3324 assertions from the units-A+B checkpoint pass unchanged** — none was weakened,
@@ -119,6 +147,7 @@ removed.
 | `ReplayTests` | 33 | master prompt §8 / §70 |
 | `EquipTests` | 83 | `RULES_SPEC.md §16, §17` [S1 p.29, p.53, p.55] |
 | `MovementTests` | 210 | `RULES_SPEC.md §8, §8.2, §9, §10, §12.1` [S1 p.5, p.28, p.52–53] |
+| `BanishTests` | 158 | `RULES_SPEC.md §8, §8.3, §12, §15` [S1 p.52–53], `CARD_RULINGS.md R30` |
 | `ShiningAngelTests` | 43 | per-card |
 | `NormalMonsterTests` | 76 | per-card (9 cards) |
 | `MonsterRebornTests` | 48 | per-card |
@@ -155,7 +184,37 @@ removed.
 | `ChainDetonationTests` | 168 | per-card |
 | `ChainHealingTests` | 147 | per-card |
 | `CrystalSeerTests` | 151 | per-card |
+| `InterdimensionalMatterTransporterTests` | 175 | per-card |
 | `SpecialSummonInteractionTests` | 46 | interaction |
+
+### BanishTests — 158/158
+
+`Tests/rules/BanishTests.gd`. Rules: `RULES_SPEC.md §8, §8.3, §12, §15` [S1 p.52–53],
+`CARD_RULINGS.md R30`. **The banish gate** — written and passing before any batch-8 card
+existed, from synthetic cards, so what it proves is that the ENGINE is right.
+
+| Test | Asserts | Rule verified |
+|---|---:|---|
+| banishing is not destruction and not a send to GY | 7 | `CARD_BANISHED` only; a banished card later moved to the GY is still not "sent" [S1 p.53] |
+| cost and effect are two different moments | 8 | `pay_banish_cost()` vs `banish_target()`; only the effect re-checks |
+| a cost is all-or-nothing and is not refunded by negation | 5 | an unpayable cost pays nothing; a paid cost stays paid |
+| banishing from every source zone | 13 | field / GY / hand / Deck, each recording the zone it came FROM |
+| banishing the top N of a Deck | 11 | exact N, from the top, fixed order, rest of the Deck untouched, owner correct |
+| top-of-Deck banish with a short Deck | 5 | fewer than N banishes what is there; an empty Deck is not a loss [S1 p.35] |
+| top-of-Deck banish is not an excavate, a draw or a mill | 7 | none of those events is emitted; the holding area stays empty |
+| a banished card goes to its OWNER's banished zone | 7 | ownership never mutated; the control lease ends |
+| face-up and face-down banishment are different | 5 | the two states are kept apart; the pool's default is face-up |
+| banishing from the field cleans up every relationship | 14 | Equip Cards destroyed by rule, leases dropped, counters/modifiers/flags cleared, `card_memory` survives |
+| a temporary banish registers a lease, a permanent one does not | 12 | the lease records source, duration, destination, position, controller |
+| the return happens when the End Phase is entered | 11 | not at a mid-turn timing point; `RETURNED_FROM_BANISHMENT` |
+| the return is not a Summon | 10 | no Normal/Special/Flip Summon, no declaration, no flip-face-up, nothing pending to negate |
+| the return position is the one it left in | 12 | asserted separately for all three battle positions |
+| the card returns under its OWNER's control | 9 | R30(c) — a borrowed monster goes home, ownership untouched |
+| nothing comes back when the Monster Zone is full | 7 | stays banished; failure recorded as an event; not retried forever |
+| a card moved out of banishment never returns | 6 | the lease is dropped at the moment it leaves the Banished zone |
+| a return never happens twice | 7 | a discharged lease cannot fire again however often expiry runs |
+| a temporary banish comes back stateless | 8 | fresh instance: equips dead, counters/modifiers/attack record gone |
+| the whole cycle is replay deterministic | 4 | two identically seeded runs give the identical event sequence, in a fixed order |
 
 ### ChainTests — 27/27
 `Tests/rules/ChainTests.gd`. Rules: `RULES_SPEC.md §4` (Rulebook v10 pp.44–47, 51).
@@ -367,7 +426,43 @@ guessed, each now decided against an official source and pinned down.
 
 ## Defects found and fixed by these tests
 
-### This milestone (Phase 5 batch 7 units C+D — Deck placement, Chain state, excavation)
+### This milestone (Phase 5 batch 8, PARTIAL — the banish gate and the first card)
+
+Three defects, in three different categories. **None was a pre-existing engine defect** — the
+banish subsystem is new in this batch, so the two engine-side findings are defects in code written
+this batch and caught before any card depended on it, which is precisely what the gate is for.
+
+1. **`GameState.banish_temporarily()` dropped its `face_up` argument on the PERMANENT path.**
+   Found by `BanishTests :: face-up and face-down banishment are different` on the gate's first
+   run, before `Interdimensional Matter Transporter` existed. A caller asking for a **face-down**
+   permanent banishment silently got a face-up one — that is, the card would have become public
+   information when the rules say it is hidden [S1 p.53, RULES_SPEC.md §12]. The permanent branch
+   short-circuits to a plain `move_card()` and simply forgot to pass the position through. Fixed
+   by passing it; `face_up` is a statement about the banishment itself and has nothing to do with
+   how long it lasts. Nothing in the V1 pool banishes face-down, so this would not have shown up
+   in any card suite — it was found only because the gate asserts the distinction generically.
+
+2. **The lease recorded a `return_index` that nothing read.** Found by re-reading the committed
+   unit-A code, **not** by a test — recorded honestly as such. This is the same failure shape as
+   batch 5's `cannot_be_targeted` and batch 6's `CONTROL_CHANGED`: declared state with zero
+   consumers, which later reads as a promise the engine does not keep. It was **removed rather
+   than consumed**, and that direction is the load-bearing part: nothing in the rules reserves the
+   Monster Zone slot a banished monster left, and another monster may legally be sitting in it by
+   the time the card returns, so consuming the index would have encoded a rule that does not
+   exist. The card returns to the first free zone, which is deterministic and always available.
+
+3. **A test-harness defect that produced a convincing false pass.**
+   `InterdimensionalMatterTransporterTests :: it rescues a monster from a destruction effect` put
+   the interfering destruction card on the **non-turn player**, and
+   `DuelEngine.get_legal_actions(pid)` returns nothing unless the engine is open *and* `pid` is
+   the turn player. The lookup therefore returned `null` every time and the test took a fallback
+   branch that asserted a plain banish-and-return — passing, while never building the two-link
+   Chain it claimed to test and never proving that Chain Link 2 resolves first. Rewritten with
+   player 1 as the turn player so the Chain is real. No engine behaviour and no rules expectation
+   was involved. This is the same class of harness trap batch 7 recorded, and the reminder in
+   `PROJECT_STATE.md §8` is what identified it.
+
+### Previous milestone (Phase 5 batch 7 units C+D — Deck placement, Chain state, excavation)
 
 **No engine defect was found by units C or D, and none was fixed.** That is a real result rather
 than an absence of looking: the movement/excavation gate (unit A) had already been written and had
@@ -874,7 +969,22 @@ No test expectation was weakened to make the implementation pass.
 
 ## Known issues in the harness (not rules defects)
 
-* The run reports **`113897 ObjectDB instances were leaked at exit`**, up from 97559 at the
+* **Batch 8 measurement: `123104 ObjectDB instances were leaked at exit`** (2026-08-13, at
+  4451 assertions across 55 suites), up from 113897 at the batch-7 checkpoint. That is **9207
+  more for 333 more assertions, ~27.6 per assertion**, against batch 7's ~20.6, units A+B's ~25.7
+  and batch 6's ~25.0. It is the **highest per-assertion figure recorded so far**, modestly above
+  the previous high, so it is reported as such rather than as "in band". The most likely reading
+  is that `BanishTests` and the `Interdimensional Matter Transporter` suite build comparatively
+  many small duels — several of their tests loop over positions or run a scenario twice for
+  determinism — rather than that the `banish_leases` register retains anything: the register holds
+  plain Dictionaries keyed by card id, is emptied when a lease discharges, and holds nothing at all
+  at the end of any test that runs to an End Phase. **That reading is inference, not measurement**,
+  and the characterisation task below is what would confirm it. No test fails, hangs, or becomes
+  unreliable, no rules outcome changes, and there is no memory pressure, so it was correctly not
+  allowed to derail batch 8. It **remains scheduled before Phase 7**, and the next session should
+  treat "confirm the banish register is not a new retention class" as part of that task. The
+  batch-7 note below is kept for the trend.
+* The run reported **`113897 ObjectDB instances were leaked at exit`** at batch 7, up from 97559 at the
   units-A+B checkpoint, 85668 at batch 6, 74049 at batch 5 and 61457 at batch 4 — purely because
   the suite now builds more duels (794 more assertions across five new suites). The growth stays
   proportional to the number of duels built, not to anything units C or D introduced: **~16.3k
@@ -900,8 +1010,29 @@ No test expectation was weakened to make the implementation pass.
 
 ## Not yet covered (required by master prompt §64 — tracked, not claimed)
 
-**A. Core rules** — still missing: **simultaneous-LP-zero draws**, and that is now the ONLY item
-left on this list. Units C and D did not make it reachable: `Chain Detonation` damages only the
+**A. Core rules** — still missing: **simultaneous-LP-zero draws**. Batch 8 did not make it
+reachable either: nothing in the banish group changes Life Points at all, so no card added this
+batch can take two players to 0 at once. The gap is preserved unchanged.
+
+**A2. New this batch, and deliberately left open — a card banished by an effect activated DURING
+the End Phase does not return until the NEXT turn's End Phase.** Expiry runs as the phase is
+entered, so an activation later in the same phase has already missed it.
+`Interdimensional Matter Transporter` is a Normal Trap and *can* be activated in the End Phase,
+so this is reachable, and the real-world answer is probably that it should return during that
+same End Phase. It is left as it is on purpose and is **not** an oversight: `Enemy Controller`'s
+"until the End Phase" control lease has exactly the same behaviour for exactly the same reason,
+R25 fixed that moment deliberately, and making banishment differ from control would break the one
+invariant the whole lease design rests on. **Changing it must change both together and must
+revisit R25** — it is not a banish-only fix. Recorded as `CARD_RULINGS.md` **R30(e)**. No test
+asserts the current behaviour, because pinning behaviour that is probably wrong would make the
+correction harder rather than easier.
+
+**A3. Batch 8 is PARTIAL.** Four of its five cards — `Judge of the Ice Barrier`, `Junk Blader`,
+`The Phantom Knights of Shadow Veil`, `Runick Flashing Fire` — are **not implemented and not
+tested**, and are not counted as either anywhere. The generic banish and temporary-removal
+subsystem they depend on **is** complete and gated.
+
+Units C and D did not make the simultaneous-LP-zero case reachable: `Chain Detonation` damages only the
 opponent and `Chain Healing` only gains LP, so neither can take two players to 0 at once. Both are
 asserted from that side rather than assumed — `ChainDetonationTests :: it can end the duel` proves
 the burn ends the Duel with a single winner and not a draw, and
@@ -1335,6 +1466,43 @@ What each suite pins down that the generic gate cannot:
   excavates 1 and 0 left does nothing **without decking the player out**; that nothing is left in
   the `EXCAVATED` zone; and that a negated effect and a negated Flip Summon each leave the Deck
   byte-for-byte untouched.
+
+---
+
+## Phase 5 batch 8 (PARTIAL) — per-card suites
+
+The banish group and temporary removal. **One of five cards is done.**
+
+| Card | EffectDefs | Suite | Result |
+|---|---:|---|---|
+| `Interdimensional Matter Transporter` | 1 | `InterdimensionalMatterTransporterTests` | 175/175 |
+| `Judge of the Ice Barrier` | — | — | **NOT STARTED** |
+| `Junk Blader` | — | — | **NOT STARTED** |
+| `The Phantom Knights of Shadow Veil` | — | — | **NOT STARTED** |
+| `Runick Flashing Fire` | — | — | **NOT STARTED** |
+
+What the one finished suite pins down that the generic gate cannot:
+
+* **`Interdimensional Matter Transporter`** — that it is a Normal **Trap** at Spell Speed 2, so it
+  can be activated in a response window on the opponent's turn (asserted by actually building a
+  Chain Link 2 from the non-turn player's seat) and returns the monster in **that** turn's End
+  Phase; that all three restricting words of "1 **face-up** **monster** **you control**" bind the
+  candidate set — the opponent's monsters, a face-down monster of your own, and your own
+  Spell/Traps are each excluded, and submitting an excluded card as the target is **rejected by
+  the engine** rather than merely not offered; that with no face-up monster the activation is not
+  offered at all, with a face-up monster it is (so the two negatives are about the candidate set
+  and not about a broken board); and all three resolution-time re-checks — target left the field,
+  target's control taken by the opponent (**R29**), target flipped face-down — each with a
+  positive control proving the negative was caused by the change and not by a broken context.
+  Then the round trip on the printed card: banished face-up into its **owner's** Banished zone
+  with no destruction and no send-to-GY event, a lease naming this card as its source that
+  **outlives the Trap** going to the Graveyard, the return at the End Phase under the owner's
+  control in the position it left in (both positions asserted), the monster coming back as a
+  **fresh instance** with its Equip Card dead in the Graveyard and its counters and modifiers
+  gone, and — the card's whole reason to exist — a real two-link Chain in which Chain Link 2
+  banishes the monster before the opponent's Chain Link 1 destruction resolves, so
+  `CARD_DESTROYED` never fires for it and it comes back at the End Phase. Both negations are
+  asserted to banish nothing and schedule nothing, and the round trip is replay-deterministic.
 
 ### Open rules questions — all four now RESOLVED (Phase 4c)
 
