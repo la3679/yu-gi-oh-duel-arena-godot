@@ -69,18 +69,22 @@ jobs:
       # Godot only registers a class_name after an import pass, and the parse check in
       # the runner reads that class cache. This must be its own invocation: chaining it
       # into the test run still reads the stale cache.
+      #
+      # Every runner step below invokes `bash <script>` rather than `./<script>` on
+      # purpose. The executable bit is easy to lose when a file is committed from
+      # Windows, and losing it should not turn the whole suite into an exit-126 mystery.
       - name: Import the project
-        run: ./Tools/run_tests.sh --import
+        run: bash ./Tools/run_tests.sh --import
 
       # A suite that fails to COMPILE would otherwise hang the headless SceneTree
       # forever, so the runner does a --check-only pass first and exits 1 on any parse
       # or compile error. Running SmokeCheck first also fails fast on data-level
       # breakage (a malformed cards.json, a deck referencing a missing card).
       - name: SmokeCheck
-        run: ./Tools/run_tests.sh SmokeCheck
+        run: bash ./Tools/run_tests.sh SmokeCheck
 
       - name: Full regression suite
-        run: ./Tools/run_tests.sh RunTests
+        run: bash ./Tools/run_tests.sh RunTests
 
       # The runner writes Godot's stdout/stderr to files rather than piping them, because
       # piping can block on a full pipe. Publish them so a CI failure is diagnosable
