@@ -18,8 +18,13 @@ import json
 import os
 from pathlib import Path
 
-PLAYERFILES = Path(r"C:\Users\lovea\Pictures\Yu Gi Oh\PlayerFiles")
 PROJECT = Path(__file__).resolve().parent.parent
+
+# The physical-collection inputs live OUTSIDE this repository: they are the owner's private
+# card inventory and are never committed. Default to the repository's parent directory (the
+# layout this project was developed in) and let an environment variable override it, so this
+# file carries no one's home directory.
+PLAYERFILES = Path(os.environ.get("DUEL_ARENA_PLAYERFILES", PROJECT.parent))
 OUT_DIR = PROJECT / "Data" / "generated"
 
 DECKS = {

@@ -199,8 +199,8 @@ Per-suite detail and the honest not-yet-covered list live in `Reports/TEST_RESUL
 
 | Item | Value |
 |---|---|
-| Project root | `C:\Users\lovea\Pictures\Yu Gi Oh\PlayerFiles\DuelArenaGame` |
-| Authoritative read-only input | `C:\Users\lovea\Pictures\Yu Gi Oh\PlayerFiles` |
+| Project root | `<repo>` |
+| Authoritative read-only input | `<repo-parent>` |
 | Master specification | `PlayerFiles\CLAUDE_DUEL_ARENA_MASTER_PROMPT_v3_GRAPHIFY.md` (3188 lines, read in full) |
 | Deck 1 | Blue-Eyes Dragon Guard — 40 Main Deck cards, 39 unique names |
 | Deck 2 | Fairy-Tail Tribute Guard — 40 Main Deck cards, 39 unique names |
@@ -227,7 +227,7 @@ The 251-image identification pass is **complete and must not be redone**.
 | Installer source verified | `https://github.com/godotengine/godot/releases/download/4.7.1-stable/Godot_v4.7.1-stable_win64.exe.zip` |
 | Installer SHA256 (winget-verified) | `c7a289051eaefb460b0106b60e9cd5bee0ef55fd102dcb2bed1eb356cf3d90a1` |
 | **Verified version** | `4.7.1.stable.official.a13da4feb` |
-| **Executable path** | `C:\Users\lovea\AppData\Local\Microsoft\WinGet\Packages\GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe\Godot_v4.7.1-stable_win64.exe` |
+| **Executable path** | `%LOCALAPPDATA%\Microsoft\WinGet\Packages\GodotEngine.GodotEngine_*\Godot_v4.7.1-stable_win64.exe` |
 | PATH alias | `godot` (needs a fresh shell); scripts use the absolute path |
 | Headless verified | YES |
 | Admin required / security disabled | NO / NONE |
@@ -237,10 +237,10 @@ The 251-image identification pass is **complete and must not be redone**.
 
 ```bash
 # import / parse check
-"C:\Users\lovea\AppData\Local\Microsoft\WinGet\Packages\GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe\Godot_v4.7.1-stable_win64.exe" --headless --path "C:\Users\lovea\Pictures\Yu Gi Oh\PlayerFiles\DuelArenaGame" --import
+"%LOCALAPPDATA%\Microsoft\WinGet\Packages\GodotEngine.GodotEngine_*\Godot_v4.7.1-stable_win64.exe" --headless --path "<repo>" --import
 
 # run a headless script
-"C:\Users\lovea\AppData\Local\Microsoft\WinGet\Packages\GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe\Godot_v4.7.1-stable_win64.exe" --headless --path "C:\Users\lovea\Pictures\Yu Gi Oh\PlayerFiles\DuelArenaGame" --script res://Scripts/tests/SmokeCheck.gd
+"%LOCALAPPDATA%\Microsoft\WinGet\Packages\GodotEngine.GodotEngine_*\Godot_v4.7.1-stable_win64.exe" --headless --path "<repo>" --script res://Scripts/tests/SmokeCheck.gd
 ```
 
 ### Graphify — INSTALLED, BUT DOES NOT SUPPORT GDSCRIPT
@@ -255,10 +255,10 @@ The 251-image identification pass is **complete and must not be redone**.
 | License | Apache-2.0 |
 | Already installed | **YES** (0.9.25) — upgraded via `pip install --upgrade graphifyy` |
 | **Verified version** | **0.9.41** (`graphify --version`) |
-| Command path | `C:\Users\lovea\.pyenv\pyenv-win\shims\graphify.bat` |
+| Command path | `%LOCALAPPDATA%\...\pyenv-win\shims\graphify.bat` |
 | **Local-only** | **YES** — indexed with `--code-only`, local tree-sitter AST, no API key, **nothing uploaded** |
 | Repository indexed | **YES** |
-| Indexed root | `C:\Users\lovea\Pictures\Yu Gi Oh\PlayerFiles\DuelArenaGame` |
+| Indexed root | `<repo>` |
 | Index result | 37 nodes, 75 edges, from 6 Python tool files |
 | Exclusions | `.graphifyignore` at project root |
 | Last index refresh | 2026-08-12 |
@@ -267,7 +267,7 @@ The 251-image identification pass is **complete and must not be redone**.
 **Index / refresh command**
 
 ```bash
-graphify extract "C:\Users\lovea\Pictures\Yu Gi Oh\PlayerFiles\DuelArenaGame" --code-only --no-cluster
+graphify extract "<repo>" --code-only --no-cluster
 ```
 
 #### KNOWN ISSUE — Graphify does not index GDScript

@@ -24,7 +24,7 @@ both of which cost time before it was written:
 The raw command still works and produces the same numbers:
 
 ```bash
-"C:\Users\lovea\AppData\Local\Microsoft\WinGet\Packages\GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe\Godot_v4.7.1-stable_win64.exe" --headless --path "C:\Users\lovea\Pictures\Yu Gi Oh\PlayerFiles\DuelArenaGame" --script res://Scripts/tests/RunTests.gd
+"%LOCALAPPDATA%\Microsoft\WinGet\Packages\GodotEngine.GodotEngine_*\Godot_v4.7.1-stable_win64.exe" --headless --path "<repo>" --script res://Scripts/tests/RunTests.gd
 ```
 
 ---

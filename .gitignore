@@ -1,28 +1,98 @@
-# Godot
-.godot/
-*.import
-export_presets.cfg
+# ---------------------------------------------------------------------------
+# Duel Arena — .gitignore
+#
+# Rule of thumb: everything the engine, the tests or a new contributor needs is
+# tracked. Everything a machine regenerates, and everything whose redistribution
+# rights we do not hold, is not.
+# ---------------------------------------------------------------------------
 
-# Build output
+# --- Godot 4 ---------------------------------------------------------------
+# The import/cache directory is machine-generated and is rebuilt by `--import`.
+.godot/
+# Per-asset import metadata is regenerated alongside .godot/.
+*.import
+# Export presets embed absolute local output paths and signing configuration.
+export_presets.cfg
+# Godot's CSV translation import artifacts.
+*.translation
+*.csv.import
+# Editor-local overrides.
+override.cfg
+
+# --- Build / export output -------------------------------------------------
 build/
+export/
 *.exe
 *.pck
 *.zip
+*.dmg
+*.apk
+*.aab
+# Godot debug symbol output.
+*.pdb
 
-# Graphify (development-time index; never a runtime dependency)
-graphify-out/
-
-# Python tooling
+# --- Python helper tooling (Tools/) ----------------------------------------
 __pycache__/
-*.pyc
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
 
-# Cached raw research evidence is large; keep the parsed JSON instead.
+# --- Test / tooling scratch output -----------------------------------------
+# Tools/run_tests.ps1 redirects Godot stdout/stderr to files; keep them local.
+*.out.txt
+*.err.txt
+duelarena-tests/
+TestOutput/
+# Ad-hoc commit-message files.
+COMMIT_MSG*.txt
+commit_msg*.txt
+
+# --- Third-party research sources (NOT ours to redistribute) ---------------
+# Konami publishes these for free download; we cite the URL and the SHA-256 in
+# Research/RULES_SOURCES.md instead of vendoring the files. See
+# Research/sources/README.md for how to fetch them.
+Research/sources/*.pdf
+Research/sources/*.jpg
+Research/sources/*.jpeg
+Research/sources/*.png
+Research/sources/*.webp
+
+# --- Card art --------------------------------------------------------------
+# Card images are supplied locally by each developer; none are redistributed.
+# See README.md ("Card images") for the expected layout.
+Data/card_art/**
+!Data/card_art/.gitkeep
+
+# --- Cached raw research evidence ------------------------------------------
+# Large raw HTML captures; the parsed JSON in Data/generated/ is tracked instead.
 Data/generated/konami_raw/
 
-# OS
-Thumbs.db
-desktop.ini
+# --- Graphify --------------------------------------------------------------
+# Development-time index only; never a runtime dependency (see README).
+graphify-out/
 
-# Godot CSV translation import artifacts
-*.translation
-*.csv.import
+# --- OS metadata -----------------------------------------------------------
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+.Spotlight-V100
+.Trashes
+
+# --- Editor / IDE ----------------------------------------------------------
+.vs/
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+*.bak
+*.orig
+*.tmp

@@ -1,0 +1,59 @@
+# Line endings and encoding.
+#
+# Everything is stored LF in the repository (which is what the existing history already
+# contains). Windows contributors get CRLF in their working tree only where a tool needs
+# it. This keeps `git diff` free of whole-file line-ending churn regardless of each
+# contributor's core.autocrlf setting.
+
+* text=auto eol=lf
+
+# --- Source and data: always LF -------------------------------------------
+*.gd        text eol=lf
+*.uid       text eol=lf
+*.godot     text eol=lf
+*.cfg       text eol=lf
+*.tres      text eol=lf
+*.tscn      text eol=lf
+*.json      text eol=lf
+*.csv       text eol=lf
+*.md        text eol=lf
+*.py        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.svg       text eol=lf
+
+# A shell script with CRLF fails with "bad interpreter". Never let this drift.
+*.sh        text eol=lf
+
+# PowerShell is happiest with CRLF in the working tree; still stored LF.
+*.ps1       text eol=crlf
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+
+# --- Binary: never touched, never diffed as text --------------------------
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.webp      binary
+*.gif       binary
+*.pdf       binary
+*.ogg       binary
+*.wav       binary
+*.mp3       binary
+*.ttf       binary
+*.otf       binary
+*.woff      binary
+*.woff2     binary
+*.glb       binary
+*.gltf      binary
+*.blend     binary
+*.pck       binary
+*.exe       binary
+*.zip       binary
+
+# --- GitHub language statistics -------------------------------------------
+# Generated data and vendored research should not dominate the language bar.
+Data/generated/** linguist-generated=true
+Reports/**        linguist-documentation=true
+Research/**       linguist-documentation=true
+docs/**           linguist-documentation=true

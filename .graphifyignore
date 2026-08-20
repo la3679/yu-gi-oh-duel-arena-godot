@@ -36,4 +36,4 @@ __pycache__/
 *.pyc
 
 # NOTE: the original 251-photo collection lives OUTSIDE this project root
-# (C:\Users\lovea\Pictures\Yu Gi Oh\...) and is therefore never in scope for indexing.
+# (the repository's parent directory) and is therefore never in scope for indexing.
