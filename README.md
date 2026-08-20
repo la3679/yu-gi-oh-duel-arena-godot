@@ -1,5 +1,10 @@
 # Duel Arena
 
+[![tests](https://github.com/la3679/yu-gi-oh-duel-arena-godot/actions/workflows/tests.yml/badge.svg)](https://github.com/la3679/yu-gi-oh-duel-arena-godot/actions/workflows/tests.yml)
+[![Godot](https://img.shields.io/badge/Godot-4.7.1-478cbf)](https://godotengine.org/)
+[![cards](https://img.shields.io/badge/cards-49%2F77-orange)](Reports/CARD_IMPLEMENTATION_MATRIX.csv)
+[![assertions](https://img.shields.io/badge/assertions-5509%20passing-brightgreen)](docs/TESTING.md)
+
 A deterministic, rules-aware Yu-Gi-Oh! duel engine written in GDScript for Godot 4, plus the
 local two-player duel arena that will eventually sit on top of it.
 
@@ -128,6 +133,7 @@ counts come from the last full run of the suite.
 | **Suites** | **63** — 21 core-rules, 41 per-card, 1 interaction |
 | **SmokeCheck** | **PASS** |
 | **Engine** | Godot `4.7.1.stable.official.a13da4feb`, headless |
+| **CI** | Green — the full suite runs on Ubuntu on every push and reproduces these numbers exactly |
 | **Gate A** — research complete | **MET** |
 | **Gate B** — core rules engine complete | **MET** |
 | **Gate C** — card library complete | not met |
@@ -202,10 +208,11 @@ evaluation stays on the record.
 | **Python 3.11+** | optional | Only to re-run the helpers in `Tools/`. You do **not** need Python to build, run or test the project. |
 | **PowerShell 5.1+** | Windows only | Ships with Windows. |
 
-**Platforms.** Development and all published test numbers are from **Windows 11**, which is
-the validated environment. The engine itself is plain GDScript with no platform-specific
-code, and `Tools/run_tests.sh` exists for Linux and macOS and is what CI runs — but the
-assertion counts in this README were measured on Windows.
+**Platforms.** The engine is plain GDScript with no platform-specific code. Development
+happens on **Windows 11**, and CI runs the full suite on **Ubuntu** on every push. Both
+produce **identical** results — 5,509 assertions, 0 failures, and even the same ObjectDB
+count at exit — which is a useful independent check on the engine's determinism. **macOS is
+untested**: `Tools/run_tests.sh` should work there, but nobody has run it.
 
 There are **no package dependencies to install**, no lockfile, no `.env` file and no
 environment variables required. The only optional environment variables are conveniences:
@@ -284,7 +291,7 @@ Both runners take the name of an entry script in `Scripts/tests/` and default to
 Both locate Godot via `-GodotPath` / `$GODOT_BIN` / `$GODOT` / `PATH`. **Both exit 0 on pass
 and 1 on failure**, so they can be used directly in CI.
 
-### Windows (PowerShell) — the validated environment
+### Windows (PowerShell)
 
 Full regression suite:
 
@@ -909,8 +916,8 @@ Current and honest, taken from the internal checkpoint:
 * **An End-Phase banish edge case is deliberately left open**: a card banished by an effect
   activated *during* the End Phase does not return until the *next* turn's End Phase, because
   expiry runs as the phase is entered.
-* **Only Windows is validated.** The POSIX runner exists and CI exercises it, but the
-  published assertion counts were measured on Windows 11.
+* **macOS is untested.** Windows 11 and Ubuntu (in CI) both run the full suite to identical
+  results; nobody has run it on macOS.
 * **No Extra Deck mechanics.** Xyz, Synchro, Link, Pendulum and Ritual summoning are not
   implemented; the current pool contains no such cards, though the zones exist in the model.
 

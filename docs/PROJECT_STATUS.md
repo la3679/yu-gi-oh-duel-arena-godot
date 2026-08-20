@@ -30,6 +30,7 @@ internal checkpoint.
 | **SmokeCheck** | **PASS** |
 | **Engine** | Godot `4.7.1.stable.official.a13da4feb`, headless |
 | **ObjectDB at exit** | 164,444 leaked instances — known, tracked, not a rules defect |
+| **CI** | Green. The full suite runs on Ubuntu on every push and reproduces these numbers exactly, including the ObjectDB count. |
 
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
@@ -141,7 +142,7 @@ then presentation (Phase 8+). None of these is started.
 | **Two never-live clauses** | `Apprentice Magician`'s Spell Counter clause and `Fairy Tail - Rella`'s equip clause cannot be live with this card pool. Both fully implemented, tested against synthetic cards, and asserted against the real library so the fact cannot rot. |
 | **ObjectDB growth** | 164,444 leaked instances at exit, rising with the number of duels the suite builds. Causes no test failure, hang, memory pressure or unreliable result. **Scheduled to be characterised or fixed before Phase 7.** The trend is recorded at every checkpoint rather than explained away. |
 | **Interaction coverage** | Thin — one interaction suite. The most valuable area for new contribution. |
-| **Platform validation** | Windows 11 only. CI exercises the POSIX runner, but the published assertion counts were measured on Windows. |
+| **Platform validation** | Windows 11 (development) and Ubuntu (CI) both run the full suite to identical results. **macOS is untested.** |
 
 ---
 

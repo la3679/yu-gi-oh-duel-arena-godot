@@ -322,7 +322,8 @@ Please include:
    `TOTAL: N passed, 0 failed (N assertions across M suite(s))`. State the new suite's own
    count, and confirm that **no pre-existing suite changed its count**. If one did, explain
    exactly why.
-4. **Platform**, since only Windows is currently a validated environment.
+4. **Platform**, if you ran the suite anywhere other than Windows or Ubuntu — those two are
+   covered by development and CI respectively, and macOS is untested.
 5. **Anything you were unsure about.** A PR that flags its own weakest assumption is much
    easier to review than one that hides it.
 

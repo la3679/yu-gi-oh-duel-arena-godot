@@ -50,7 +50,7 @@ Both runners take the name of an entry script in `Scripts/tests/` and default to
 Both locate Godot via `-GodotPath` / `$GODOT_BIN` / `$GODOT` / `PATH`, and **both exit 0 on
 pass and 1 on failure**.
 
-### Windows (PowerShell) — the validated environment
+### Windows (PowerShell)
 
 ```bash
 powershell -ExecutionPolicy Bypass -File Tools\run_tests.ps1 RunTests
