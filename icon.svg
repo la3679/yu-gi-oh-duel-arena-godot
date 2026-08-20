@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Duel Arena project icon. Original artwork: two abstract cards over an arena
+       disc. Deliberately carries no Yu-Gi-Oh! trademark, artwork or iconography. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#141a2b"/>
+      <stop offset="1" stop-color="#080a12"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7fd4ff"/>
+      <stop offset="1" stop-color="#3a7ad9"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="24" fill="url(#bg)"/>
+  <ellipse cx="64" cy="92" rx="44" ry="13" fill="none" stroke="#3a7ad9" stroke-width="2" opacity="0.55"/>
+  <ellipse cx="64" cy="92" rx="28" ry="8" fill="none" stroke="#7fd4ff" stroke-width="1.5" opacity="0.35"/>
+  <g transform="rotate(-16 46 58)">
+    <rect x="30" y="30" width="34" height="50" rx="4" fill="#1d2740" stroke="#4a6ea8" stroke-width="2"/>
+  </g>
+  <g transform="rotate(11 78 56)">
+    <rect x="62" y="26" width="36" height="52" rx="4" fill="url(#card)" stroke="#bfe8ff" stroke-width="2"/>
+    <rect x="68" y="33" width="24" height="24" rx="2" fill="#0e1526" opacity="0.65"/>
+    <path d="M72 51 L78 39 L84 47 L88 42" fill="none" stroke="#7fd4ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="68" y="61" width="24" height="2.5" rx="1.25" fill="#0e1526" opacity="0.5"/>
+    <rect x="68" y="66" width="17" height="2.5" rx="1.25" fill="#0e1526" opacity="0.5"/>
+  </g>
+</svg>

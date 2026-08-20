@@ -1,0 +1,132 @@
+name: tests
+
+# The headless regression suite. Everything this workflow runs is the same thing a
+# developer runs locally via Tools/run_tests.sh — no CI-only code paths, and no
+# proprietary or private assets are needed: the engine and the whole 5,509-assertion
+# suite run headless from the tracked card data alone.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Keep in step with the version PROJECT_STATE.md records as verified.
+  GODOT_VERSION: 4.7.1
+
+jobs:
+  headless-suite:
+    name: Godot headless suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      # Godot's headless binary still dlopen()s a few X/font libraries on Linux.
+      # The GitHub runner image usually has them, so this is belt-and-braces.
+      - name: Install runtime libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libfontconfig1 libxcursor1 libxinerama1 libxrandr2 libxi6 libgl1
+
+      - name: Cache the Godot binary
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-bin
+          key: godot-${{ env.GODOT_VERSION }}-linux-x86_64
+
+      - name: Download Godot ${{ env.GODOT_VERSION }}
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p ~/godot-bin
+          BASE="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+          ZIP="Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          curl -fsSL -o "/tmp/${ZIP}" "${BASE}/${ZIP}"
+          unzip -q "/tmp/${ZIP}" -d /tmp/godot
+          mv "/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" ~/godot-bin/godot
+          chmod +x ~/godot-bin/godot
+
+      - name: Verify the Godot version
+        run: |
+          set -euo pipefail
+          echo "GODOT_BIN=$HOME/godot-bin/godot" >> "$GITHUB_ENV"
+          "$HOME/godot-bin/godot" --headless --version
+
+      # Godot only registers a class_name after an import pass, and the parse check in
+      # the runner reads that class cache. This must be its own invocation: chaining it
+      # into the test run still reads the stale cache.
+      - name: Import the project
+        run: ./Tools/run_tests.sh --import
+
+      # A suite that fails to COMPILE would otherwise hang the headless SceneTree
+      # forever, so the runner does a --check-only pass first and exits 1 on any parse
+      # or compile error. Running SmokeCheck first also fails fast on data-level
+      # breakage (a malformed cards.json, a deck referencing a missing card).
+      - name: SmokeCheck
+        run: ./Tools/run_tests.sh SmokeCheck
+
+      - name: Full regression suite
+        run: ./Tools/run_tests.sh RunTests
+
+      # The runner writes Godot's stdout/stderr to files rather than piping them, because
+      # piping can block on a full pipe. Publish them so a CI failure is diagnosable
+      # without a local reproduction.
+      - name: Upload Godot output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: godot-test-output
+          path: /tmp/duelarena-tests/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  tools:
+    name: Python helper tooling
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # build_matrix.py computes the card implementation matrix from the registry and the
+      # test suites. Regenerating it must be a no-op on a clean checkout: if it is not,
+      # the committed matrix has drifted from the code it claims to describe, and the
+      # card counts quoted in the README and the docs are wrong.
+      - name: The committed card matrix matches the code
+        run: |
+          set -euo pipefail
+          python Tools/build_matrix.py
+          if ! git diff --quiet -- Reports/CARD_IMPLEMENTATION_MATRIX.csv; then
+            echo "::error::Reports/CARD_IMPLEMENTATION_MATRIX.csv is out of date."
+            echo "Run 'python Tools/build_matrix.py' and commit the result."
+            git --no-pager diff -- Reports/CARD_IMPLEMENTATION_MATRIX.csv
+            exit 1
+          fi
+          echo "Matrix is in sync with the code."
+
+      # build_card_db.py and enumerate_cards.py read the owner's private physical-card
+      # inventory, which is deliberately not in this repository, so they cannot run here.
+      # Compiling them still catches syntax errors in tooling CI would otherwise never
+      # touch.
+      - name: Byte-compile the helper tools
+        run: python -m compileall -q Tools
