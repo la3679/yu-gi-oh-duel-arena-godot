@@ -77,6 +77,20 @@ static func cards_in_either_graveyard(ctx: EffectContext, predicate: Callable) -
 	return out
 
 
+## "…from your hand, Deck, or GY" - one candidate list across several of your OWN zones,
+## in the order the card text names them. `Maiden with Eyes of Blue` is the pool's first
+## clause that reaches into three zones at once.
+##
+## Deliberately not a variadic "search everywhere": the zones are an argument because a card
+## that says "from your hand or GY" must not quietly also search the Deck.
+static func own_cards_in_zones(ctx: EffectContext, zones: Array,
+		predicate: Callable) -> Array:
+	var out: Array = []
+	for zone in zones:
+		out.append_array(own_cards_in(ctx, zone, predicate))
+	return out
+
+
 static func _zone_list(player: PlayerState, zone: Enums.Zone) -> Array:
 	match zone:
 		Enums.Zone.DECK:
@@ -217,6 +231,27 @@ static func revivable_monster() -> Callable:
 ## activation, so a clause without that word chooses here instead. RULES_SPEC.md 10.
 ##
 ## Returns null when there is nothing to choose or no decider is attached.
+## An OPTIONAL step INSIDE a resolving effect - a second "you can" after the first.
+##
+## "You can negate the attack, and if you do, change the battle position of this card, THEN
+## YOU CAN Special Summon 1 ..." (`Maiden with Eyes of Blue`) prints two separate "you can"s
+## in one clause. The outer one is the effect's own `Optionality`, which the trigger system
+## already asks about before the Chain Link is ever made. The inner one is a decision taken
+## at RESOLUTION, once the earlier steps have actually happened and their outcome is known -
+## which is precisely why it cannot be folded into the outer question.
+##
+## Like every other mid-resolution choice this goes through `ctx.ask()`, so it is recorded in
+## the replay payload (master prompt 70) and a duel stays reproducible. A controller that
+## cannot answer is treated as declining, because the step is optional and doing nothing is
+## always a legal outcome of a "you can".
+static func may(ctx: EffectContext, prompt: String) -> bool:
+	var request := DecisionRequest.yes_no(ctx.controller_id, prompt, ctx.source, ctx.effect)
+	var answer = ctx.ask(request)
+	if not request.validate(answer):
+		return false
+	return bool(answer)
+
+
 static func choose_one(ctx: EffectContext, candidates: Array,
 		prompt: String) -> CardInstance:
 	if candidates.is_empty():
@@ -1700,6 +1735,30 @@ static func is_current_attack_target(ctx: EffectContext, card: CardInstance) -> 
 	if ctx.state.attack_is_direct:
 		return false
 	return ctx.state.current_attack_target == card
+
+
+## "When a card or effect is activated that targets this card." (`Maiden with Eyes of Blue`)
+##
+## Read from the CHAIN rather than from the trigger event, and that is not a stylistic
+## choice: a Quick Effect is offered by `DuelEngine._activation_actions()`, which asks
+## `ActivationRules.can_activate()` with **no event**, so a condition that read
+## `ctx.trigger_event` would answer false at exactly the moment the effect must be offered.
+## The Chain is the authoritative record of "a card or effect has been activated targeting
+## this card, and it has not resolved yet", and it stays true for the whole response window.
+##
+## A link whose activation was NEGATED no longer targets anything, and a link that has
+## already RESOLVED is no longer a live activation to respond to - neither counts.
+static func is_targeted_by_a_live_activation(ctx: EffectContext,
+		card: CardInstance) -> bool:
+	if card == null:
+		return false
+	for entry in ctx.state.chain:
+		var link: ChainLink = entry
+		if link.resolved or link.activation_negated:
+			continue
+		if link.target_ids.has(card.id):
+			return true
+	return false
 
 
 ## "When this card is targeted for an attack: You can negate the attack." (`Maiden with Eyes

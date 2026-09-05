@@ -80,6 +80,7 @@ func _initialize() -> void:
 	suites.append(RunickFlashingFireTests.run())
 	suites.append(MirageDragonTests.run())
 	suites.append(SwordsOfRevealingLightTests.run())
+	suites.append(MaidenWithEyesOfBlueTests.run())
 
 	# --- Interaction suites (Phase 5). Cross-card behaviour, no card-under-test. ---
 	suites.append(SpecialSummonInteractionTests.run())

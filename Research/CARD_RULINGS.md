@@ -151,7 +151,7 @@ in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`. **No effect may be approximated.**
 |---|---|---|
 | R1 | `Runick Flashing Fire` | Second bullet Special Summons a "Runick" monster **from the Extra Deck**. Both decks have an empty Extra Deck, so that branch can never have a legal target. It must still be implemented and must correctly report "no legal choice" rather than being omitted. Also: "skip your next Battle Phase" applies **on activation**, even if the chosen effect is later negated. |
 | R2 | `Judge of the Ice Barrier` | All three effects reference "Ice Barrier" monsters. Judge is the only "Ice Barrier" card in either deck, so the first (continuous) and third (GY) effects can essentially never be live. Both must still be implemented exactly. Confirm whether Judge in the **GY** counts for "If you control an 'Ice Barrier' monster" — it does not (GY is not "control"). |
-| R3 | `Maiden with Eyes of Blue` | "You can only use 1 'Maiden with Eyes of Blue' effect per turn, and only once that turn." — a combined restriction across **both** effects, per player, per name. |
+| R3 | `Maiden with Eyes of Blue` | **CLOSED — see R37.** "You can only use 1 'Maiden with Eyes of Blue' effect per turn, and only once that turn." — one allowance shared across **both** clauses, per player, per name: both carry `opt_named_effect()` and the same `in_group()` key, so using either locks out the other for the turn. Contrast `Judge of the Ice Barrier`, whose "each of the following effects … once per turn" gives one use per clause. |
 | R4 | `Chain Detonation` / `Chain Healing` | Behaviour depends on the **Chain Link number at which the card was activated**. Chain Link position must be recorded on the Chain Link and readable at resolution. |
 | R5 | `Fairy Tail - Sleeper` | "the activated effect **becomes** …" — this replaces the opponent's already-activated Normal Spell/Trap effect on the Chain. Needs an effect-substitution mechanism on the Chain Link, not a negate-then-add. |
 | R6 | `Swords of Revealing Light` | **CLOSED — see R36.** "you must destroy it during the End Phase of your opponent's 3rd turn" — requires a per-card turn counter. The three counted turns are the opponent's three turns after activation, and the card is destroyed in the End Phase of the third; the controller's own turns never count, because a Normal Spell is only ever activated on its controller's turn [S1 p.31]. |
@@ -859,6 +859,62 @@ FACE_UP_ATTACK.
 as its own unit before this card); `EffectPrimitives.flip_face_up()` /
 `controls_a_face_down_monster()` / `count_turn_for()`; `EffectPrimitives.restrict_opponent_attacks()`.
 *Tests:* `SwordsOfRevealingLightTests` (122); `SpellTrapTests` (49) for the generic override.
+
+### R37 — `Maiden with Eyes of Blue`: one allowance across two clauses — **R3 is now CLOSED**
+
+**R3 asked: "You can only use 1 'Maiden with Eyes of Blue' effect per turn, and only once
+that turn" — a combined restriction across BOTH effects, per player, per name.** Settled while
+implementing the card (cid 10588, verified official text). The answer is yes, and the
+mechanism is `EffectDef.restriction_group`.
+
+**Part A — the two clauses spend ONE allowance between them. Confidence: HIGH.** The sentence
+says "1 … effect per turn", not "each of the following effects once per turn" — contrast
+`Judge of the Ice Barrier`, which prints "each of the following effects … once per turn" and
+therefore gets one use **per clause** (R31). Both of Maiden's clauses carry
+`opt_named_effect()` **and the same `in_group()` key**, so `EffectDef.named_key()` returns the
+same key for both and one use locks out the other. Asserted in **both orderings**: Quick first
+then Trigger, and Trigger first then Quick. A shared key that only worked one way round would
+pass a one-directional test.
+
+Two nearby models are wrong and are asserted against directly: `opt_instance()` is per COPY
+rather than per name, and `opt_named_activation()` restricts activating the CARD rather than
+using an EFFECT.
+
+**Part B — clause 1 is a Quick Effect and clause 2 is not. Confidence: HIGH.** Only the first
+prints "(Quick Effect)", so it is Spell Speed 2 and is chosen by its controller in the
+response window; clause 2 is a Trigger Effect at Spell Speed 1, put on the Chain by the
+trigger system when the attack is declared. The suite drives clause 1 as a real Chain Link 2
+above the activation that targeted it.
+
+**Part C — "a card or effect is activated that targets this card" is read from the CHAIN, not
+from the trigger event. Confidence: HIGH** (an engine-modelling consequence). A Quick Effect is
+offered by `DuelEngine._activation_actions()`, which asks `ActivationRules.can_activate()`
+with **no event**; a condition reading `ctx.trigger_event` would therefore answer false at
+exactly the moment the effect must be offered. `EffectPrimitives.is_targeted_by_a_live_activation()`
+reads the unresolved Chain Links instead, which is also the honest model: the condition stays
+true for the whole response window, and a link whose activation was negated no longer targets
+anything.
+
+**Part D — "and if you do" gates everything after it, and "then you can" is a SECOND optional
+step. Confidence: HIGH.** If the negation does not actually happen there is no position change
+and no Special Summon — proved by letting a different card negate the same attack as Chain
+Link 2, so the Maiden's own link finds nothing left to negate. And the Special Summon is a
+separate "you can", asked at RESOLUTION once the earlier steps have happened: declining it
+leaves the negation and the position change standing. That inner question is
+`EffectPrimitives.may()`, the pool's first optional step inside a resolving effect; like every
+mid-resolution choice it goes through `ctx.ask()` so the replay payload carries it.
+
+**Part E — the clause is genuinely LIVE in the V1 pool. Confidence: HIGH.** `Blue-Eyes White
+Dragon` is in the same deck as the Maiden, so no R21/R23 synthetic treatment is needed —
+asserted by reading both cards' deck lists from the verified database and checking they match.
+All three printed zones (hand, Deck, GY) are exercised separately, because a hand-only
+implementation would pass a hand-only test.
+
+*Implementation:* `Scripts/cards/registry/MaidenWithEyesOfBlue.gd`;
+`EffectPrimitives.is_targeted_by_a_live_activation()` / `own_cards_in_zones()` / `may()`;
+`EffectPrimitives.negate_declared_attack()` and `is_current_attack_target()` from batch 9
+unit A. RULES_SPEC.md §11.1.
+*Tests:* `MaidenWithEyesOfBlueTests` (139).
 
 ## 5. Banlist note (master prompt §51)
 
