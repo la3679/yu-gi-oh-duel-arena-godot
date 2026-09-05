@@ -1,7 +1,9 @@
 # TEST_RESULTS
 
-**Last run:** 2026-08-14 (Phase 5 **batch 9 PARTIAL — unit A only**: the generic
-attack-restriction / attack-negation gate. **No batch-9 card is implemented yet.**)
+**Last run:** 2026-09-05 (Phase 5 **batch 9 PARTIAL — unit A and unit B are COMPLETE, unit C
+is HALF done**: the attack-restriction gate, all three attack-modification cards, the generic
+"it remains on the field" override, and `Kaiser Sea Horse`. **`Soul Exchange` is the only card
+left in batch 9 and is NOT started.**)
 **Engine:** Godot 4.7.1.stable.official.a13da4feb (headless)
 
 Command:
@@ -33,136 +35,143 @@ The raw command still works and produces the same numbers:
 
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
-| Core rules tests | 21 | 1797 | **1797** | 0 |
-| Per-card tests | 41 | 3666 | **3666** | 0 |
+| Core rules tests | 21 | 1822 | **1822** | 0 |
+| Per-card tests | 45 | 4105 | **4105** | 0 |
 | Interaction tests | 1 | 46 | **46** | 0 |
 | Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **63** | **5509** | **5509** | **0** |
+| **TOTAL** | **67** | **5973** | **5973** | **0** |
 
-SmokeCheck: **PASS**. Matrix: **49 / 77 implemented, 49 / 77 tested, 28 remaining** (computed by
-`python Tools/build_matrix.py`, not written by hand). The card counts are **deliberately
-unchanged**: unit A adds a generic gate and no card.
+SmokeCheck: **PASS**. Matrix: **53 / 77 implemented, 53 / 77 tested, 24 remaining** (computed by
+`python Tools/build_matrix.py`, not written by hand).
+
+**All 5509 assertions from the previous checkpoint pass unchanged.** None was weakened,
+retargeted or deleted. Exactly two pre-existing suites moved, and only by assertions ADDED to
+them: `SpellTrapTests` 27 → 49 (the generic remains-on-field override, +22) and `SummonTests`
+85 → 88 (the face-down tribute-value defect, +3). 5973 − 5509 = 464 = 22 + 3 + the four new
+card suites (121 + 122 + 139 + 57 = 439).
 
 ---
 
-## Batch 9 — PARTIAL. Unit A is COMPLETE; no card is started.
+## Batch 9 — PARTIAL. Units A and B are COMPLETE; unit C is half done.
 
-**This session did unit A and stopped there, at the Milestone A boundary, for weekly-usage
-safety.** `Mirage Dragon` is the exact next step and was **not** begun.
+| Batch 9 unit | Status |
+|---|---|
+| **Unit A — the generic attack-restriction / attack-negation gate (`AttackRestrictionTests`, 229)** | **COMPLETE** (previous session) |
+| **Unit B card 1 — `Mirage Dragon` (`MirageDragonTests`, 121)** | **COMPLETE** |
+| **The generic "it remains on the field" override (`SpellTrapTests` 27 → 49)** | **COMPLETE** |
+| **Unit B card 2 — `Swords of Revealing Light` (`SwordsOfRevealingLightTests`, 122)** | **COMPLETE** |
+| **Unit B card 3 — `Maiden with Eyes of Blue` (`MaidenWithEyesOfBlueTests`, 139)** | **COMPLETE** |
+| **Unit C card 1 — `Kaiser Sea Horse` (`KaiserSeaHorseTests`, 57)** | **COMPLETE** |
+| `Soul Exchange` | **NOT STARTED — this is the exact next step** |
 
-`Tests/rules/AttackRestrictionTests.gd` — **229 / 229** — is the **attack-restriction gate**,
-written and passing **before any batch-9 card exists**, the way `EquipTests`, `ControlTests`,
-`MovementTests`, `BanishTests`, `LifePointCostTests`, `TrapMonsterTests` and
-`BattlePhaseRestrictionTests` were.
+Batch 9 completes the pool's **attack- and battle-modification group** and half of its
+**Tribute-modification group**. Three per-card rulings were **closed** by this work — **R3**,
+**R6** and **R8** — and two new generic mechanisms were built, each as its own unit with its
+own tests before the card that needed it.
 
-This session added **229** assertions and changed **no existing test expectation at all**.
-**All 5280 assertions from the previous checkpoint pass unchanged** — none was weakened,
-retargeted or deleted, and every pre-existing suite reports exactly its previous count
-(5509 − 5280 = 229, which is precisely the new suite).
+### Rulings closed this session
 
-### What the gate pins down
-
-It exists to stop three genuinely different things from collapsing into one `attack_blocked`
-boolean. Each section asserts the difference rather than assuming it:
-
-| Concept | Where it lives | The observable difference |
+| Was | Now | Recorded as |
 |---|---|---|
-| **PREVENTION** | `BattleRules.can_declare_attack()` | the declaration is never offered; **no `ATTACK_DECLARED` event**; the monster keeps its attack for the turn |
-| **NEGATION** | `BattleRules.negate_attack()` | `ATTACK_DECLARED` **did** happen, the window **did** open, the attack **is** spent; the rest of the battle stops |
-| **CARD-CLASS LOCK** | `ActivationRules.card_class_activation_ok()` | activating a class of card is refused for the duration of a phase |
+| **R6** — which End Phase is `Swords of Revealing Light`'s 3rd? | **CLOSED.** The opponent's three turns AFTER activation; destroyed in the End Phase of the third. A Normal Spell is only ever activated on its controller's own turn [S1 p.31], so the controller's turns can never be counted. | **R36** |
+| **R3** — is `Maiden with Eyes of Blue`'s restriction shared across both clauses? | **CLOSED.** Yes — ONE allowance, `opt_named_effect()` plus the same `in_group()` key on both. Contrast `Judge of the Ice Barrier`, whose "each of the following effects" gets one use per clause. | **R37** |
+| **R8** — how does `Kaiser Sea Horse` modify the Tribute computation? | **CLOSED.** A rules QUERY on the Attribute of the monster being SUMMONED; permission not compulsion; the Tribute Summon path only; worth 1 while face-down or negated. | **R38** |
 
-Prevention has **two channels that are not expressed in terms of each other**: the per-card
-`cannot_attack` flag (`Fiendish Chain`) and a new per-player key (`Swords of Revealing Light`),
-which is what covers a monster that arrives *after* the lock is in force. That case is asserted
-directly, and is the reason the player-level channel exists at all.
+**R34 part D was re-checked, not closed.** The official Konami database has **no Q&A entry for
+cid 6196** (`Mirage Dragon`), and Yugipedia and the Fandom wiki were unreachable (HTTP 403 and
+402). [S1 p.30] and [S1 p.53] back the card-versus-effect distinction generally, which is
+better sourcing than "PSCT alone", but it is still not a quoted ruling on the card. **Part D
+stays MEDIUM-HIGH** and is recorded as such in **R35**.
 
-Two ordering decisions are asserted rather than assumed:
-
-* **negation is checked before the Replay check.** `Maiden with Eyes of Blue` negates the attack
-  and then Special Summons to the defending field — the textbook Replay condition. The gate
-  builds exactly that shape with a synthetic card and proves no Replay occurs.
-* **negation is refused once the Damage Step has begun**, and refused when no attack is live,
-  rather than silently doing nothing.
+**R1, R2 and R7 remain OPEN.** R7 (`Soul Exchange`) is the one the next session must settle.
 
 ### Generic mechanics added — none left UNVERIFIED
 
-* `ContinuousEffects.ATTACK_LOCK_KEY` + `restrict_attacks()` / `attacks_restricted()` — the
-  per-PLAYER attack prevention channel.
-* `ContinuousEffects.ACTIVATION_LOCK_PREFIX` + `activation_lock_key()` /
-  `restrict_card_activation()` / `card_activation_locked()` — a card-class activation lock keyed
-  by **category and phase**, with no card name in the legality gate.
-* `BattleRules.attack_negated` / `negate_attack()` / `attack_is_negated()`, and the
-  negation branch in `DuelEngine._advance_battle()` placed ahead of the Replay check.
-* `ActivationRules.card_class_activation_ok()`.
-* `CardInstance.turn_counters` + `advance_turn_counter()` / `turn_counter_value()` /
-  `turn_counter_advanced_on()` / `reset_turn_counter()`, cleared by `on_leave_field()` and
-  `on_flipped_face_down()`.
-* `EffectPrimitives`: `restrict_opponent_attacks()`, `restrict_attacks_of()`,
-  `forbid_card_activation()`, `is_current_attack_target()`, `negate_declared_attack()`,
-  `count_turn_for()`, `turn_count()`.
-* Test-side `TestFixtures`: `attack_lock_monster()`, `activation_lock_monster()`,
-  `attack_negator()`, `turn_counting_card()`.
-
-New spec sections: **`RULES_SPEC.md §4.6`, `§6.4`, `§11.1`, `§11.2`**. New ruling: **R34**
-(six parts, honest per-part confidence — part D is MEDIUM-HIGH and is explicitly flagged for
-re-checking against an official source).
-
-### Two pieces of DECLARED-BUT-UNCONSUMED vocabulary are now consumed
-
-Both are the exact defect shape earlier batches recorded (batch 5's `cannot_be_targeted`,
-batch 6's `CONTROL_CHANGED`), found by re-reading the committed code rather than by a test:
-
-1. **`GameEvent.Kind.ATTACK_NEGATED` had zero emitters.** It had been in the event vocabulary
-   since Phase 4 and nothing ever raised it; the only reference anywhere was a
-   `KunaiWithChainTests` assertion that it was *not* emitted, which passed trivially. It is now
-   emitted by `BattleRules.negate_attack()` and asserted positively.
-2. **`EffectDef.restriction_group` / `in_group()` had zero consumers.** Declared in batch 5 with
-   a comment naming `Maiden with Eyes of Blue`, and never used. It is now consumed and tested in
-   both orderings.
+* **The card-declared "it remains on the field" override.**
+  `DuelEngine.REMAINS_ON_FIELD_EFFECT_ID` + `card_remains_on_field_after_activation()`,
+  consumed by `_cleanup_resolved_spell_traps()`. Written and passing against a SYNTHETIC card
+  before `Swords of Revealing Light` existed. Two decisions are pinned down by tests rather
+  than left to be inferred: it is a **second** question asked AFTER the kind question, so it
+  can only ever KEEP a card and never send one to the GY that the rules say stays; and it is
+  **deliberately not negation-aware**, because negation does not send a card to the Graveyard.
+  The fixture takes the card kind as a parameter and the suite drives it as a Normal TRAP too,
+  so the override cannot pass by quietly special-casing Normal Spells.
+* **`EffectPrimitives.flip_face_up()` / `controls_a_face_down_monster()`.** Flipping is not a
+  Flip Summon [S1 p.24, p.28]: no Summon event and the Normal Summon allowance untouched, but
+  `CARD_FLIPPED_FACE_UP` is emitted, so the Flip effects of the monsters turned over really
+  are collected and really resolve — asserted end to end by the opponent actually drawing, not
+  merely by the event.
+* **`EffectPrimitives.is_targeted_by_a_live_activation()`.** "A card or effect is activated
+  that targets this card", read from the CHAIN rather than from the trigger event. That is
+  forced rather than stylistic: a Quick Effect is offered by
+  `DuelEngine._activation_actions()`, which asks `ActivationRules.can_activate()` with **no
+  event**, so a condition reading `ctx.trigger_event` would answer false at exactly the moment
+  the effect must be offered.
+* **`EffectPrimitives.own_cards_in_zones()`.** "From your hand, Deck, or GY" as one candidate
+  list. The zones are an argument, so a card that says "hand or GY" cannot quietly also search
+  the Deck.
+* **`EffectPrimitives.may()`.** The pool's first **optional step INSIDE a resolving effect** —
+  the second "you can" in `Maiden with Eyes of Blue`. It goes through `ctx.ask()` like every
+  other mid-resolution choice, so the replay payload carries it and the duel stays
+  reproducible. A controller that cannot answer is treated as declining, because doing nothing
+  is always a legal outcome of a "you can".
 
 ### Engine defects found
 
-**None.** No pre-existing engine defect was found and none was introduced: the whole of unit A is
-new code, and the full pre-existing suite passes unchanged.
+**One, and it was real.** `SummonRules.tribute_value()` honoured `effects_are_negated()` but
+**not face-orientation**, so a **face-down `Kaiser Sea Horse` wrongly counted as two
+Tributes**. A face-down monster may still be Tributed [S1 p.53] and is a legal
+`tribute_candidates()` entry, but it applies no effects while face-down — the same rule
+`ContinuousEffects._continuous_sources()` enforces for every other continuous clause. Found by
+`KaiserSeaHorseTests`; fixed in the rules layer; and the rule is now asserted in the **generic
+gate** (`SummonTests` 85 → 88) as well as in the card's own suite, because it belongs there.
+
+The other three cards found **no** engine defect, which is the expected result: unit A had
+already flushed their machinery out, and the two new generic units were each written and made
+to pass before the card that needed them.
 
 ### Test-harness defects found and fixed in this session
 
-Three, all in the new gate's own tests, all caught by that test's own **path assertions** rather
-than by its conclusions — which is the point of writing them. All three are the same underlying
-shape and it is the one `PROJECT_STATE.md §0` warns about most loudly:
+**One, in this session's own new suite, and it is the batch-8 pattern again.**
+`SwordsOfRevealingLightTests` indexed its turn-trace array directly. A wrong implementation
+ends the countdown early and so makes the trace SHORTER, and a raw out-of-range index **aborts
+the test after its passing assertions instead of failing it** — silently dropping every claim
+after it. Reading through a guarded accessor turned the R6 mutation from **4 failures into 8**.
+This is the same class of defect batch 8 recorded against `JunkBladerTests`, and it is the
+reason every new suite should route indexed reads through a helper that returns a sentinel.
 
-1. **Two negation tests observed the battle after it had already finished.** `TestFixtures.attack()`
-   returns after `submit_action()`, and **the engine does not pause when nobody holds a legal
-   response** — it auto-passes both sides and resolves the entire attack inside that one call. So
-   `battle.stage` was `NONE` and `negate_attack()` correctly returned false. The tests *looked*
-   like an engine defect and were not one. Fixed by giving player 1 a Set Trap so the
-   post-declaration window genuinely opens, and by asserting
-   `battle.stage == AFTER_DECLARATION` **before** exercising the negation — so the observation
-   point itself is now checked.
-2. **The "Chain already underway" test had the same problem one level up**, and then a second,
-   subtler one: the responder that was supposed to hold the Chain open was given to **player 0**.
-   The timing machine offers the **turn player first**, so the engine stopped and waited on
-   player 0 before player 1 was ever asked, and `get_legal_responses(1)` correctly returned
-   nothing. Moving the spacer to player 1 fixed it. Both the wrong observation point and the
-   wrong-side responder are failure modes §12 names explicitly.
-3. **A per-player assertion could have passed against an empty ledger on both sides.** The test
-   asserted only that the *opponent's* named-effect record was untouched, which is also true when
-   nothing was ever recorded for anyone. A positive control was added asserting that player 0's
-   record really does hold the shared key.
+One more wrong test was caught by the engine rather than by inspection:
+`MaidenWithEyesOfBlueTests` first tried to make the Maiden's negation fail by calling
+`BattleRules.negate_attack()` by hand after the attack — but the Maiden's own trigger has
+already resolved by then, so the call raced it and the test was measuring the wrong thing.
+Rewritten to let a **different card** negate the same attack as Chain Link 2, which is the only
+honest way to make the Maiden's own link find nothing left to negate.
 
-**The run was checked for `SCRIPT ERROR` lines, not for `RESULT: PASS` alone.** The only stderr
-in this run is the **two intentional** `push_error` lines from `ChainTests` and `ContinuousTests`,
-unchanged from the previous checkpoint.
+### Every card suite was mutation-checked, not trusted for passing
+
+A suite that passes first try is not evidence that it bites. Each card's load-bearing claim was
+broken on purpose and the failure count measured:
+
+| Card | Mutation | Assertions that failed |
+|---|---|---:|
+| `Mirage Dragon` | aim the lock at the controller instead of the opponent | **39** |
+| `Mirage Dragon` | drop the phase scoping (lock every phase) | **6** |
+| the remains-on-field override | drop the call site in `_cleanup_resolved_spell_traps()` | **4** |
+| `Swords of Revealing Light` | count the controller's turns instead of the opponent's | **8** |
+| `Maiden with Eyes of Blue` | give each clause its own once-per-turn group | **5** |
+| `Maiden with Eyes of Blue` | drop the "and if you do" gate | **2** |
+| `Maiden with Eyes of Blue` | search only the hand, not hand + Deck + GY | **2** |
+| `Kaiser Sea Horse` | read the Attribute off its own card | **5** |
+
+Every mutation was reverted and the suite re-run green before the work was committed.
 
 ### ObjectDB at exit
 
-**164444**, up from 154223. That is **+10221 for 229 new assertions ≈ 44.6 per assertion** — the
-**fifth consecutive rising checkpoint** and again the highest per-assertion figure so far
-(previous high: ~38.5). It caused no failure, hang, memory pressure or unreliable result in this
-run, so it correctly did not derail unit A. **No explanation is recorded for it, because none has
-been measured.** The mandatory characterisation task before Phase 7 stands.
-
----
+**180615**, up from 164444. That is **16171 for 464 new assertions — about 34.9 each, which is
+LOWER than the previous checkpoint's 44.6 and breaks the run of five consecutive rising
+per-assertion figures.** No explanation for that is recorded here, because none has been
+measured: it is a single data point and this session did not investigate it. The
+characterisation task is unchanged and still **must be done before Phase 7**.
 
 ### Batch 8 — COMPLETE. Nothing in it is partial or unverified.
 
@@ -506,7 +515,7 @@ the turn-1 Battle Phase prohibition, Draw→Standby→Main 1→End ordering, Bat
 Phase 2, the Normal Summon allowance resetting each turn, the 6-card hand-size discard at
 the end of the End Phase, and losing by deck-out.
 
-### SummonTests — 45/45
+### SummonTests — 88/88
 `Tests/rules/SummonTests.gd`. Rules: `RULES_SPEC.md §5`.
 
 Covers one Normal Summon **or** Set per turn, Normal Summon in face-up Attack vs Set in
@@ -517,7 +526,7 @@ blocking a 0-Tribute Summon while still allowing a Tribute Summon, Flip Summon b
 illegal the turn a monster was Set and legal later, and the three manual
 position-change restrictions.
 
-### SpellTrapTests — 27/27
+### SpellTrapTests — 49/49
 `Tests/rules/SpellTrapTests.gd`. Rules: `RULES_SPEC.md §4.2` and [S1 p.28–31].
 
 Covers the Trap Set-turn restriction, a Set Normal Spell being activatable the same turn,
