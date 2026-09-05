@@ -1720,6 +1720,42 @@ static func negate_declared_attack(ctx: EffectContext) -> bool:
 	return true
 
 
+## "Flip all monsters they control face-up." (`Swords of Revealing Light`)
+##
+## Flipping a monster face-up is **not a Flip Summon** [S1 p.24, p.28]: no Summon happens,
+## no `FLIP_SUMMON_SUCCEEDED` is emitted, and the once-per-turn Normal Summon allowance is
+## untouched. What it does emit is `CARD_FLIPPED_FACE_UP`, which is the event a FLIP effect
+## keys on - the same route `BattleRules.step_before_damage_calculation()` uses when an
+## attacked face-down monster is turned over - so the Flip effects of the monsters turned
+## over here are collected at the resulting trigger window and are real.
+##
+## A face-down monster is in **Defense Position**, and turning it face-up does not change
+## that: it becomes FACE_UP_DEFENSE, never FACE_UP_ATTACK. `by_effect` is true, so the
+## monster keeps its own manual position change for the turn.
+##
+## Returns the monsters that were actually turned over, so a caller can report honestly
+## rather than assuming the count.
+static func flip_face_up(ctx: EffectContext, pid: int) -> Array:
+	var flipped: Array = []
+	for entry in ctx.state.player(pid).monsters():
+		var card: CardInstance = entry
+		if not card.is_face_down():
+			continue
+		ctx.state.set_battle_position(card, Enums.Position.FACE_UP_DEFENSE, true,
+			ctx.source.id)
+		flipped.append(card)
+	return flipped
+
+
+## Does `pid` control at least one face-down monster? The question
+## `Swords of Revealing Light` asks at RESOLUTION, before flipping anything.
+static func controls_a_face_down_monster(ctx: EffectContext, pid: int) -> bool:
+	for entry in ctx.state.player(pid).monsters():
+		if (entry as CardInstance).is_face_down():
+			return true
+	return false
+
+
 # ---------------------------------------------------------------------------
 # Per-card TURN COUNTERS. RULES_SPEC.md 11, CARD_RULINGS.md R6.
 # ---------------------------------------------------------------------------

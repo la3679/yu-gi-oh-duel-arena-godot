@@ -154,7 +154,7 @@ in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`. **No effect may be approximated.**
 | R3 | `Maiden with Eyes of Blue` | "You can only use 1 'Maiden with Eyes of Blue' effect per turn, and only once that turn." — a combined restriction across **both** effects, per player, per name. |
 | R4 | `Chain Detonation` / `Chain Healing` | Behaviour depends on the **Chain Link number at which the card was activated**. Chain Link position must be recorded on the Chain Link and readable at resolution. |
 | R5 | `Fairy Tail - Sleeper` | "the activated effect **becomes** …" — this replaces the opponent's already-activated Normal Spell/Trap effect on the Chain. Needs an effect-substitution mechanism on the Chain Link, not a negate-then-add. |
-| R6 | `Swords of Revealing Light` | "you must destroy it during the End Phase of your opponent's 3rd turn" — requires a per-card turn counter. Confirm exactly which End Phase counts as the 3rd. |
+| R6 | `Swords of Revealing Light` | **CLOSED — see R36.** "you must destroy it during the End Phase of your opponent's 3rd turn" — requires a per-card turn counter. The three counted turns are the opponent's three turns after activation, and the card is destroyed in the End Phase of the third; the controller's own turns never count, because a Normal Spell is only ever activated on its controller's turn [S1 p.31]. |
 | R7 | `Soul Exchange` | "this turn, if you Tribute a monster, you must Tribute that target, as if you controlled it" — a forced-Tribute lingering restriction, plus "cannot conduct your Battle Phase". |
 | R8 | `Kaiser Sea Horse` | "can be treated as 2 Tributes for the Tribute Summon of a LIGHT monster" — modifies the Tribute requirement computation. |
 | R9 | `Rider of the Storm Winds` | Equips **itself** from hand or field; grants piercing; is a destruction **replacement** effect for the equipped monster. Also interacts with the rule that Equip Cards are destroyed when the equipped monster leaves the field. |
@@ -770,6 +770,95 @@ RULES_SPEC.md §4.6, §6.4, §11.1, §11.2.
 `Mirage Dragon` is the first and is the next step.
 
 ---
+
+### R35 — `Mirage Dragon`, and what a card-class activation lock does NOT reach
+
+Settled while implementing **`Mirage Dragon`** (cid 6196, verified official text: "Your
+opponent cannot activate Trap Cards during the Battle Phase"). The generic mechanism is
+**R34**; this entry records only what the printed card added, and one research result.
+
+**Part A — the lock is per-PLAYER, per-CATEGORY and per-PHASE, and all three are read from
+the board. Confidence: HIGH.** "Your opponent" is read from the card's CONTROLLER, so taking
+control of `Mirage Dragon` turns the restriction around; "Trap Cards" covers all three printed
+kinds — Normal, Continuous and **Counter** [S1 p.30] — and leaves Spells and monster effects
+alone; "during the Battle Phase" is part of the lock key, so the same Set Trap is activatable
+again in either Main Phase with the Dragon still face-up. Each direction is asserted.
+
+**Part B — two copies apply as one lock, and removing one does not lift it. Confidence: HIGH**
+(an engine-modelling consequence, not a rules claim). The restriction is recomputed from the
+board on every `ContinuousEffects.recompute()` rather than reference-counted, so a second copy
+adds nothing and a departure removes nothing while the other copy is still face-up. This is a
+real board state: `Mirage Dragon` is one of only two quantity-2 cards in the V1 pool.
+
+**Part C — the research result on R34 part D, recorded honestly.** The distinction between
+activating a Trap **CARD** and activating an **EFFECT** of a Trap already face-up on the field
+was re-checked against official sources while writing this card:
+
+* the **official Konami card database has no Q&A entry for cid 6196** — there is no ruling on
+  this card to quote;
+* **[S1 p.30]** supports the distinction generally: "Continuous Trap Cards remain on the field
+  once they are activated … Some Continuous Trap Cards have abilities similar to the Ignition
+  Effects or Trigger Effects that can be found on Effect Monster Cards", and **[S1 p.53]**
+  defines "the effect of a card" as the ability written on it, separate from the card;
+* Yugipedia and the Fandom wiki were **unreachable** (HTTP 403 and 402 respectively), so no
+  secondary source was consulted either.
+
+**R34 part D therefore stays at MEDIUM-HIGH.** The rulebook now backs it more directly than
+"PSCT alone" did, but it is still reasoned from the general rule rather than from a quoted
+ruling on this card. It remains isolated behind one predicate
+(`ActivationRules.card_class_activation_ok()`) and asserted in both directions.
+
+*Implementation:* `Scripts/cards/registry/MirageDragon.gd` — one CONTINUOUS clause calling
+`EffectPrimitives.forbid_card_activation()`. No engine change was needed.
+*Tests:* `MirageDragonTests` (121).
+
+### R36 — `Swords of Revealing Light`: which End Phase is the 3rd — **R6 is now CLOSED**
+
+**R6 asked: "you must destroy it during the End Phase of your opponent's 3rd turn" — confirm
+exactly which End Phase counts as the 3rd.** Settled while implementing the card
+(cid 4354, verified official text).
+
+**Part A — the three counted turns are the opponent's three turns AFTER activation, and the
+card is destroyed in the End Phase of the third. Confidence: HIGH.** The reasoning is closed
+by the card's own kind rather than by an inference about turn order: `Swords of Revealing
+Light` is a **Normal Spell**, and a Normal Spell can only be activated during its controller's
+own Main Phase [S1 p.31]. The controller's own turn therefore can never be one of the counted
+turns, and "your opponent's 3rd turn" has exactly one reading in this pool. Asserted directly
+in both directions — the opponent's End Phases advance the counter, the controller's do not,
+and the destruction happens in the opponent's third turn and not in the second or the fourth.
+
+**Part B — the counter is per-INSTANCE and does not survive leaving the field. Confidence:
+HIGH** (an engine-modelling decision; see R34 part E and RULES_SPEC.md §11.2).
+`CardInstance.on_leave_field()` clears `turn_counters`, so a second copy would count its own
+turns from zero. There is only one copy in the pool, so this is a property of the mechanism
+rather than a live interaction, and it is asserted so it cannot rot.
+
+**Part C — "you must destroy it" is a real DESTRUCTION, and it is not a Trigger Effect.
+Confidence: HIGH.** It puts no link on the Chain and is never offered as a choice, so it is a
+CONTINUOUS clause responding to `PHASE_CHANGED`, the shape `Judge of the Ice Barrier` clause 1
+established (R31). Modelling it as a TRIGGER would wrongly open a response window and wrongly
+allow the destruction to be negated as an effect activation. The card goes through
+`GameState.destroy()` with `DESTROYED_BY_EFFECT`, so a destruction-prevention or replacement
+effect would legitimately see it.
+
+**Part D — "If your opponent controls a face-down monster" is checked at RESOLUTION.
+Confidence: HIGH.** It sits after the colon, so it is part of the effect and not an activation
+condition [S1 p.51, PSCT]. The card is legal to activate against a board with no face-down
+monster anywhere — it simply flips nothing, still stays on the field, and its attack lock
+still applies. Making it an activation `condition` would forbid a legal play.
+
+**Part E — flipping a monster face-up is not a Flip Summon. Confidence: HIGH** [S1 p.24, p.28].
+No Summon event is emitted and the once-per-turn Normal Summon allowance is untouched, but
+`CARD_FLIPPED_FACE_UP` is, so the Flip effects of the monsters turned over are collected at the
+resulting trigger window and really resolve — asserted end to end, not merely by the event. A
+face-down monster is in Defense Position and stays there: it becomes FACE_UP_DEFENSE, never
+FACE_UP_ATTACK.
+
+*Implementation:* `Scripts/cards/registry/SwordsOfRevealingLight.gd`;
+`DuelEngine.REMAINS_ON_FIELD_EFFECT_ID` (the generic "it remains on the field" override, added
+as its own unit before this card); `EffectPrimitives.flip_face_up()` /
+`controls_a_face_down_monster()` / `count_turn_for()`; `EffectPrimitives.restrict_opponent_attacks()`.
+*Tests:* `SwordsOfRevealingLightTests` (122); `SpellTrapTests` (49) for the generic override.
 
 ## 5. Banlist note (master prompt §51)
 
