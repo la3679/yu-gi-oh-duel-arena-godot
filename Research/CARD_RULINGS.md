@@ -156,7 +156,7 @@ in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`. **No effect may be approximated.**
 | R5 | `Fairy Tail - Sleeper` | "the activated effect **becomes** …" — this replaces the opponent's already-activated Normal Spell/Trap effect on the Chain. Needs an effect-substitution mechanism on the Chain Link, not a negate-then-add. |
 | R6 | `Swords of Revealing Light` | **CLOSED — see R36.** "you must destroy it during the End Phase of your opponent's 3rd turn" — requires a per-card turn counter. The three counted turns are the opponent's three turns after activation, and the card is destroyed in the End Phase of the third; the controller's own turns never count, because a Normal Spell is only ever activated on its controller's turn [S1 p.31]. |
 | R7 | `Soul Exchange` | "this turn, if you Tribute a monster, you must Tribute that target, as if you controlled it" — a forced-Tribute lingering restriction, plus "cannot conduct your Battle Phase". |
-| R8 | `Kaiser Sea Horse` | "can be treated as 2 Tributes for the Tribute Summon of a LIGHT monster" — modifies the Tribute requirement computation. |
+| R8 | `Kaiser Sea Horse` | **CLOSED — see R38.** "can be treated as 2 Tributes for the Tribute Summon of a LIGHT monster" — a rules QUERY on the Attribute of the monster being SUMMONED, not on this card; permission rather than compulsion; the Tribute Summon path only, never a Tribute paid as a cost; and worth 1 while face-down or negated. |
 | R9 | `Rider of the Storm Winds` | Equips **itself** from hand or field; grants piercing; is a destruction **replacement** effect for the equipped monster. Also interacts with the rule that Equip Cards are destroyed when the equipped monster leaves the field. |
 | R10 | `Gagagashield` | "Twice per turn, it cannot be destroyed by battle or card effects" — a counted prevention effect, resetting each turn. |
 | R11 | `Fairy Tail - Luna` | Opponent may send a card with the targeted monster's name from Deck/Extra Deck to the GY **to negate this effect** — an opponent-side decision **during resolution**. |
@@ -915,6 +915,56 @@ implementation would pass a hand-only test.
 `EffectPrimitives.negate_declared_attack()` and `is_current_attack_target()` from batch 9
 unit A. RULES_SPEC.md §11.1.
 *Tests:* `MaidenWithEyesOfBlueTests` (139).
+
+### R38 — `Kaiser Sea Horse`: whose Attribute, and when the clause applies at all — **R8 is now CLOSED**
+
+**R8 asked: "can be treated as 2 Tributes for the Tribute Summon of a LIGHT monster" —
+modifies the Tribute requirement computation.** Settled while implementing the card
+(cid 5409, verified official text).
+
+**Part A — the Attribute condition is on the monster being SUMMONED, not on this card.
+Confidence: HIGH**, directly from the wording. `Kaiser Sea Horse` is itself LIGHT, which is
+exactly the coincidence that would let a wrong implementation pass every test that only ever
+Summons a LIGHT monster — so the suite drives a synthetic DARK body carrying the same clause
+(worth 2 for a LIGHT Summon) alongside the real LIGHT card Summoning a DARK monster (worth 1).
+
+**Part B — it is a rules QUERY, not a modifier. Confidence: HIGH** (an engine-modelling
+decision). The card declares a CONTINUOUS `EffectDef` carrying
+`SummonRules.TRIBUTE_VALUE_EFFECT_ID` whose `condition` is a pure function of
+`ctx.params["summoning_card"]`. It writes nothing to the board, which is why it legitimately
+has no `apply_continuous` and is listed in `CardRegistry.RULES_QUERY_EFFECT_IDS`. A flat
+numeric `tribute_value = 2` would be wrong for every non-LIGHT Summon.
+
+**Part C — "CAN be treated as" is permission, not compulsion. Confidence: HIGH.** Tributing it
+for a one-Tribute LIGHT Summon is still legal; `SummonRules.tributes_satisfy()` already lets a
+card worth 2 overshoot a requirement of 1.
+
+**Part D — the clause reaches the Tribute SUMMON only, never a Tribute paid as a COST.
+Confidence: HIGH.** `tribute_value()` is consulted only on the Tribute Summon path; a cost
+that says "Tribute 2 monsters" counts CARDS and goes through
+`EffectPrimitives.pay_tribute_cost()`, which never asks. Asserted with a synthetic
+Tribute-cost card, because the pool's own Tribute-cost cards name a Type (`Dragonic Tactics`
+wants Dragons) or Tribute themselves (`Kaibaman`) and so cannot express the question about a
+Sea Serpent.
+
+**Part E — a FACE-DOWN copy is worth 1. Confidence: HIGH — and this was an engine DEFECT the
+card's suite caught.** A face-down monster may still be Tributed [S1 p.53] and is a legal
+`tribute_candidates()` entry, but it applies no effects while face-down — the same rule
+`ContinuousEffects._continuous_sources()` enforces for every other continuous clause.
+`SummonRules.tribute_value()` honoured `effects_are_negated()` but not face-orientation, so a
+face-down `Kaiser Sea Horse` wrongly counted as two Tributes. Fixed, and the rule is now
+asserted in the generic gate (`SummonTests`) as well as in the card's own suite.
+
+**Part F — the clause is genuinely LIVE. Confidence: HIGH.** Its own deck holds
+`Metaphys Armed Dragon` (Level 7 LIGHT, two copies) and `Witchcrafter Golem Aruru`
+(Level 8 LIGHT), both needing two Tributes, which one `Kaiser Sea Horse` supplies alone. The
+suite reads this from the verified database rather than asserting the card names, so it stays
+true if a deck list changes.
+
+*Implementation:* `Scripts/cards/registry/KaiserSeaHorse.gd`;
+`SummonRules.TRIBUTE_VALUE_EFFECT_ID` / `tribute_value()` / `tributes_satisfy()`.
+RULES_SPEC.md §5.2.
+*Tests:* `KaiserSeaHorseTests` (57); `SummonTests` (88) owns the generic rule.
 
 ## 5. Banlist note (master prompt §51)
 

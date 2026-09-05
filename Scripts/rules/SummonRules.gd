@@ -52,10 +52,23 @@ func tributes_required(card: CardInstance) -> int:
 
 ## How many Tributes `material` counts as when Tributed for the Summon of `summoned`.
 ## Defaults to 1; a card may declare itself worth 2 (see TRIBUTE_VALUE_EFFECT_ID).
+##
+## Two ways a card that DECLARES the clause is still worth only 1, because in both of them it
+## is applying no effects at all:
+##
+##   * its effects are negated;
+##   * **it is face-down.** A face-down monster may still be Tributed [S1 p.53] — it is a
+##     legal `tribute_candidates()` entry — but it applies nothing while it is face-down,
+##     which is the same rule `ContinuousEffects._continuous_sources()` enforces for every
+##     other continuous clause. Found by `KaiserSeaHorseTests`; before that this function
+##     honoured negation but not face-orientation, so a face-down `Kaiser Sea Horse` wrongly
+##     counted as two Tributes.
 func tribute_value(material: CardInstance, summoned: CardInstance) -> int:
 	if material == null or material.definition == null:
 		return 1
 	if material.effects_are_negated():
+		return 1
+	if material.is_face_down():
 		return 1
 	for effect in material.definition.effects:
 		if effect.effect_id != TRIBUTE_VALUE_EFFECT_ID:

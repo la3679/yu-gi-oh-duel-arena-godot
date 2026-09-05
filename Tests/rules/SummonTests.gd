@@ -165,6 +165,20 @@ static func _test_card_worth_two_tributes(t: TestCase) -> void:
 	t.eq(engine.summons.tribute_value(seahorse, dark8), 1,
 		"counts as only 1 Tribute for a non-LIGHT Summon")
 
+	# A face-down monster is a legal Tribute [S1 p.53] but applies no effects, so it is
+	# worth 1. Found by KaiserSeaHorseTests; the rule belongs to this gate, so it is
+	# asserted here too. The card is turned back face-up before the Summon below.
+	engine.state.set_battle_position(seahorse, Enums.Position.FACE_DOWN_DEFENSE, true)
+	engine.continuous.recompute()
+	t.is_true(engine.summons.tribute_candidates(0).has(seahorse),
+		"a face-down monster is still a legal Tribute")
+	t.eq(engine.summons.tribute_value(seahorse, light8), 1,
+		"but it applies no effects while face-down, so it is worth only 1 Tribute")
+	engine.state.set_battle_position(seahorse, Enums.Position.FACE_UP_ATTACK, true)
+	engine.continuous.recompute()
+	t.eq(engine.summons.tribute_value(seahorse, light8), 2,
+		"and it is worth 2 again once it is face-up")
+
 	var actions := engine.get_legal_actions(0)
 	var light_action = TestFixtures.find_action(actions,
 		Enums.ActionKind.TRIBUTE_SUMMON, light8.id)
