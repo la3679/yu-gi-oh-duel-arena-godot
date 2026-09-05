@@ -824,6 +824,45 @@ func _reveal_for_activation(card: CardInstance, pid: int) -> void:
 		state.set_battle_position(card, Enums.Position.FACE_UP, true)
 
 
+## A card whose OWN TEXT says it stays on the field after its activation resolves, despite
+## its printed kind. `Swords of Revealing Light` is a NORMAL Spell that prints "After this
+## card's activation, it remains on the field", and [S1 p.28] says a Normal Spell goes to
+## the GY once it resolves — so the card overrides the rule, and the override has to be
+## something the card DECLARES rather than something the engine infers.
+##
+## Declarative, like `SummonRules.CONTROL_LIMIT_EFFECT_ID` and
+## `GameState.DESTRUCTION_REPLACEMENT_EFFECT_ID`: the card declares an EffectDef carrying
+## this id and `_cleanup_resolved_spell_traps()` asks for it by id. No card name ever
+## reaches the sweeper, and a second card that prints the same sentence needs no engine
+## change.
+##
+## **Deliberately NOT `Enums.stays_on_field()`.** That answers "does this KIND of card stay",
+## which is a property of the printed icon and must keep its single, kind-only answer — a
+## Normal Spell is still a Normal Spell, and every other Normal Spell in the pool must still
+## be swept. This is the separate question "does THIS card override it", and keeping the two
+## apart is what stops one card's exception from silently becoming a rule about its kind.
+const REMAINS_ON_FIELD_EFFECT_ID := "remains_on_field_after_activation"
+
+
+## Does `card` declare the override? Static so the rules layer and the tests can ask without
+## holding an engine.
+##
+## **Deliberately NOT negation-aware**, unlike `CONTROL_LIMIT_EFFECT_ID` and
+## `TRIBUTE_VALUE_EFFECT_ID`. Those are continuous effects applying a modifier to the board,
+## and switching them off is exactly what negation means. This is not a modifier: it says
+## where the card GOES after it resolves, which is the same kind of statement as a Continuous
+## Spell's icon — and `Enums.stays_on_field()` is not negation-aware either. Making it so
+## would mean that negating a card's effects sent it to the Graveyard, and negation does not
+## do that [S1 p.28-30]. Asserted directly in `SpellTrapTests`.
+static func card_remains_on_field_after_activation(card: CardInstance) -> bool:
+	if card == null or card.definition == null:
+		return false
+	for effect in card.definition.effects:
+		if effect.effect_id == REMAINS_ON_FIELD_EFFECT_ID:
+			return true
+	return false
+
+
 ## After a Chain resolves, a Spell/Trap that does not remain on the field is sent to the
 ## GY. This happens whether or not the activation was negated: it was still activated.
 ## Continuous / Equip / Field Spells and Continuous Traps stay. [S1 p.28-30]
@@ -847,6 +886,11 @@ func _cleanup_resolved_spell_traps(links: Array) -> void:
 			# its effect to, so it does not stay either [S1 p.29].
 			if card.definition.st_kind == Enums.STKind.EQUIP_SPELL:
 				state.move_card(card, Enums.Zone.GRAVEYARD, Enums.MoveReason.RESOLVED_TO_GY)
+			continue
+		# A card whose own text overrides its kind. Asked AFTER the kind question so the
+		# override can only ever keep a card that would otherwise be swept — it can never
+		# send one to the GY that the rules say stays.
+		if card_remains_on_field_after_activation(card):
 			continue
 		state.move_card(card, Enums.Zone.GRAVEYARD, Enums.MoveReason.RESOLVED_TO_GY)
 

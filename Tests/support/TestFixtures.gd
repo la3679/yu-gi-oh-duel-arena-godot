@@ -444,6 +444,35 @@ static func trap_monster(card_name: String, race: String = "Warrior",
 
 
 # ---------------------------------------------------------------------------
+# A card that REMAINS ON THE FIELD after its activation, despite its printed kind.
+# RULES_SPEC.md 4.2 [S1 p.28-30]. `Swords of Revealing Light` is the pool's only one.
+# ---------------------------------------------------------------------------
+
+## A NORMAL Spell/Trap that declares `DuelEngine.REMAINS_ON_FIELD_EFFECT_ID`, so the
+## post-resolution sweep leaves it on the field.
+##
+## `kind` is a parameter because the override must be answered from what the CARD declares
+## and not from its icon: a fixture that could only ever be a Normal Spell would pass
+## against an implementation that quietly special-cased Normal Spells.
+static func remains_on_field_card(card_name: String, order_log: Array,
+		kind: Enums.STKind = Enums.STKind.NORMAL_SPELL) -> CardDef:
+	var d := trap(card_name, kind) if Enums.is_trap(kind) else spell(card_name, kind)
+	with_effect(d, card_activation("activate", Enums.SpellSpeed.SS1
+		if kind == Enums.STKind.NORMAL_SPELL else Enums.SpellSpeed.SS2,
+		order_log, "remains"))
+	# The lifetime clause. It applies nothing on its own — the sweeper reads it by id — but
+	# it still has to be a real clause the registry validator would accept, so it carries a
+	# condition that answers the question it is asked.
+	var lifetime := EffectDef.new(DuelEngine.REMAINS_ON_FIELD_EFFECT_ID,
+		"Test: after this card's activation, it remains on the field.")
+	lifetime.of_type(Enums.EffectType.CONTINUOUS)
+	lifetime.condition = func(_ctx: EffectContext) -> bool:
+		return true
+	d.effects.append(lifetime)
+	return d
+
+
+# ---------------------------------------------------------------------------
 # Paying LIFE POINTS as an activation cost. RULES_SPEC.md 10.4.
 # ---------------------------------------------------------------------------
 #

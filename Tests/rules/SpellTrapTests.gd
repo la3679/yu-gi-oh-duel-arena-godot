@@ -22,6 +22,12 @@ static func run() -> TestCase:
 	_test_normal_spell_goes_to_the_graveyard_after_resolving(t)
 	_test_continuous_spell_stays_on_the_field(t)
 	_test_field_spell_replaces_the_previous_one(t)
+	# --- The card-declared "it remains on the field" override. RULES_SPEC.md 4.2. ---
+	_test_a_card_that_declares_it_remains_on_the_field_is_not_swept(t)
+	_test_the_override_is_read_from_the_card_not_from_its_kind(t)
+	_test_a_plain_normal_spell_does_not_declare_the_override(t)
+	_test_the_override_survives_its_effects_being_negated(t)
+	_test_the_override_cannot_send_a_staying_card_to_the_graveyard(t)
 	return t
 
 
@@ -237,3 +243,147 @@ static func _test_field_spell_replaces_the_previous_one(t: TestCase) -> void:
 	t.eq(first.zone, Enums.Zone.GRAVEYARD,
 		"the previous Field Spell went to the Graveyard [S1 p.29]")
 	t.eq(order, ["old", "new"], "both activations resolved in order")
+
+
+# ---------------------------------------------------------------------------
+# The card-declared "it remains on the field" override.
+# RULES_SPEC.md 4.2 [S1 p.28-30]; `DuelEngine.REMAINS_ON_FIELD_EFFECT_ID`.
+# ---------------------------------------------------------------------------
+#
+# `Swords of Revealing Light` is a NORMAL Spell that prints "After this card's activation,
+# it remains on the field", and [S1 p.28] says a Normal Spell goes to the GY once it
+# resolves. The card therefore overrides the rule for its kind, and the override is written
+# here - against a SYNTHETIC card, before the printed one exists - so what these tests prove
+# is that the ENGINE reads a declaration rather than that one card happens to work.
+#
+# The load-bearing claim is that this is a SECOND question, asked after the kind question
+# and never instead of it: `Enums.stays_on_field()` keeps its single kind-only answer, and
+# every other Normal Spell in the pool is still swept.
+
+
+static func _test_a_card_that_declares_it_remains_on_the_field_is_not_swept(
+		t: TestCase) -> void:
+	t.start("OVERRIDE: a Normal Spell that declares the override stays on the field after "
+		+ "resolving, where an identical one without it would be sent to the Graveyard")
+	var d := _main_phase_duel(308)
+	var engine: DuelEngine = d["engine"]
+	var control_order: Array = []
+	var order: Array = []
+	# CONTROL: the same card, same kind, same activation - without the lifetime clause.
+	var control_card := TestFixtures.give_to_hand(engine, 0,
+		_activatable_card("Plain Spell", Enums.STKind.NORMAL_SPELL,
+			Enums.SpellSpeed.SS1, control_order, "plain"))
+	var card := TestFixtures.give_to_hand(engine, 0,
+		TestFixtures.remains_on_field_card("Staying Spell", order))
+
+	engine.submit_action(TestFixtures.find_action(
+		engine.get_legal_actions(0), Enums.ActionKind.ACTIVATE_CARD, control_card.id))
+	TestFixtures.pass_until_open(engine)
+	t.eq(control_order, ["plain"], "CONTROL: it resolved")
+	t.eq(control_card.zone, Enums.Zone.GRAVEYARD,
+		"CONTROL: and a plain Normal Spell went to the Graveyard [S1 p.28]")
+
+	engine.submit_action(TestFixtures.find_action(
+		engine.get_legal_actions(0), Enums.ActionKind.ACTIVATE_CARD, card.id))
+	TestFixtures.pass_until_open(engine)
+	t.eq(order, ["remains"], "OVERRIDE: it resolved too - it is a real activation")
+	t.eq(card.zone, Enums.Zone.SPELL_TRAP_ZONE, "but it stayed on the field")
+	t.is_true(card.is_face_up(),
+		"face-up, so a continuous clause of the same card can apply")
+	t.eq(card.definition.st_kind, Enums.STKind.NORMAL_SPELL,
+		"and it is still a NORMAL Spell - the override does not change its kind")
+	t.is_false(Enums.stays_on_field(card.definition.st_kind),
+		"which the kind-only question still answers correctly on its own")
+
+
+static func _test_the_override_is_read_from_the_card_not_from_its_kind(
+		t: TestCase) -> void:
+	t.start("OVERRIDE: it is read from what the card DECLARES - a Normal TRAP that declares "
+		+ "it stays too, so nothing quietly special-cases Normal Spells")
+	var d := _main_phase_duel(309)
+	var engine: DuelEngine = d["engine"]
+	var order: Array = []
+	var card := TestFixtures.give_set_spell_trap(engine, 0,
+		TestFixtures.remains_on_field_card("Staying Trap", order,
+			Enums.STKind.NORMAL_TRAP))
+
+	engine.submit_action(TestFixtures.find_action(
+		engine.get_legal_actions(0), Enums.ActionKind.ACTIVATE_CARD, card.id))
+	TestFixtures.pass_until_open(engine)
+
+	t.eq(order, ["remains"], "the Trap resolved")
+	t.eq(card.definition.st_kind, Enums.STKind.NORMAL_TRAP, "it is a Normal Trap")
+	t.is_false(Enums.stays_on_field(card.definition.st_kind),
+		"whose kind says it should be swept")
+	t.eq(card.zone, Enums.Zone.SPELL_TRAP_ZONE, "and it stayed on the field anyway")
+
+
+static func _test_a_plain_normal_spell_does_not_declare_the_override(t: TestCase) -> void:
+	t.start("OVERRIDE: the predicate answers false for every card that does not declare it")
+	var d := _main_phase_duel(310)
+	var engine: DuelEngine = d["engine"]
+	var order: Array = []
+	var plain := TestFixtures.give_to_hand(engine, 0,
+		_activatable_card("No Claim", Enums.STKind.NORMAL_SPELL,
+			Enums.SpellSpeed.SS1, order, "none"))
+	var declaring := TestFixtures.give_to_hand(engine, 0,
+		TestFixtures.remains_on_field_card("Claim", order))
+
+	t.is_false(DuelEngine.card_remains_on_field_after_activation(plain),
+		"a card with no lifetime clause does not declare it")
+	t.is_true(DuelEngine.card_remains_on_field_after_activation(declaring),
+		"one that does, does")
+	t.is_false(DuelEngine.card_remains_on_field_after_activation(null),
+		"and null is false rather than an error")
+
+
+static func _test_the_override_survives_its_effects_being_negated(t: TestCase) -> void:
+	t.start("OVERRIDE: negating a card's effects does not send it to the Graveyard - the "
+		+ "override says where the card GOES, it is not a modifier that can be switched off")
+	var d := _main_phase_duel(311)
+	var engine: DuelEngine = d["engine"]
+	var order: Array = []
+	var card := TestFixtures.give_to_hand(engine, 0,
+		TestFixtures.remains_on_field_card("Negated Stayer", order))
+
+	engine.submit_action(TestFixtures.find_action(
+		engine.get_legal_actions(0), Enums.ActionKind.ACTIVATE_CARD, card.id))
+	TestFixtures.pass_until_open(engine)
+	t.eq(card.zone, Enums.Zone.SPELL_TRAP_ZONE, "it is on the field")
+
+	card.effects_negated = true
+	engine.continuous.recompute()
+	t.is_true(card.effects_are_negated(), "its effects are negated")
+	t.is_true(DuelEngine.card_remains_on_field_after_activation(card),
+		"and it still declares the override - unlike CONTROL_LIMIT_EFFECT_ID and "
+		+ "TRIBUTE_VALUE_EFFECT_ID, this question is not negation-aware, because negation "
+		+ "does not send a card to the Graveyard [S1 p.28-30]")
+	t.eq(card.zone, Enums.Zone.SPELL_TRAP_ZONE, "so it is still on the field")
+
+
+static func _test_the_override_cannot_send_a_staying_card_to_the_graveyard(
+		t: TestCase) -> void:
+	t.start("OVERRIDE: it is asked AFTER the kind question, so it can only ever KEEP a card "
+		+ "- an Equip Spell that resolved without equipping still goes to the Graveyard")
+	var d := _main_phase_duel(312)
+	var engine: DuelEngine = d["engine"]
+	var order: Array = []
+	# An Equip Spell that equips nothing: [S1 p.29] sends it to the GY even though its KIND
+	# stays on the field. The override must not reach this case in either direction.
+	var orphan := TestFixtures.give_to_hand(engine, 0,
+		_activatable_card("Unattached Equip", Enums.STKind.EQUIP_SPELL,
+			Enums.SpellSpeed.SS1, order, "equip"))
+
+	t.is_true(Enums.stays_on_field(Enums.STKind.EQUIP_SPELL),
+		"an Equip Spell's KIND stays on the field")
+	t.is_false(DuelEngine.card_remains_on_field_after_activation(orphan),
+		"and it declares no override")
+
+	engine.submit_action(TestFixtures.find_action(
+		engine.get_legal_actions(0), Enums.ActionKind.ACTIVATE_CARD, orphan.id))
+	TestFixtures.pass_until_open(engine)
+
+	t.eq(order, ["equip"], "it resolved")
+	t.eq(orphan.zone, Enums.Zone.GRAVEYARD,
+		"and went to the Graveyard, because it equipped nothing [S1 p.29] - the override "
+		+ "did not intercept a case that was never its business")
