@@ -1,6 +1,8 @@
 class_name ChainLink
 extends RefCounted
 
+var target_field_revisions: Dictionary = {}
+
 ## One link of a Chain. RULES_SPEC.md 4.1, master prompt 12.
 ##
 ## Targets and costs are fixed at ACTIVATION time and stored here. Resolution reads

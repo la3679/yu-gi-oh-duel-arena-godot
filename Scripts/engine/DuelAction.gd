@@ -44,6 +44,7 @@ var target_candidates: Array = []
 var target_min: int = 0
 var target_max: int = 0
 var tribute_candidates: Array = []
+var tribute_combinations: Array = []
 var tributes_required: int = 0
 var attack_target_candidates: Array = []
 var allows_direct_attack: bool = false

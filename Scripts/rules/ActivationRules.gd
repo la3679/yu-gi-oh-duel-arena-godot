@@ -261,6 +261,8 @@ static func condition_ok(ctx: EffectContext) -> bool:
 
 ## Everything except Chain-response Spell Speed, which depends on the current Chain and
 ## is checked by ChainManager.can_respond_with_spell_speed().
+const ACTIVATION_CONDITION_EFFECT_ID := "card_activation_condition"
+
 static func can_activate(state: GameState, card: CardInstance, effect: EffectDef,
 		controller_id: int, trigger_event: GameEvent = null) -> bool:
 	if state.is_duel_over():
@@ -304,6 +306,11 @@ static func can_activate(state: GameState, card: CardInstance, effect: EffectDef
 			and not SummonRules.control_limit_satisfied(state, card, controller_id):
 		return false
 
+	if effect.effect_type == Enums.EffectType.CARD_ACTIVATION:
+		for clause in card.definition.effects:
+			if clause.effect_id == ACTIVATION_CONDITION_EFFECT_ID and clause.condition.is_valid():
+				if not bool(clause.condition.call(make_context(state, card, clause, controller_id, trigger_event))):
+					return false
 	var ctx := make_context(state, card, effect, controller_id, trigger_event)
 	if not condition_ok(ctx):
 		return false

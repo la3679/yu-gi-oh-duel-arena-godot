@@ -73,6 +73,8 @@ var uses_per_turn: int = 0
 # --- Behaviour callables ---
 ## func(ctx: EffectContext) -> bool — is the activation condition satisfied?
 var condition: Callable = Callable()
+## Consequence of a confirmed CARD activation; survives effect negation. R39 / spec 5.9.
+var activation_confirmed: Callable = Callable()
 ## func(ctx: EffectContext) -> bool — can the cost be paid right now? (checked before
 ## the activation is offered; master prompt 16)
 var can_pay_cost: Callable = Callable()

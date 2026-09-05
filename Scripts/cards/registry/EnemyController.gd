@@ -109,11 +109,13 @@ func _change_position() -> EffectDef:
 
 func _take_control() -> EffectDef:
 	var e := _as_quick_play(EffectDef.new("tribute_and_take_control", CLAUSE_CONTROL))
+	e.legal_targets = func(ctx: EffectContext) -> Array:
+		return EffectPrimitives.exclude_required_tributes(ctx, EffectPrimitives.opponent_monsters(ctx, "", true))
 
 	# "Tribute 1 monster" — a monster YOU control. Without one the bullet is not offered:
 	# a cost that cannot be paid makes the activation illegal, not merely ineffective.
 	e.condition = func(ctx: EffectContext) -> bool:
-		return not _tribute_candidates(ctx).is_empty()
+		return EffectPrimitives.can_pay_tribute_cost(ctx, _tribute_candidates(ctx), 1)
 
 	e.pay_cost = func(ctx: EffectContext) -> bool:
 		var paid := EffectPrimitives.pay_tribute_cost(ctx, _tribute_candidates(ctx), 1,
@@ -134,5 +136,4 @@ func _take_control() -> EffectDef:
 ## "Tribute 1 monster" is unrestricted beyond being a monster you control on the field.
 ## Enemy Controller itself is a Spell and can never be one of them.
 func _tribute_candidates(ctx: EffectContext) -> Array:
-	return EffectPrimitives.own_cards_in(ctx, Enums.Zone.MONSTER_ZONE,
-		func(card: CardInstance) -> bool: return card.is_monster())
+	return EffectPrimitives.tribute_cost_candidates(ctx)

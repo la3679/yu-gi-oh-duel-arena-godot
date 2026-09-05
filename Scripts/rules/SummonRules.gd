@@ -20,6 +20,8 @@ extends RefCounted
 ## a LIGHT monster." The card declares a CONTINUOUS EffectDef with this id whose
 ## `condition` is called with ctx.params["summoning_card"] set, and returns true when the
 ## card counts as 2 Tributes for that specific Summon.
+const TRIBUTE_CHOICE_SCOPE := "tribute"
+
 const TRIBUTE_VALUE_EFFECT_ID := "counts_as_two_tributes"
 
 ## Effect id convention for a card-count limit on the field: "You can only control 1
@@ -112,7 +114,12 @@ func control_limit_ok(card: CardInstance, controller_id: int) -> bool:
 
 ## Monsters this player may Tribute. Face-up and face-down both count [S1 p.53].
 func tribute_candidates(controller_id: int) -> Array:
-	return state.player(controller_id).monsters()
+	var out := state.player(controller_id).monsters()
+	for id in state.required_choice_ids(controller_id, TRIBUTE_CHOICE_SCOPE):
+		var card: CardInstance = state.instance(id)
+		if card != null and not out.has(card):
+			out.append(card)
+	return out.filter(func(c): return c.is_monster() and not bool(c.flags.get("cannot_be_tributed", false)))
 
 
 ## Do the chosen Tributes satisfy the requirement for this Summon?
@@ -120,22 +127,36 @@ func tributes_satisfy(summoned: CardInstance, materials: Array) -> bool:
 	var need := tributes_required(summoned)
 	if need == 0:
 		return materials.is_empty()
+	if materials.is_empty() or materials.size() > need:
+		return false
+	var candidates := tribute_candidates(summoned.controller_id)
+	var ids: Array = []
 	var total := 0
 	for m in materials:
-		total += tribute_value(m, summoned)
-	# A card worth 2 Tributes may overshoot a 1-Tribute requirement, which is why this
-	# is >= rather than ==; but no MORE cards may be Tributed than the requirement needs.
-	if total < need:
-		return false
-	for m in materials:
-		var without := 0
-		for other in materials:
-			if other != m:
-				without += tribute_value(other, summoned)
-		if without >= need:
-			# `m` was not needed — the player Tributed more monsters than required.
+		if m == null or not candidates.has(m) or ids.has(m.id):
 			return false
+		ids.append(m.id)
+		total += tribute_value(m, summoned)
+	# Optional double value can be declined (R39); each material is worth at least one.
+	if total < need or not state.choice_selection_ok(summoned.controller_id, TRIBUTE_CHOICE_SCOPE, ids):
+		return false
+	if not state.player(summoned.controller_id).has_free_monster_zone():
+		return materials.any(func(m): return m.controller_id == summoned.controller_id and m.zone == Enums.Zone.MONSTER_ZONE)
 	return true
+
+
+## Enumerate complete legal combinations, not a greedy sum. RULES_SPEC.md 5.9.
+func tribute_combinations(summoned: CardInstance) -> Array:
+	var candidates := tribute_candidates(summoned.controller_id)
+	var out: Array = []
+	for mask in range(1 << candidates.size()):
+		var group: Array = []
+		for i in range(candidates.size()):
+			if mask & (1 << i):
+				group.append(candidates[i])
+		if tributes_satisfy(summoned, group):
+			out.append(group)
+	return out
 
 
 # ---------------------------------------------------------------------------
@@ -162,16 +183,8 @@ func can_normal_summon_or_set(card: CardInstance, controller_id: int) -> bool:
 		return false
 
 	var need := tributes_required(card)
-	var candidates := tribute_candidates(controller_id)
 	if need > 0:
-		# Enough Tribute material must exist, counting cards worth 2.
-		var best := 0
-		for m in candidates:
-			best += tribute_value(m, card)
-		if best < need:
-			return false
-		# Tributing frees a zone, so a full field is only a problem at 0 Tributes.
-		return true
+		return not tribute_combinations(card).is_empty()
 	return p.has_free_monster_zone()
 
 
@@ -249,7 +262,7 @@ func begin_normal_summon(card: CardInstance, controller_id: int, tributes: Array
 	if not tributes_satisfy(card, tributes):
 		return {}
 	for m in tributes:
-		if m == null or m.controller_id != controller_id or m.zone != Enums.Zone.MONSTER_ZONE:
+		if not tribute_candidates(controller_id).has(m):
 			return {}
 
 	var kind: Enums.SummonKind = Enums.SummonKind.TRIBUTE if not tributes.is_empty() \
@@ -289,7 +302,7 @@ func normal_set_monster(card: CardInstance, controller_id: int, tributes: Array,
 	if not tributes_satisfy(card, tributes):
 		return false
 	for m in tributes:
-		if m == null or m.controller_id != controller_id or m.zone != Enums.Zone.MONSTER_ZONE:
+		if not tribute_candidates(controller_id).has(m):
 			return false
 
 	state.player(controller_id).consume_normal_summon()

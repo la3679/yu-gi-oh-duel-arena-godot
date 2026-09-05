@@ -217,6 +217,7 @@ func _begin_turn_common() -> void:
 
 ## Per-turn state that expires when the turn ends. RULES_SPEC.md 11.
 func _end_of_turn_cleanup() -> void:
+	state.choice_constraints.clear()
 	_spend_battle_phase_skip()
 	for card in state.all_instances():
 		card.remove_modifiers_with_duration("end_of_turn")

@@ -1,9 +1,9 @@
 # TEST_RESULTS
 
-**Last run:** 2026-09-05 (Phase 5 **batch 9 PARTIAL — unit A and unit B are COMPLETE, unit C
-is HALF done**: the attack-restriction gate, all three attack-modification cards, the generic
-"it remains on the field" override, and `Kaiser Sea Horse`. **`Soul Exchange` is the only card
-left in batch 9 and is NOT started.**)
+**Last run:** 2026-09-05 (Phase 5 **batch 9 COMPLETE**: the attack-restriction gate, all three
+attack-modification cards, the generic "it remains on the field" override, `Kaiser Sea Horse`,
+the generic **lingering material-choice constraint**, and `Soul Exchange` — the last card in
+the batch.)
 **Engine:** Godot 4.7.1.stable.official.a13da4feb (headless)
 
 Command:
@@ -35,24 +35,23 @@ The raw command still works and produces the same numbers:
 
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
-| Core rules tests | 21 | 1822 | **1822** | 0 |
-| Per-card tests | 45 | 4105 | **4105** | 0 |
+| Core rules tests | 22 | 1959 | **1959** | 0 |
+| Per-card tests | 46 | 4279 | **4279** | 0 |
 | Interaction tests | 1 | 46 | **46** | 0 |
 | Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **67** | **5973** | **5973** | **0** |
+| **TOTAL** | **69** | **6284** | **6284** | **0** |
 
-SmokeCheck: **PASS**. Matrix: **53 / 77 implemented, 53 / 77 tested, 24 remaining** (computed by
+SmokeCheck: **PASS**. Matrix: **54 / 77 implemented, 54 / 77 tested, 23 remaining** (computed by
 `python Tools/build_matrix.py`, not written by hand).
 
-**All 5509 assertions from the previous checkpoint pass unchanged.** None was weakened,
-retargeted or deleted. Exactly two pre-existing suites moved, and only by assertions ADDED to
-them: `SpellTrapTests` 27 → 49 (the generic remains-on-field override, +22) and `SummonTests`
-85 → 88 (the face-down tribute-value defect, +3). 5973 − 5509 = 464 = 22 + 3 + the four new
-card suites (121 + 122 + 139 + 57 = 439).
+**All 5973 assertions from the previous checkpoint pass unchanged.** None was weakened,
+retargeted or deleted, and this time **no pre-existing suite moved at all**: the whole delta is
+the two new suites. 6284 − 5973 = 311 = `ChoiceConstraintTests` (137) + `SoulExchangeTests`
+(174). The 5509 → 5973 → 6284 chain is therefore unbroken.
 
 ---
 
-## Batch 9 — PARTIAL. Units A and B are COMPLETE; unit C is half done.
+## Batch 9 — COMPLETE. Nothing in it is partial or unverified.
 
 | Batch 9 unit | Status |
 |---|---|
@@ -62,12 +61,13 @@ card suites (121 + 122 + 139 + 57 = 439).
 | **Unit B card 2 — `Swords of Revealing Light` (`SwordsOfRevealingLightTests`, 122)** | **COMPLETE** |
 | **Unit B card 3 — `Maiden with Eyes of Blue` (`MaidenWithEyesOfBlueTests`, 139)** | **COMPLETE** |
 | **Unit C card 1 — `Kaiser Sea Horse` (`KaiserSeaHorseTests`, 57)** | **COMPLETE** |
-| `Soul Exchange` | **NOT STARTED — this is the exact next step** |
+| **The generic lingering material-choice constraint (`ChoiceConstraintTests`, 137)** | **COMPLETE** |
+| **Unit C card 2 — `Soul Exchange` (`SoulExchangeTests`, 174)** | **COMPLETE** |
 
-Batch 9 completes the pool's **attack- and battle-modification group** and half of its
-**Tribute-modification group**. Three per-card rulings were **closed** by this work — **R3**,
-**R6** and **R8** — and two new generic mechanisms were built, each as its own unit with its
-own tests before the card that needed it.
+Batch 9 completes the pool's **attack- and battle-modification group** and its
+**Tribute-modification group**. Four per-card rulings were **closed** by this work — **R3**,
+**R6**, **R7** and **R8** — and three new generic mechanisms were built, each as its own unit
+with its own tests before the card that needed it.
 
 ### Rulings closed this session
 
@@ -76,6 +76,7 @@ own tests before the card that needed it.
 | **R6** — which End Phase is `Swords of Revealing Light`'s 3rd? | **CLOSED.** The opponent's three turns AFTER activation; destroyed in the End Phase of the third. A Normal Spell is only ever activated on its controller's own turn [S1 p.31], so the controller's turns can never be counted. | **R36** |
 | **R3** — is `Maiden with Eyes of Blue`'s restriction shared across both clauses? | **CLOSED.** Yes — ONE allowance, `opt_named_effect()` plus the same `in_group()` key on both. Contrast `Judge of the Ice Barrier`, whose "each of the following effects" gets one use per clause. | **R37** |
 | **R8** — how does `Kaiser Sea Horse` modify the Tribute computation? | **CLOSED.** A rules QUERY on the Attribute of the monster being SUMMONED; permission not compulsion; the Tribute Summon path only; worth 1 while face-down or negated. | **R38** |
+| **R7** — what exactly does `Soul Exchange` constrain? | **CLOSED.** A turn-scoped lingering **material-choice constraint** — no control change, no extra Tribute, no changed Tribute count. It binds which monster is chosen on **both** the Tribute Summon/Set route and the Tribute-**cost** route. It drops on the target leaving its Monster Zone, on a control change, on a face-up→face-down reset and at the exact end of turn; a still-affected target that becomes unsuitable **blocks** the Tribute instead of releasing it. The Battle Phase sentence is an activation **condition**, confirmed at Chain Link processing: it survives EFFECT negation, not ACTIVATION negation. | **R39** |
 
 **R34 part D was re-checked, not closed.** The official Konami database has **no Q&A entry for
 cid 6196** (`Mirage Dragon`), and Yugipedia and the Fandom wiki were unreachable (HTTP 403 and
@@ -83,10 +84,45 @@ cid 6196** (`Mirage Dragon`), and Yugipedia and the Fandom wiki were unreachable
 better sourcing than "PSCT alone", but it is still not a quoted ruling on the card. **Part D
 stays MEDIUM-HIGH** and is recorded as such in **R35**.
 
-**R1, R2 and R7 remain OPEN.** R7 (`Soul Exchange`) is the one the next session must settle.
+**R1 and R2 remain OPEN.** They belong to cards that are already implemented and are carried
+forward as recorded questions, not as gaps in this batch. **R7 is now CLOSED (R39).**
 
 ### Generic mechanics added — none left UNVERIFIED
 
+* **The lingering material-choice constraint** (`GameState.choice_constraints`,
+  `require_choice_this_turn()` / `required_choice_ids()` / `choice_selection_ok()` /
+  `clear_choice_constraints_for()`; `RULES_SPEC.md` §5.9). Every other restriction in the engine
+  answers *"may I?"*; this one answers *"if you do, it must be THIS card"* — a shape nothing in
+  the engine had. Written and passing against a **synthetic** grant Spell in
+  `ChoiceConstraintTests` (137) before `Soul Exchange` existed, and driven from **both seats**,
+  so the constraint cannot pass by being hard-wired to player 0. It is keyed by
+  (player, scope, target, turn), which is why the suite can assert that an unrelated scope and
+  the opponent's own selections are untouched. Two consequences fell out of building it
+  generically and are pinned by tests rather than left to be inferred:
+  `SummonRules.tributes_satisfy()` had to stop being a **greedy maximum-value** check and start
+  **enumerating complete combinations** (`tribute_combinations()`, published on the action as
+  `tribute_combinations` so a UI never has to re-derive them); and the engine now **rejects a
+  forged own-only Tribute payload** rather than merely not offering it — asserted by submitting
+  one and checking that nothing was paid.
+* **`EffectPrimitives.can_pay_tribute_cost()` / `tribute_cost_candidates()` /
+  `exclude_required_tributes()`.** The Tribute-**cost** route is a genuinely different channel
+  from the Summon route, so the constraint had to be taught to both. The cost route keeps its
+  own filters: a cost that requires **this** card cannot substitute another monster
+  (`Kaibaman`), and a **typed** cost cannot inspect an opponent's face-down Type or Attribute
+  (`Dragonic Tactics`, `Spiritual Wind Art - Miyabi`) — the `requires_identity` flag exists for
+  exactly that and is asserted, not assumed. `exclude_required_tributes()` stops a mandatory
+  cost material from also being the effect's target, because the material is gone before
+  targeting happens (`Enemy Controller`, `Spiritual Wind Art - Miyabi`).
+* **`EffectDef.activation_confirmed` + `ActivationRules.ACTIVATION_CONDITION_EFFECT_ID`.** A
+  consequence of a confirmed CARD activation that must survive **effect** negation while still
+  being undone by **activation** negation. It fires when the Chain Link is processed, which is
+  safe precisely because no phase can be conducted while a Chain is unresolved — so no rollback
+  of other sources is needed. Both negation paths are asserted with a real two-link Chain and a
+  real negator card, not by poking the flag.
+* **`CardInstance.field_revision` + `EffectPrimitives.target_kept_field_identity()`.** A target
+  that left the field and came back is a **different stay on the field**. The revision is
+  snapshotted into `ChainLink.target_field_revisions` at activation, so a resolution-time
+  re-check can tell "still there" from "left and returned" — which a zone check alone cannot.
 * **The card-declared "it remains on the field" override.**
   `DuelEngine.REMAINS_ON_FIELD_EFFECT_ID` + `card_remains_on_field_after_activation()`,
   consumed by `_cleanup_resolved_spell_traps()`. Written and passing against a SYNTHETIC card
@@ -116,6 +152,53 @@ stays MEDIUM-HIGH** and is recorded as such in **R35**.
   reproducible. A controller that cannot answer is treated as declining, because doing nothing
   is always a legal outcome of a "you can".
 
+### What the two new suites pin down
+
+**`ChoiceConstraintTests` — 137/137.** The generic gate, written against a synthetic grant
+Spell before `Soul Exchange` existed, and run from **both seats**. It asserts that the
+constraint is created at **resolution** and not at activation — proved by holding the Chain
+open with a real opposing response card and checking that `choice_constraints` is still empty
+while the window is open; that it belongs to the activating seat only, that an unrelated
+**scope** is untouched, and that ownership and control never change (`CONTROL_CHANGED` is
+asserted to fire **zero** times, which is the whole "as if you controlled it" question); that
+the complete set of legal combinations is enumerated and **published on the action**
+(`tribute_combinations`), with own-only, insufficient-value and duplicate selections each
+refused individually; that a **forged** own-only payload submitted straight to the engine is
+rejected and pays nothing; that a paid material stays in its **owner's** Graveyard even when
+the Summon is then **negated** by a real negator card; that four separate invalidation routes
+(target leaves, target banished and returned, control changed, flipped face-down) each clear
+the constraint permanently and restore the player's own free choice; that an unsuitable target
+**blocks** the Tribute without lifting the obligation, while unrelated actions stay legal; that
+optional double-Tribute value can be **declined** so a double-value monster may count as one,
+that an opponent-only Tribute does **not** free your Monster Zone, and that a face-down double
+is worth one; that the constraint expires at the **exact** turn boundary and not on End Phase
+entry; that two simultaneous constraints must **both** be satisfied; that the cost route
+enforces its own qualifications and pays the whole selection or nothing; and that the whole
+sequence **replays deterministically** from the recorded action payloads to an identical event
+stream and an identical constraint state.
+
+**`SoulExchangeTests` — 174/174.** The printed card against the **real pool**, not a synthetic
+stand-in: `Alexandrite Dragon` as the opponent's target, `Metaphys Armed Dragon` and
+`Witchcrafter Golem Aruru` as the Summon to aim at, and the real `Kaiser Sea Horse`,
+`Kaibaman` and `Dragonic Tactics`. It asserts the clause shape off the registry (two clauses,
+Normal Spell, Spell Speed 1, exactly one target, and the permission is **not** a cost); that
+the target must be an opposing **monster** — an own monster, a Spell and an empty selection are
+each **rejected by the engine**, not merely unoffered; the four timing refusals (opponent's
+turn, during the Battle Phase, after a Battle Phase has been conducted, and no opposing
+monster); that the permission actually **binds** the Summon, so an own-only combination is
+refused while it stands and the granted opposing material completes it; and that the Battle
+Phase lock lands on the **activating** player, not the opponent, and resets exactly at end of
+turn. Seven **real two-link Chains** cover the interesting cases: activation negation lifts the
+Battle Phase condition and grants nothing, **effect** negation grants nothing but the Battle
+Phase condition **stands**, and the target leaving, leaving and **returning**, changing
+control, being flipped face-down, or `Soul Exchange` itself being destroyed each produce the
+right answer — with the face-down and destroyed-source cases going on to complete the Summon,
+so the negatives are not passing on a broken board. Both `Kaiser Sea Horse` placements are
+driven (an opposing Kaiser supplying two Tributes; your own Kaiser counting as one alongside
+the forced material), the Tribute-**cost** route is driven through two real cards,
+`ScriptedController.errors` is asserted empty so no prompt was silently defaulted, and the card
+replays deterministically.
+
 ### Engine defects found
 
 **One, and it was real.** `SummonRules.tribute_value()` honoured `effects_are_negated()` but
@@ -126,8 +209,18 @@ Tributes**. A face-down monster may still be Tributed [S1 p.53] and is a legal
 `KaiserSeaHorseTests`; fixed in the rules layer; and the rule is now asserted in the **generic
 gate** (`SummonTests` 85 → 88) as well as in the card's own suite, because it belongs there.
 
+**A second one, found by the material-choice unit and equally real.**
+`SummonRules.tributes_satisfy()` computed a **greedy maximum** Tribute value and then rejected
+any material it judged unnecessary. That is wrong for an **optional** double-Tribute clause: a
+double-Tribute monster **may** count as one when the player needs it to, so a legal two-card
+selection for a two-Tribute Summon was refused whenever one of the two happened to be a
+`Kaiser Sea Horse`. It is now an enumeration of complete legal combinations
+(`tribute_combinations()`), and the rule is asserted in the generic gate as well as in
+`SoulExchangeTests`. `SummonRules.tribute_candidates()` also silently returned non-monsters and
+ignored `cannot_be_tributed`; both are now filtered at the single source.
+
 The other three cards found **no** engine defect, which is the expected result: unit A had
-already flushed their machinery out, and the two new generic units were each written and made
+already flushed their machinery out, and the new generic units were each written and made
 to pass before the card that needed them.
 
 ### Test-harness defects found and fixed in this session
@@ -162,16 +255,39 @@ broken on purpose and the failure count measured:
 | `Maiden with Eyes of Blue` | drop the "and if you do" gate | **2** |
 | `Maiden with Eyes of Blue` | search only the hand, not hand + Deck + GY | **2** |
 | `Kaiser Sea Horse` | read the Attribute off its own card | **5** |
+| the material-choice constraint | drop `choice_selection_ok()` from `tributes_satisfy()` | **12** in `ChoiceConstraintTests` |
+| the material-choice constraint | no-op `clear_choice_constraints_for()` (the constraint never expires) | **6** in `ChoiceConstraintTests` |
+| `Soul Exchange` | drop the `activation_confirmed` call in `ChainManager` | **8** |
+| `Soul Exchange` | bypass the `CARD_ACTIVATION` condition gate in `ActivationRules` | **1** |
+| `Soul Exchange` | drop the `target_kept_field_identity()` re-check | **1** |
 
-Every mutation was reverted and the suite re-run green before the work was committed.
+Every mutation was reverted and the suite re-run green before the work was committed; the tree
+was then compared byte-for-byte against a pre-mutation snapshot to prove nothing was left behind.
+
+**Two of these mutations exposed a real hole in `SoulExchangeTests`, and it was fixed.** The
+two constraint mutations were caught by the generic gate but **not** by the card's own suite:
+`SoulExchangeTests` drove only the *legal* Tribute Summon through the engine, so it never
+asserted that the permission actually **binds** the selection. Two assertions were added per
+seat — an own-only combination is refused while the permission stands, and the granted opposing
+material completes the Summon — taking the suite from 170 to **174**. Re-running the first
+mutation now fails it in **2** places. The cost route was already covered: the "self-Tribute
+cannot omit required opponent" assertion reads `can_pay_tribute_cost()` directly and survived
+that mutation for the right reason.
+
+The two mutations that score **1** score it honestly. Bypassing the activation-condition gate
+only breaks "after Battle Phase refused"; the other two refusals in that block ("Battle Phase
+refused", "opponent turn timing refused") are enforced by the **generic** Normal Spell timing
+rules, so they correctly keep passing. Dropping the field-identity re-check breaks exactly one
+case — the "left and returned" Chain mode — which is the only case it exists for.
 
 ### ObjectDB at exit
 
-**180615**, up from 164444. That is **16171 for 464 new assertions — about 34.9 each, which is
-LOWER than the previous checkpoint's 44.6 and breaks the run of five consecutive rising
-per-assertion figures.** No explanation for that is recorded here, because none has been
-measured: it is a single data point and this session did not investigate it. The
-characterisation task is unchanged and still **must be done before Phase 7**.
+**187347**, up from 180615. That is **6732 for 311 new assertions — about 21.6 each, LOWER
+again than the previous checkpoint's 34.9, which was itself lower than the 44.6 before it.**
+Two consecutive falls now follow the run of five consecutive rises. **No explanation for that
+is recorded here, because none has been measured** — this session did not investigate it
+either, and two data points are not a trend. The characterisation task is unchanged and still
+**must be done before Phase 7**.
 
 ### Batch 8 — COMPLETE. Nothing in it is partial or unverified.
 
@@ -1317,10 +1433,19 @@ revisit R25** — it is not a banish-only fix. Recorded as `CARD_RULINGS.md` **R
 asserts the current behaviour, because pinning behaviour that is probably wrong would make the
 correction harder rather than easier.
 
-**A3. Batch 8 is PARTIAL.** Four of its five cards — `Judge of the Ice Barrier`, `Junk Blader`,
-`The Phantom Knights of Shadow Veil`, `Runick Flashing Fire` — are **not implemented and not
-tested**, and are not counted as either anywhere. The generic banish and temporary-removal
-subsystem they depend on **is** complete and gated.
+**A3. Batch 8 was PARTIAL when this paragraph was written; it is now COMPLETE.** All four of the
+cards it named — `Judge of the Ice Barrier`, `Junk Blader`, `The Phantom Knights of Shadow Veil`
+and `Runick Flashing Fire` — are implemented and tested, and the matrix counts them. The
+paragraph is corrected rather than deleted so the record of what was open when still reads
+straight.
+
+**A4. Batch 9 adds nothing to the uncovered list, and the simultaneous-LP-zero gap survives it
+too.** Neither `Soul Exchange` nor the material-choice constraint touches Life Points at all, so
+no card in this batch can take two players to 0 at once. Two things about the constraint are
+deliberately scoped rather than missing: it covers the Tribute Summon/Set and Tribute-**cost**
+routes because those are the only Tribute channels the implemented pool has — an effect that
+Tributes during resolution would need the same call and does not exist yet; and no **immunity**
+subsystem was invented for it, because no card in the pool has immunity (recorded in **R39**).
 
 Units C and D did not make the simultaneous-LP-zero case reachable: `Chain Detonation` damages only the
 opponent and `Chain Healing` only gains LP, so neither can take two players to 0 at once. Both are
@@ -1812,5 +1937,5 @@ What the one finished suite pins down that the generic gate cannot:
   `Rider of the Storm Winds` grants piercing. Both branches are now tested.
 
 Coverage is reported honestly here and in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`
-(**28 / 77 implemented, 28 / 77 tested**). No test result in this file is estimated or
-projected.
+(**54 / 77 implemented, 54 / 77 tested, 23 remaining**, computed by
+`python Tools/build_matrix.py`). No test result in this file is estimated or projected.

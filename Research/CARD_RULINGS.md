@@ -155,7 +155,7 @@ in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`. **No effect may be approximated.**
 | R4 | `Chain Detonation` / `Chain Healing` | Behaviour depends on the **Chain Link number at which the card was activated**. Chain Link position must be recorded on the Chain Link and readable at resolution. |
 | R5 | `Fairy Tail - Sleeper` | "the activated effect **becomes** …" — this replaces the opponent's already-activated Normal Spell/Trap effect on the Chain. Needs an effect-substitution mechanism on the Chain Link, not a negate-then-add. |
 | R6 | `Swords of Revealing Light` | **CLOSED — see R36.** "you must destroy it during the End Phase of your opponent's 3rd turn" — requires a per-card turn counter. The three counted turns are the opponent's three turns after activation, and the card is destroyed in the End Phase of the third; the controller's own turns never count, because a Normal Spell is only ever activated on its controller's turn [S1 p.31]. |
-| R7 | `Soul Exchange` | "this turn, if you Tribute a monster, you must Tribute that target, as if you controlled it" — a forced-Tribute lingering restriction, plus "cannot conduct your Battle Phase". |
+| R7 | `Soul Exchange` | **CLOSED — see R39.** "this turn, if you Tribute a monster, you must Tribute that target, as if you controlled it" — a turn-scoped lingering **material-choice constraint**, not a control change and not an extra Tribute: it binds *which* monster is chosen on both the Tribute Summon/Set route and the Tribute-**cost** route; it drops when the target leaves its Monster Zone, on a control change, on a face-up→face-down reset and at the exact end of the turn; and a still-affected target that becomes unsuitable **blocks** the Tribute rather than releasing the obligation. The Battle Phase sentence is an activation **condition**, confirmed when the Chain Link is processed — it survives EFFECT negation but not ACTIVATION negation. |
 | R8 | `Kaiser Sea Horse` | **CLOSED — see R38.** "can be treated as 2 Tributes for the Tribute Summon of a LIGHT monster" — a rules QUERY on the Attribute of the monster being SUMMONED, not on this card; permission rather than compulsion; the Tribute Summon path only, never a Tribute paid as a cost; and worth 1 while face-down or negated. |
 | R9 | `Rider of the Storm Winds` | Equips **itself** from hand or field; grants piercing; is a destruction **replacement** effect for the equipped monster. Also interacts with the rule that Equip Cards are destroyed when the equipped monster leaves the field. |
 | R10 | `Gagagashield` | "Twice per turn, it cannot be destroyed by battle or card effects" — a counted prevention effect, resetting each turn. |
@@ -718,7 +718,8 @@ Two sub-questions, both settled by the text rather than by a general rule:
 
 Recorded by the **Phase 5 batch 9 unit A** gate, before any batch-9 card existed. This entry
 covers the generic mechanisms only; the per-card questions **R3**, **R6**, **R7** and **R8**
-remain **OPEN** and are settled when their cards are written.
+were **OPEN** when this entry was written, to be settled when their cards were written. All four
+are now **CLOSED** — **R37**, **R36**, **R39** and **R38** respectively.
 
 **Part A — prevention is not negation. Confidence: HIGH.** Directly from [S1 p.38–39] plus the
 plain wording of the two cards. "Monsters cannot declare an attack" (`Swords of Revealing
@@ -965,6 +966,54 @@ true if a deck list changes.
 `SummonRules.TRIBUTE_VALUE_EFFECT_ID` / `tribute_value()` / `tributes_satisfy()`.
 RULES_SPEC.md §5.2.
 *Tests:* `KaiserSeaHorseTests` (57); `SummonTests` (88) owns the generic rule.
+
+### R39 — `Soul Exchange`: the lingering material-choice constraint — **R7 is now CLOSED**
+
+Current English text is unchanged from the cached cid 5099 text. Sources checked:
+- TCG text: https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=5099&request_locale=en
+- Official OCG supplemental information, dated 2022-04-23:
+  https://www.db.yugioh-card.com/yugiohdb/faq_search.action?ope=4&cid=5099&request_locale=ja
+- Official OCG cost example (Paladin of Felgrand), fid 18452:
+  https://www.db.yugioh-card.com/yugiohdb/faq_search.action?ope=5&fid=18452&request_locale=ja
+- Official OCG double-Tribute example (Saqlifice), fid 13533:
+  https://www.db.yugioh-card.com/yugiohdb/faq_search.action?ope=5&fid=13533&request_locale=ja
+- Official OCG empty own field, fid 6070; Tribute prohibition chained, fid 6067;
+  opponent's face-down identity unavailable for Ritual Tributes, fid 6284 (same URL format).
+
+The four persisted questions, decided BEFORE code:
+1. Includes Tribute costs and effect Tributes, not just Tribute Summons/Sets. The cost's
+   qualifications still apply. A cost requiring THIS card cannot substitute a different
+   monster. A typed cost cannot inspect an opponent's face-down Type/Attribute. HIGH for
+   general coverage (18452); MEDIUM-HIGH for these applications of the current supplement.
+2. Apply the permission/constraint at RESOLUTION. While its target remains in the opponent's
+   Monster Zone, every relevant Tribute selection must include it. Leaving that zone or
+   changing control ends applicability; returning never restores the old effect. Turning an
+   affected face-up target face-down clears the effect; a target already face-down when the
+   effect resolves can be used for an unrestricted Tribute. A still-affected target that
+   becomes unsuitable BLOCKS that Tribute; it does not release the obligation. HIGH under
+   the current OCG supplement; MEDIUM-HIGH for applying that guidance to this TCG project.
+3. It substitutes a material, never grants a Summon, changes the Tribute count, or changes
+   control/ownership. No own monster is necessary (6070). Unrelated actions remain legal.
+4. A face-up, unnegated opponent-controlled Kaiser Sea Horse can supply two Tributes for a
+   LIGHT Summon (13533 precedent + Kaiser text). Your own Kaiser alongside an ordinary forced
+   target can count as ONE, giving two cards for a two-Tribute Summon. The old greedy maximum
+   value test must not reject this optional-value combination. MEDIUM-HIGH for the analogy;
+   HIGH for the optional 'can' wording. Face-down/negated Kaiser remains worth one.
+
+The Battle Phase sentence is an activation CONDITION, not a negatable effect (supplement).
+No activation after conducting a Battle Phase. Effect negation or an absent target does not
+restore the Battle Phase; activation negation does. Use the existing THIS-TURN restriction,
+not Runick's future skip. An unresolved Chain cannot conduct a phase; confirmation of the
+activation restriction at link processing is sufficient and avoids rollback of other sources.
+
+Historical Edison 'can Tribute' rulings were found but are NOT used for the current 'must'
+text. The retired official fids 10307/10310 now return no data; the current supplement directly
+states the face-down reset. No claim of a dedicated English TCG Q&A is made. Immunity cards
+are outside the implemented pool; do not invent a full immunity subsystem in this unit.
+R7 is decided with the per-part confidence above. **Implementation and tests are now complete**,
+so R7 is CLOSED: `Scripts/cards/registry/SoulExchange.gd`, the generic gate
+`ChoiceConstraintTests` (137/137) and the card suite `SoulExchangeTests` (174/174).
+`RULES_SPEC.md` §5.9 is the normative statement of the mechanism.
 
 ## 5. Banlist note (master prompt §51)
 

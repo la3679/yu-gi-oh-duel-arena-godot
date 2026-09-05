@@ -666,10 +666,36 @@ static func charmer_take_control(attribute: String, clause_text: String) -> Effe
 ## A Tribute is NOT a destruction, and it IS "sent to the Graveyard" [S1 p.53], which is
 ## exactly what `MoveReason.TRIBUTED` encodes. Returns the cards actually Tributed, or []
 ## if the full cost could not be paid — a cost is all-or-nothing.
+## Legal materials for a Tribute cost, including resolved external permission. R39.
+## A typed predicate cannot inspect an opposing face-down monster's hidden identity.
+static func tribute_cost_candidates(ctx: EffectContext, predicate: Callable = Callable(),
+		requires_identity: bool = false) -> Array:
+	var candidates := SummonRules.new(ctx.state).tribute_candidates(ctx.controller_id)
+	return candidates.filter(func(c): return (not requires_identity or c.controller_id == ctx.controller_id or c.is_face_up()) and (not predicate.is_valid() or bool(predicate.call(c))))
+
+static func can_pay_tribute_cost(ctx: EffectContext, candidates: Array, count: int) -> bool:
+	var required := ctx.state.required_choice_ids(ctx.controller_id, SummonRules.TRIBUTE_CHOICE_SCOPE)
+	if required.size() > count or candidates.size() < count:
+		return false
+	for id in required:
+		if not candidates.has(ctx.state.instance(id)):
+			return false
+	return true
+
+## A mandatory cost material is gone BEFORE targeting; it cannot also be the target.
+static func exclude_required_tributes(ctx: EffectContext, targets: Array) -> Array:
+	var required := ctx.state.required_choice_ids(ctx.controller_id, SummonRules.TRIBUTE_CHOICE_SCOPE)
+	return targets.filter(func(c): return not required.has(c.id))
+
 static func pay_tribute_cost(ctx: EffectContext, candidates: Array, count: int,
 		prompt: String) -> Array:
-	var chosen := choose_n(ctx, candidates, count, Enums.DecisionKind.CHOOSE_TRIBUTES,
-		prompt)
+	if not can_pay_tribute_cost(ctx, candidates, count):
+		return []
+	var required := ctx.state.required_choice_ids(ctx.controller_id, SummonRules.TRIBUTE_CHOICE_SCOPE)
+	var chosen: Array = required.map(func(id): return ctx.state.instance(id))
+	var remaining := candidates.filter(func(c): return not required.has(c.id))
+	if chosen.size() < count:
+		chosen.append_array(choose_n(ctx, remaining, count - chosen.size(), Enums.DecisionKind.CHOOSE_TRIBUTES, prompt))
 	if chosen.size() != count:
 		return []
 	var paid: Array = []
@@ -2037,3 +2063,7 @@ static func return_excavated(ctx: EffectContext, cards: Array,
 		if place_on_deck(ctx, card, to_bottom):
 			n += 1
 	return n
+
+## R39: a target that left and returned is a different stay on the field.
+static func target_kept_field_identity(ctx: EffectContext, target: CardInstance) -> bool:
+	return target != null and (ctx.link == null or int(ctx.link.target_field_revisions.get(target.id, -1)) == target.field_revision)

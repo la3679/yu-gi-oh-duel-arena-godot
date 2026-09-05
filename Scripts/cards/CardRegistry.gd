@@ -28,6 +28,7 @@ const REGISTRY_DIR := "res://Scripts/cards/registry"
 ## without interpreting card text, and they legitimately have no `apply_continuous()`.
 ## Each still has to answer something, which is what the validation below insists on.
 const RULES_QUERY_EFFECT_IDS := [
+	ActivationRules.ACTIVATION_CONDITION_EFFECT_ID,
 	SummonRules.TRIBUTE_VALUE_EFFECT_ID,
 	SummonRules.CONTROL_LIMIT_EFFECT_ID,
 	GameState.DESTRUCTION_PREVENTION_EFFECT_ID,

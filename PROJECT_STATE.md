@@ -9,10 +9,9 @@ Gate B (the generic rules engine) is MET; nothing in Phase 4 needs revisiting.
 
 ---
 
-## 0. READ THIS FIRST — batch 9 is PARTIAL: only `Soul Exchange` is left
+## 0. READ THIS FIRST — batch 9 is COMPLETE; batch 10 is NOT planned
 
-**Batches 1–8 are complete. Batch 9 has units A and B done and unit C half done. ONE card
-remains in the batch.**
+**Batches 1–9 are complete. Nothing in batch 9 is partial or unverified.**
 
 | Batch 9 unit | Status |
 |---|---|
@@ -22,19 +21,29 @@ remains in the batch.**
 | Unit B card 2 — `Swords of Revealing Light` (`SwordsOfRevealingLightTests`, 122) | **COMPLETE** |
 | Unit B card 3 — `Maiden with Eyes of Blue` (`MaidenWithEyesOfBlueTests`, 139) | **COMPLETE** |
 | Unit C card 1 — `Kaiser Sea Horse` (`KaiserSeaHorseTests`, 57) | **COMPLETE** |
-| **`Soul Exchange`** | **NOT STARTED — this is the exact next step, and it finishes batch 9** |
+| The generic lingering material-choice constraint (`ChoiceConstraintTests`, 137) | **COMPLETE** |
+| Unit C card 2 — `Soul Exchange` (`SoulExchangeTests`, 174) | **COMPLETE** — it finished batch 9 |
 
-**Measured at this checkpoint: 5973 passed / 0 failed across 67 suites; SmokeCheck PASS;
-53 / 77 implemented, 53 / 77 tested, 24 remaining** (counts computed by
-`python Tools/build_matrix.py`, never written by hand). **All 5509 assertions from the previous
-checkpoint pass unchanged** — none was weakened, retargeted or deleted. Exactly two
-pre-existing suites moved, and only by assertions ADDED to them: `SpellTrapTests` 27 → 49 and
-`SummonTests` 85 → 88. ObjectDB at exit: **180615**.
-**HEAD at checkpoint:** `ed6f70f` (the last code commit; this commit records the hash).
+**Measured at this checkpoint: 6284 passed / 0 failed across 69 suites; SmokeCheck PASS;
+54 / 77 implemented, 54 / 77 tested, 23 remaining** (counts computed by
+`python Tools/build_matrix.py`, never written by hand). **All 5973 assertions from the previous
+checkpoint pass unchanged** — none was weakened, retargeted or deleted, and this time **no
+pre-existing suite moved at all**: 6284 − 5973 = 311 = `ChoiceConstraintTests` (137) +
+`SoulExchangeTests` (174). ObjectDB at exit: **187347**.
+**Previous clean HEAD:** `b7afb67`. **HEAD at this checkpoint:** the commit that records this file.
 
-**Three per-card rulings were CLOSED this session — R3, R6 and R8** — recorded as **R36**,
-**R37** and **R38** in `Research/CARD_RULINGS.md`. **R1, R2 and R7 remain OPEN.** R7
-(`Soul Exchange`) is the one the next session must settle; do not treat the others as closed.
+> **How this checkpoint was produced.** The batch-9 finish (the generic material-choice
+> constraint and `Soul Exchange`) was written by a previous session that ran out of quota
+> **before it could checkpoint**. This session recovered that work from the working tree, did
+> not reset or rewrite any of it, verified it (137/137, 174/174, full regression, SmokeCheck,
+> mutation checks, no `SCRIPT ERROR`), added **four** assertions to `SoulExchangeTests` that
+> mutation testing proved were missing, refreshed the matrix and the two report files, and
+> committed. Nothing else was changed.
+
+**Four per-card rulings were CLOSED across this batch — R3, R6, R7 and R8** — recorded as
+**R37**, **R36**, **R39** and **R38** in `Research/CARD_RULINGS.md`. **R1 and R2 remain OPEN**;
+they belong to cards that are already implemented and are carried as recorded questions, not as
+gaps in batch 9. Do not treat them as closed.
 
 **R34 part D was re-checked and NOT closed.** The official Konami database has **no Q&A entry
 for cid 6196**, and Yugipedia and the Fandom wiki were unreachable (HTTP 403 / 402). [S1 p.30]
@@ -49,11 +58,21 @@ gate (`SummonTests`) as well as in the card's suite. The other three cards found
 defect, which is the expected result — unit A and the two new generic units had already
 flushed their machinery out.
 
-**Two new generic mechanisms were built, each as its own unit BEFORE the card that needed it:**
-the card-declared **"it remains on the field" override**
-(`DuelEngine.REMAINS_ON_FIELD_EFFECT_ID`), and the **optional step inside a resolving effect**
-(`EffectPrimitives.may()`). Full write-up, including the mutation-check table and the one
-test-harness defect this session's own suite carried, is in `Reports/TEST_RESULTS.md`.
+**Three new generic mechanisms were built, each as its own unit BEFORE the card that needed
+it:** the card-declared **"it remains on the field" override**
+(`DuelEngine.REMAINS_ON_FIELD_EFFECT_ID`), the **optional step inside a resolving effect**
+(`EffectPrimitives.may()`), and the **lingering material-choice constraint**
+(`GameState.choice_constraints` + `RULES_SPEC.md` §5.9) — the first restriction in the engine
+that answers *"if you do, it must be THIS card"* rather than *"may I?"*. Full write-up,
+including the mutation-check table, is in `Reports/TEST_RESULTS.md`.
+
+**A second real engine defect was found by the material-choice unit.**
+`SummonRules.tributes_satisfy()` was a **greedy maximum-value** check that rejected any material
+it judged unnecessary, which is wrong for an **optional** double-Tribute clause: it refused a
+legal two-card selection for a two-Tribute Summon whenever one of the two was a
+`Kaiser Sea Horse`. It now **enumerates complete legal combinations** (`tribute_combinations()`,
+published on the action so a UI never re-derives them), and `tribute_candidates()` now filters
+non-monsters and `cannot_be_tributed` at the single source.
 
 ---
 
@@ -366,8 +385,8 @@ Key research outputs:
 
 ## 4. Build/verification status
 
-> **The current measured numbers are in §0 above: 5280 / 5280 across 62 suites, SmokeCheck PASS,
-> 49 / 77.** The batch-4 run reproduced below is kept only as a historical record of the format;
+> **The current measured numbers are in §0 above: 6284 / 6284 across 69 suites, SmokeCheck PASS,
+> 54 / 77.** The batch-4 run reproduced below is kept only as a historical record of the format;
 > `Reports/TEST_RESULTS.md` is the authoritative per-suite breakdown.
 
 Historical run (2026-08-13, at commit `565ae0c` plus the Phase 5 batch-4 work):
@@ -614,7 +633,7 @@ the pool that needs the behaviour. Full write-up in `Reports/TEST_RESULTS.md`.
 | 2 | Per-card official text + rulings research (77 cards) | **COMPLETE** |
 | 3 | Architecture / scaffolding + Graphify index | **COMPLETE** |
 | 4 | Core rules engine | **COMPLETE** — 4b-1/4b-2/4b-3/4c done+tested |
-| 5 | Card effect library (77 cards) | **IN PROGRESS** — **49 / 77** implemented and tested (batches 1-8 all complete; **batch 9 PARTIAL — unit A only, no card started**) |
+| 5 | Card effect library (77 cards) | **IN PROGRESS** — **54 / 77** implemented and tested (batches 1-9 all complete; **batch 10 not planned yet**) |
 | 6 | Automated tests | NOT STARTED |
 | 7 | Basic playable UI | NOT STARTED |
 | 8 | Arena / presentation | NOT STARTED |
@@ -716,8 +735,14 @@ DuelArenaGame/
 │   │       │                              Trap that Special Summons itself as a monster
 │   │       ├── RunickFlashingFire.gd       Quick-Play, two bullets + "skip your next
 │   │       │                              Battle Phase" applied at ACTIVATION (R1)
-│   │       └── InterdimensionalMatterTransporter.gd  banish your own monster until the End
-│   │                                     Phase — the pool's only stated return timing
+│   │       ├── InterdimensionalMatterTransporter.gd  banish your own monster until the End
+│   │       │                             Phase — the pool's only stated return timing
+│   │       ├── MirageDragon.gd         one CONTINUOUS clause on the batch-9 unit-A gate
+│   │       ├── SwordsOfRevealingLight.gd  three clauses, incl. the remains-on-field override
+│   │       ├── MaidenWithEyesOfBlue.gd  two clauses sharing ONE once-per-turn allowance
+│   │       ├── KaiserSeaHorse.gd       rules QUERY: counts as 2 Tributes for a LIGHT Summon
+│   │       └── SoulExchange.gd         the lingering material-choice constraint (R39) +
+│   │                                     the Battle Phase activation CONDITION
 │   ├── rules/
 │   │   ├── ChainLink.gd               one chain link
 │   │   ├── ChainManager.gd            chain build / negate / reverse resolve
@@ -731,6 +756,8 @@ DuelArenaGame/
 │       ├── SmokeCheck.gd              headless load/determinism check
 │       ├── TestCase.gd                assertion harness (+ measured per-test counts)
 │       ├── DumpAssertionCounts.gd     reporting tool: per-test counts for TEST_RESULTS
+│       ├── RunChoiceConstraintTests.gd  single-suite entry point (targeted runs)
+│       ├── RunSoulExchangeTests.gd      single-suite entry point (targeted runs)
 │       └── RunTests.gd                entry point; a 0-assertion suite is a FAILURE
 ├── Tests/
 │   ├── support/TestFixtures.gd        synthetic cards, duel builder, engine drivers
@@ -743,6 +770,7 @@ DuelArenaGame/
 │       ├── TrapMonsterTests.gd  192 assertions (the TRAP-MONSTER gate)
 │       ├── BattlePhaseRestrictionTests.gd 53 (the BATTLE-PHASE-RESTRICTION gate)
 │       ├── AttackRestrictionTests.gd 229 (the ATTACK-RESTRICTION / NEGATION gate)
+│       ├── ChoiceConstraintTests.gd 137 (the MATERIAL-CHOICE-CONSTRAINT gate, §5.9)
 │       ├── ChainTests.gd        27 assertions
 │       ├── TimingTests.gd       37 assertions
 │       ├── TurnFlowTests.gd     40 assertions
@@ -794,6 +822,11 @@ DuelArenaGame/
 │   ├── JunkBladerTests.gd                 73
 │   ├── ThePhantomKnightsOfShadowVeilTests.gd 125  (the pool's only Trap Monster)
 │   ├── RunickFlashingFireTests.gd        123  (both bullets; bullet 2 never-live, R1)
+│   ├── MirageDragonTests.gd              121
+│   ├── SwordsOfRevealingLightTests.gd    122
+│   ├── MaidenWithEyesOfBlueTests.gd      139
+│   ├── KaiserSeaHorseTests.gd             57
+│   ├── SoulExchangeTests.gd              174  (real pool; reuses the §5.9 gate fixture)
 │   └── SpecialSummonInteractionTests.gd  46   (no card-under-test marker, on purpose)
 ├── Tools/                             Python research + data pipeline (dev only)
 │   ├── run_tests.ps1                  headless test runner (parse-check + no pipe stall)
@@ -803,7 +836,7 @@ DuelArenaGame/
 │   ├── dump_official_text.py          human-readable card text dump
 │   ├── build_card_db.py               -> Data/cards/cards.json + deck lists
 │   └── build_matrix.py                -> Reports/CARD_IMPLEMENTATION_MATRIX.csv
-├── Reports/CARD_IMPLEMENTATION_MATRIX.csv   77 rows, text verified, 44 implemented
+├── Reports/CARD_IMPLEMENTATION_MATRIX.csv   77 rows, text verified, 54 implemented
 └── graphify-out/graph.json            dev index (git-ignored)
 ```
 
@@ -1193,14 +1226,15 @@ Everything previously listed here is now done and tested; see §6a and
 
 ### Genuinely still open (carried through Phase 5, not hidden)
 
-* **24 of 77 cards are not implemented yet.** They are honestly `NOT_IMPLEMENTED` in the
-  matrix; see §8 for the exact next card.
-* **Batch 9 is PARTIAL.** Units A and B are COMPLETE and unit C is half done. **`Soul Exchange`
-  is the only card left in the batch**, is the exact resume point, and is specified in §8.
-* **R7 is still OPEN and must be settled before `Soul Exchange` is written.** It is the last
-  per-card ruling batch 9 needs. **R1 and R2 also remain open.**
-* **R3, R6 and R8 are CLOSED**, settled while implementing their cards this session and
-  recorded as **R37**, **R36** and **R38** respectively. Do not reopen them.
+* **23 of 77 cards are not implemented yet.** They are honestly `NOT_IMPLEMENTED` in the
+  matrix, which is the authoritative list; do not work from memory.
+* **Batch 9 is COMPLETE. Batch 10 is NOT planned yet** — plan it from the matrix. Nothing is
+  half-finished and there is no partial unit to resume.
+* **R1 and R2 remain open.** Both belong to cards that are already implemented, and both are
+  unreachable in these two decks (an empty Extra Deck; the only "Ice Barrier" card in either
+  deck). They are recorded questions, not gaps.
+* **R3, R6, R7 and R8 are CLOSED**, settled while implementing their cards and recorded as
+  **R37**, **R36**, **R39** and **R38** respectively. Do not reopen them.
 * **R34 part D was re-checked and is still MEDIUM-HIGH.** That "cannot activate Trap Cards"
   locks activating a Trap CARD but not activating an EFFECT of an already-face-up Trap. The
   research was done: the official Konami database has **no Q&A entry for cid 6196**, and
@@ -1208,12 +1242,22 @@ Everything previously listed here is now done and tested; see §6a and
   back it generally — better than "PSCT alone" — but it is still not a quoted ruling on
   `Mirage Dragon`. Recorded honestly in **R35**, and still isolated behind one predicate
   (`ActivationRules.card_class_activation_ok()`) so correcting it is a one-place change.
-* **One real engine defect was found and fixed this session.**
+* **Two real engine defects were found and fixed in batch 9.** (1)
   `SummonRules.tribute_value()` honoured `effects_are_negated()` but not face-orientation, so a
   face-down `Kaiser Sea Horse` wrongly counted as two Tributes. Fixed, and the rule is now
-  asserted in the generic gate (`SummonTests`) as well as in the card's own suite. Do not
-  reintroduce it.
-* **Batch 7 is COMPLETE** — all four units, tested and committed. **Batch 8 is COMPLETE.**
+  asserted in the generic gate (`SummonTests`) as well as in the card's own suite. (2)
+  `SummonRules.tributes_satisfy()` was a **greedy maximum-value** check that rejected any
+  material it judged unnecessary — wrong for an **optional** double-Tribute clause, because a
+  double-Tribute monster **may** count as one. It now enumerates complete legal combinations
+  (`tribute_combinations()`). Do not reintroduce either.
+* **A Tribute selection is validated as a COMPLETE SET before anything is paid, and the engine
+  rejects a forged payload rather than merely not offering it.** `tribute_combinations()` is
+  published on the action (`DuelAction.tribute_combinations`) so a UI never re-derives it. The
+  material-choice constraint (§5.9 of `RULES_SPEC.md`, R39) is consumed on **both** the
+  Summon/Set route and the Tribute-**cost** route; adding a third Tribute channel means calling
+  it there too, not special-casing a card.
+* **Batch 7 is COMPLETE** — all four units, tested and committed. **Batches 8 and 9 are
+  COMPLETE.**
 * **R29 is a reasoned decision resting partly on a general rule, not a quoted ruling on either
   card.** "1 card your opponent controls" (`Phoenix Wing Wind Blast`,
   `Spiritual Wind Art - Miyabi`) is re-checked for CONTROL at resolution, so a target the
@@ -1295,13 +1339,14 @@ and the **thirty-seven** design decisions that must not be reversed, and §7 for
 still open — which no longer includes any engine gap. Do **not** re-read the whole repository,
 re-run research, or re-derive rules.
 
-**Where that paragraph now ends: batches 7 and 8 are COMPLETE, and batch 9 needs only
-`Soul Exchange`.** Batch 9 added the generic attack-restriction / attack-negation gate
-(`AttackRestrictionTests`, 229), then `Mirage Dragon`, the generic "it remains on the field"
-override, `Swords of Revealing Light`, `Maiden with Eyes of Blue` and `Kaiser Sea Horse` —
-**5973 assertions across 67 suites, 0 failures, 53 / 77**, with **R3, R6 and R8 closed** and one
-real engine defect found and fixed. Read §0 first, then this section's "NEXT step" heading. The
-paragraph below is kept for the record.
+**Where that paragraph now ends: batches 7, 8 and 9 are all COMPLETE.** Batch 9 added the
+generic attack-restriction / attack-negation gate (`AttackRestrictionTests`, 229), then
+`Mirage Dragon`, the generic "it remains on the field" override, `Swords of Revealing Light`,
+`Maiden with Eyes of Blue`, `Kaiser Sea Horse`, the generic lingering material-choice constraint
+(`ChoiceConstraintTests`, 137) and finally `Soul Exchange` (`SoulExchangeTests`, 174) —
+**6284 assertions across 69 suites, 0 failures, 54 / 77**, with **R3, R6, R7 and R8 closed** and
+**two** real engine defects found and fixed. Read §0 first, then this section's "NEXT step"
+heading. The paragraph below is kept for the record.
 
 **Historical (through batch 7): batch 7 is COMPLETE.** Unit A added the generic MOVEMENT and
 EXCAVATION subsystem (`MovementTests`, written before any card) and fixed two live movement
@@ -1662,13 +1707,67 @@ Decisions in these two units that must not be reversed:
   reports "no legal choice", with a real-pool assertion — the R21/R23/R2 treatment, now used five
   times.
 
-### The NEXT step — batch 9 unit C, card 2: `Soul Exchange` — start here
+### The NEXT step — plan batch 10 from the matrix. Nothing is half-finished.
 
-**Units A and B are closed and `Kaiser Sea Horse` is closed. Do not reopen any of them, and do
-not rewrite any gate.** Eight gates plus two new generic units are green and must stay so:
-`EquipTests`, `ControlTests`, `MovementTests`, `BanishTests`, `LifePointCostTests`,
-`TrapMonsterTests`, `BattlePhaseRestrictionTests`, `AttackRestrictionTests`, the
-remains-on-field override in `SpellTrapTests`, and the tribute-value rule in `SummonTests`.
+**Batch 9 is CLOSED. Do not reopen any of it, and do not rewrite any gate.** Nine gates plus
+three generic units are green and must stay so: `EquipTests`, `ControlTests`, `MovementTests`,
+`BanishTests`, `LifePointCostTests`, `TrapMonsterTests`, `BattlePhaseRestrictionTests`,
+`AttackRestrictionTests`, `ChoiceConstraintTests`, the remains-on-field override in
+`SpellTrapTests`, the tribute-value rule in `SummonTests`, and the combination enumeration in
+`SummonRules.tribute_combinations()`.
+
+**23 cards remain.** Read `Reports/CARD_IMPLEMENTATION_MATRIX.csv` for the authoritative list;
+do not work from memory and do not plan from this file's prose. **Batch 10 is not planned yet.**
+Plan it from the matrix, group it the way every batch since 7 has been grouped — a generic
+subsystem unit with its own tests FIRST, then the cards that consume it — and settle any
+per-card ruling **before** writing the card, not after.
+
+**Also scheduled and NOT optional:** the **ObjectDB characterisation task** (§7). It is now at
+**187347 at exit, ~21.6 per new assertion — lower again than the previous checkpoint's ~34.9,
+which was itself lower than the ~44.6 before it.** Two consecutive falls now follow a run of
+five consecutive rises. No explanation for that is recorded, because none has been measured,
+and two data points are not a trend. It still fails nothing, so it must not derail a card unit,
+but it **must be characterised or fixed before Phase 7**, and no explanation may be recorded
+for it that has not been measured.
+
+---
+
+The specifications below are kept for the record; they are **done**, not a plan.
+
+#### DONE — the generic lingering material-choice constraint (`ChoiceConstraintTests` 137/137)
+
+`GameState.choice_constraints` with `require_choice_this_turn()` / `required_choice_ids()` /
+`choice_selection_ok()` / `clear_choice_constraints_for()`, normatively stated in
+`RULES_SPEC.md` §5.9 and decided in **R39**. Keyed by (player, scope, target, turn); it changes
+no control and no ownership. Consumed on **both** Tribute channels —
+`SummonRules.tributes_satisfy()` / `tribute_combinations()` for Summons and Sets, and
+`EffectPrimitives.can_pay_tribute_cost()` / `pay_tribute_cost()` for costs. Cleared by
+`GameState.move_card()` (leaving a Monster Zone), `_transfer_control()`,
+`set_battle_position()` (face-up → face-down) and `TurnFlow._end_of_turn_cleanup()`. Written and
+green against a synthetic grant Spell, from both seats, before `Soul Exchange` existed.
+
+Two supporting mechanisms landed with it and are equally generic:
+`EffectDef.activation_confirmed` + `ActivationRules.ACTIVATION_CONDITION_EFFECT_ID` (a
+consequence of a confirmed CARD activation that survives EFFECT negation but not ACTIVATION
+negation, fired when the Chain Link is processed), and `CardInstance.field_revision` +
+`ChainLink.target_field_revisions` + `EffectPrimitives.target_kept_field_identity()` (a target
+that left and returned is a different stay on the field, which a zone check alone cannot tell).
+
+#### DONE — `Soul Exchange` (`SoulExchangeTests` 174/174)
+
+Two clauses, exactly as specified below and with **R7 now CLOSED as R39**. The permission clause
+targets one opposing monster and calls `require_choice_this_turn()` at **resolution**, after a
+`target_kept_field_identity()` re-check. The Battle Phase sentence is an activation
+**condition** using the existing turn-scoped `skip_battle_phase_this_turn` restriction — not
+`battle_phase_skips`, which has a different lifetime and belongs to `Runick Flashing Fire`. All
+four questions the specification below said had to be settled first were settled first, in R39,
+with per-part confidence recorded: costs **are** covered (keeping their own qualifications), the
+constraint applies at resolution and is re-checked when it matters, it substitutes a material
+rather than granting a Summon or changing the count, and an opposing `Kaiser Sea Horse` can
+supply two Tributes while your own can count as one.
+
+The original specification is kept verbatim immediately below, as the record of what was
+asked for and of the fact that R7 really was settled before any code was written.
 
 **`Soul Exchange` is the ONLY card left in batch 9.** Verified official text
 (`Data/cards/cards.json`, cid 5099), **Normal Spell**, one copy, deck 2:
@@ -1717,19 +1816,6 @@ The hard parts to settle before writing anything, and the reason **R7 must be cl
 Both bullets must be implemented and the card must be tested against the **real pool**, not
 only synthetically: the opponent's monsters are real, and deck 2 holds `Metaphys Armed Dragon`
 and `Witchcrafter Golem Aruru` for the Summon to aim at.
-
-**24 cards remain after `Soul Exchange`.** Read `Reports/CARD_IMPLEMENTATION_MATRIX.csv` for
-the authoritative list; do not work from memory. Batch 10 is not planned yet — plan it from the
-matrix once batch 9 is closed.
-
-**Also scheduled and NOT optional:** the **ObjectDB characterisation task** (§7). It is now at
-**180615 at exit, ~34.9 per new assertion — which is LOWER than the previous checkpoint's 44.6
-and breaks the run of five consecutive rising per-assertion figures.** No explanation for that
-is recorded, because none has been measured; it is one data point. It still fails nothing, so
-it must not derail a card unit, but it **must be characterised or fixed before Phase 7**, and
-no explanation may be recorded for it that has not been measured.
-
----
 
 The specifications below are kept for the record; they are **done**, not a plan.
 

@@ -61,15 +61,13 @@ func effects() -> Array:
 	var wind_monster := EffectPrimitives.monster_filter(WIND)
 
 	e.legal_targets = func(ctx: EffectContext) -> Array:
-		return EffectPrimitives.opponent_field_cards(ctx)
+		return EffectPrimitives.exclude_required_tributes(ctx, EffectPrimitives.opponent_field_cards(ctx))
 
 	e.can_pay_cost = func(ctx: EffectContext) -> bool:
-		return not EffectPrimitives.own_cards_in(ctx, Enums.Zone.MONSTER_ZONE,
-			wind_monster).is_empty()
+		return EffectPrimitives.can_pay_tribute_cost(ctx, EffectPrimitives.tribute_cost_candidates(ctx, wind_monster, true), 1)
 
 	e.pay_cost = func(ctx: EffectContext) -> bool:
-		var candidates := EffectPrimitives.own_cards_in(ctx, Enums.Zone.MONSTER_ZONE,
-			wind_monster)
+		var candidates := EffectPrimitives.tribute_cost_candidates(ctx, wind_monster, true)
 		var paid := EffectPrimitives.pay_tribute_cost(ctx, candidates, 1,
 			"Tribute 1 WIND monster (cost)")
 		if paid.is_empty():

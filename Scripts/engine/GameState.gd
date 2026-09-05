@@ -50,6 +50,38 @@ const COUNTER_CAPACITY_EFFECT_ID := "counter_capacity"
 ## Guard against a replacement chain that never terminates (A replaces B replaces A).
 const MAX_DESTRUCTION_REPLACEMENTS := 8
 
+# Turn-scoped future material choices. RULES_SPEC.md 5.9 / R39.
+var choice_constraints: Array = []
+
+func require_choice_this_turn(pid: int, scope: String, target: CardInstance,
+		source_id: int = -1) -> void:
+	if target == null or not target.is_monster() or not target.is_on_field():
+		return
+	choice_constraints.append({"player": pid, "scope": scope, "target_id": target.id,
+		"controller": target.controller_id, "zone": target.zone,
+		"source_id": source_id, "turn": turn_number})
+
+func required_choice_ids(pid: int, scope: String) -> Array:
+	var out: Array = []
+	for c in choice_constraints:
+		var target: CardInstance = instance(int(c["target_id"]))
+		if int(c["turn"]) != turn_number or int(c["player"]) != pid or c["scope"] != scope:
+			continue
+		if target == null or target.zone != c["zone"] or target.controller_id != c["controller"]:
+			continue
+		if not out.has(target.id):
+			out.append(target.id)
+	return out
+
+func choice_selection_ok(pid: int, scope: String, selected_ids: Array) -> bool:
+	for required in required_choice_ids(pid, scope):
+		if not selected_ids.has(required):
+			return false
+	return true
+
+func clear_choice_constraints_for(card: CardInstance) -> void:
+	choice_constraints = choice_constraints.filter(func(c): return c["target_id"] != card.id)
+
 var players: Array = []          # [PlayerState, PlayerState]
 var rng: Rng = null
 
@@ -378,6 +410,10 @@ func move_card(card: CardInstance, to_zone: Enums.Zone, reason: Enums.MoveReason
 		card.controller_id = from_player
 		return false
 
+	# A new stay in a zone cannot inherit an old material permission. R39.
+	if from_zone in [Enums.Zone.MONSTER_ZONE, Enums.Zone.EXTRA_MONSTER_ZONE] and (from_zone != to_zone or from_player != to_player):
+		clear_choice_constraints_for(card)
+
 	# Position handling
 	if new_position != null:
 		card.position = new_position
@@ -576,6 +612,7 @@ func _transfer_control(card: CardInstance, new_controller: int) -> bool:
 		card.controller_id = from_controller
 		_attach(card, from_controller, Enums.Zone.MONSTER_ZONE, -1, "top")
 		return false
+	clear_choice_constraints_for(card)
 	return true
 
 
@@ -1246,6 +1283,7 @@ func set_battle_position(card: CardInstance, new_position: Enums.Position,
 	})
 	if was_face_up and not card.is_face_up():
 		# Flipping face-down resets per-instance effect state. Master prompt 48.
+		clear_choice_constraints_for(card)
 		card.on_flipped_face_down()
 		# "If the equipped monster is destroyed, FLIPPED FACE-DOWN, or removed from the
 		# field, its Equip Cards are destroyed." [S1 p.29, p.55] The monster is still on

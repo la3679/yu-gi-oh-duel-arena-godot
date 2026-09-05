@@ -49,12 +49,10 @@ func effects() -> Array:
 			level_8_dragon).is_empty()
 
 	tactics.can_pay_cost = func(ctx: EffectContext) -> bool:
-		return EffectPrimitives.own_cards_in(ctx, Enums.Zone.MONSTER_ZONE,
-			any_dragon).size() >= TRIBUTES_REQUIRED
+		return EffectPrimitives.can_pay_tribute_cost(ctx, EffectPrimitives.tribute_cost_candidates(ctx, any_dragon, true), TRIBUTES_REQUIRED)
 
 	tactics.pay_cost = func(ctx: EffectContext) -> bool:
-		var candidates := EffectPrimitives.own_cards_in(ctx, Enums.Zone.MONSTER_ZONE,
-			any_dragon)
+		var candidates := EffectPrimitives.tribute_cost_candidates(ctx, any_dragon, true)
 		var paid := EffectPrimitives.pay_tribute_cost(ctx, candidates, TRIBUTES_REQUIRED,
 			"Tribute 2 Dragon monsters")
 		if paid.size() != TRIBUTES_REQUIRED:

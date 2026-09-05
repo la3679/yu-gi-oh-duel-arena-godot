@@ -302,6 +302,7 @@ func _summon_actions(pid: int) -> Array:
 		summon.label = "Normal Summon %s" % card.card_name()
 		summon.tributes_required = need
 		summon.tribute_candidates = candidates
+		summon.tribute_combinations = summons.tribute_combinations(card).map(func(g): return g.map(func(m): return m.id))
 		summon.legal_positions = [Enums.Position.FACE_UP_ATTACK]
 		summon.position = Enums.Position.FACE_UP_ATTACK
 		out.append(summon)
@@ -312,6 +313,7 @@ func _summon_actions(pid: int) -> Array:
 		set_action.label = "Set %s" % card.card_name()
 		set_action.tributes_required = need
 		set_action.tribute_candidates = candidates
+		set_action.tribute_combinations = summon.tribute_combinations
 		set_action.legal_positions = [Enums.Position.FACE_DOWN_DEFENSE]
 		set_action.position = Enums.Position.FACE_DOWN_DEFENSE
 		out.append(set_action)

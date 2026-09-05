@@ -47,7 +47,7 @@ func effects() -> Array:
 		return not EffectPrimitives.own_cards_in(ctx, Enums.Zone.HAND, blue_eyes).is_empty()
 
 	fetch.can_pay_cost = func(ctx: EffectContext) -> bool:
-		return ctx.source.is_on_field() and ctx.source.is_face_up()
+		return ctx.source.is_on_field() and ctx.source.is_face_up() and EffectPrimitives.can_pay_tribute_cost(ctx, [ctx.source], 1)
 
 	fetch.pay_cost = func(ctx: EffectContext) -> bool:
 		var paid := EffectPrimitives.pay_tribute_cost(ctx, [ctx.source], 1,

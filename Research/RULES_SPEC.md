@@ -256,6 +256,13 @@ face-up on the field is the activation of an effect. The **printed** category is
 * Tributing is **not** destruction. [S1 p.52–53]
 * Card text may modify the requirement (e.g. a monster that counts as two Tributes). Card
   effects take precedence over basic rules. [S1 p.51]
+* A "can be treated as 2 Tributes" clause is **permission, not compulsion**, so the selection is
+  validated by **enumerating complete legal combinations** rather than by computing a greedy
+  maximum value and rejecting whatever looks surplus: a double-Tribute monster may count as one
+  when the player needs the second card. A legal set contains at most the required number of
+  cards, no duplicates, only current `tribute_candidates()`, and enough available value.
+* Card text may also add a monster you do **not** control to your candidate set for the turn
+  without changing control — see §5.9.
 
 ### 5.3 Battle position changes [S1 p.36]
 Manual position change is legal in either Main Phase **except**:
@@ -914,3 +921,21 @@ but the registry still rejects one that answers nothing.
 **"You can only control 1 …"** is enforced on **every** route onto the field — Normal Summon,
 Normal Set, a summoning procedure and a Special Summon by another card — because the limit is
 on what you *control* [S1 p.53], not on how the copy arrived.
+
+### 5.9 Lingering material-choice constraints (R39; S1 pp.24-25, 51-53)
+
+A resolved effect may require a particular opposing monster in a future Tribute selection
+this turn, granting only permission to use it. Store player, scope, source, target and turn
+in GameState; no control mutation. Drop on target departure from its Monster Zone, control
+change, face-up to face-down reset, and exact end of turn. Ineligibility without such a reset
+blocks the relevant Tribute. Validate complete sets before any payment; every required target
+must be included. Both Summon/Set and cost routes consume this gate. Unrelated actions do not.
+Optional Tribute value permits counting a double-Tribute monster as one; a valid set has at
+most the required number of cards and enough available value. Opponent-only Tributes do not
+free your Monster Zone. Costs count cards, not Tribute value, and retain their own filters.
+
+Battle Phase activation conditions are checked before offering a card; their consequence is
+confirmed when its Chain Link is processed even if its EFFECT is negated, but never if its
+ACTIVATION is negated. No phase can begin while the Chain is pending. The consequence uses
+skip_battle_phase_this_turn and expires in the existing end-of-turn cleanup. R39 sources and
+confidence are authoritative for this decision.

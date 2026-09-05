@@ -1,6 +1,9 @@
 class_name CardInstance
 extends RefCounted
 
+## Identity of this stay on the field; targeting must not chase a returned card. R39.
+var field_revision: int = 0
+
 ## A single runtime copy of a card. Master prompt 9.
 ##
 ## Two copies of the same card are distinct instances with distinct ids. Nothing in the
@@ -457,6 +460,7 @@ func reset_turn_state() -> void:
 ## Called when the card changes zone. Per-instance effect state does not survive
 ## movement unless the specific card text says otherwise. Master prompt 48.
 func on_leave_field() -> void:
+	field_revision += 1
 	effect_usage.clear()
 	effect_use_counts.clear()
 	turn_counters.clear()

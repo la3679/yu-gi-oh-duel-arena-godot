@@ -72,6 +72,10 @@ func add_link(source: CardInstance, effect: EffectDef, controller_id: int,
 	var link := ChainLink.new(source, effect, controller_id)
 	link.link_number = state.chain.size() + 1
 	link.target_ids = target_ids.duplicate()
+	for id in target_ids:
+		var target: CardInstance = state.instance(id)
+		if target != null:
+			link.target_field_revisions[id] = target.field_revision
 	link.cost_payload = cost_payload.duplicate()
 	link.params = params.duplicate()
 	state.chain.append(link)
@@ -215,6 +219,15 @@ func _resolve_link(link: ChainLink, decider) -> void:
 		"card_name": link.card_name(),
 		"negated": link.is_negated(),
 	})
+
+	# Activation conditions survive EFFECT negation and source departure. R39 / spec 5.9.
+	# No phase can be conducted while this Chain is unresolved.
+	if not link.activation_negated and link.effect != null and link.source_card != null and link.effect.effect_type == Enums.EffectType.CARD_ACTIVATION:
+		for clause in link.source_card.definition.effects:
+			if clause.effect_id == ActivationRules.ACTIVATION_CONDITION_EFFECT_ID and clause.activation_confirmed.is_valid():
+				var activation_ctx := EffectContext.new(state, link.source_card, clause)
+				activation_ctx.controller_id = link.controller_id
+				clause.activation_confirmed.call(activation_ctx)
 
 	if not link.should_resolve():
 		link.resolved = true
