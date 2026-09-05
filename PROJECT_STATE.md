@@ -30,7 +30,8 @@ Gate B (the generic rules engine) is MET; nothing in Phase 4 needs revisiting.
 checkpoint pass unchanged** — none was weakened, retargeted or deleted, and this time **no
 pre-existing suite moved at all**: 6284 − 5973 = 311 = `ChoiceConstraintTests` (137) +
 `SoulExchangeTests` (174). ObjectDB at exit: **187347**.
-**Previous clean HEAD:** `b7afb67`. **HEAD at this checkpoint:** the commit that records this file.
+**Previous clean HEAD:** `b7afb67`. **Batch-9 completion commit:** `1b1848f` (all of the code,
+the tests and the reports; this commit records the hash).
 
 > **How this checkpoint was produced.** The batch-9 finish (the generic material-choice
 > constraint and `Soul Exchange`) was written by a previous session that ran out of quota
