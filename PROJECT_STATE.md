@@ -33,7 +33,8 @@ suite moved at all**: 6914 − 6284 = 630 = the eight new suites exactly
 lines on stderr are the two deliberate fail-loudly negative tests and are unchanged.
 ObjectDB at exit: **204316**.
 **Previous clean HEAD:** `142b930`. **Batch-10 commits:** `c82d1db` (unit A), `639e206`
-(unit B), `be901d2` (unit C), and the unit-D / checkpoint commit that records this hash.
+(unit B), `be901d2` (unit C) and `a6f0bfe` (unit D and the checkpoint); this commit records
+the hash.
 
 **Batch 10 was PLANNED FROM THE MATRIX before anything was written.** All 23 remaining cards
 were inspected and grouped by shared mechanic; the group chosen was the **Deck-access /
