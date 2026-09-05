@@ -68,6 +68,22 @@ var _window_events: Array = []
 ## A monster attacked while face-down is flipped in sub-step 2, but its Flip effect must
 ## activate in sub-step 4 [S1 p.41], so the flip event travels in here.
 var _carried_events: Array = []
+
+## Events raised by paying an activation COST, held until the Chain that cost belongs to
+## has fully resolved.
+##
+## A cost is paid while the Chain is being BUILT, before the link is even on the Chain, so
+## `_resolve_current_chain()`'s mark is taken long after it happened and the trigger check
+## that follows the resolution would never see it. That is a real gap and not a theoretical
+## one: "If this card is sent to the GY" on a card DISCARDED AS A COST is a standard
+## interaction (`The White Stone of Legend` discarded by `Cards of Consonance`), and before
+## batch 10 no card in the pool triggered off a cost, so nothing had exercised it.
+##
+## Held rather than acted on immediately, because a Trigger Effect that meets its condition
+## while a Chain is being built does not interrupt it — it activates after that Chain has
+## finished resolving. Master prompt 45. This is deliberately the SAME shape as
+## `_carried_events` above, which withholds the Damage Step's flip for sub-step 4.
+var _cost_events: Array = []
 ## Index into state.events marking where the current step began.
 var _event_mark: int = 0
 
@@ -792,6 +808,7 @@ func _perform_activation(card: CardInstance, effect: EffectDef, pid: int,
 		_reveal_for_activation(card, pid)
 
 	if effect.pay_cost.is_valid():
+		var cost_mark := state.events.size()
 		if not bool(effect.pay_cost.call(ctx)):
 			push_error("DuelEngine: cost payment failed for %s '%s' after it was offered"
 				% [card.card_name(), effect.effect_id])
@@ -801,6 +818,9 @@ func _perform_activation(card: CardInstance, effect: EffectDef, pid: int,
 			"effect_id": effect.effect_id, "player": pid,
 			"payload": ctx.cost_payload.duplicate(),
 		})
+		# Anything the cost raised waits for this Chain to finish resolving. See
+		# `_cost_events`.
+		_cost_events.append_array(_events_since(cost_mark))
 
 	var link := chain.add_link(card, effect, pid, target_ids, ctx.cost_payload, params)
 	ActivationRules.mark_used(state, card, effect, pid)
@@ -1103,7 +1123,12 @@ func _resolve_current_chain() -> void:
 	state.check_life_point_loss()
 	# Everything raised while the Chain resolved is handled now, after it fully
 	# resolved — never as an interruption. Master prompt 45.
-	_pending_events = _events_since(mark)
+	#
+	# The COST events come first: they happened first, before any link was even on the
+	# Chain, and a batch's order decides the order simultaneous triggers are offered in
+	# (RULES_SPEC.md 4.4).
+	_pending_events = _cost_events + _events_since(mark)
+	_cost_events = []
 	timing = Timing.TRIGGER_CHECK
 
 

@@ -546,6 +546,73 @@ other effect loses its lease at that moment, so a return can never happen twice.
 `EffectPrimitives.banish_target_temporarily()` / `banish_top_of_deck()`.
 *Tests:* `BanishTests` (the banish gate), then the batch-8 cards.
 
+### 8.4 The Deck as a zone an effect may look through — SEARCH, MILL and an effect DRAW — **DECIDED** (Phase 5 batch 10)
+
+Decided in CARD_RULINGS.md **R40**, from [S1 p.5], [S1 p.53] and eight official Konami
+card supplements. This section is the normative statement; R40 carries the sourcing and the
+per-part confidence.
+
+**There are now FOUR ways an effect reaches the Deck, and they stay four.** §8.2 already
+separated DRAW, REVEAL and EXCAVATE and recorded that nothing implemented the fourth. Batch 10
+implements it.
+
+| | Moves what, where | Public? | Shuffles? | Can lose the Duel? |
+|---|---|---|---|---|
+| **DRAW** | top of Deck → hand, in order | private to the drawer | **no** | **yes** — a player who must draw and cannot loses [S1 p.35] |
+| **REVEAL** | nothing moves | to the stated viewers | no | no |
+| **EXCAVATE** | top N → `Zone.EXCAVATED`, in order | to **both** players | no | no |
+| **SEARCH** | any card in the Deck → hand (or GY), by predicate | the **chosen** card is revealed; the rest of the Deck is not | **yes, always** | no |
+
+**A search shuffles, and the shuffle is the search's tail, not the card's choice.** [S1 p.5]
+requires a Deck that a card effect made you reveal from **or look through** to be shuffled and put
+back; [S1 p.53] repeats it for searching and lets the opponent shuffle or cut. Because §12.1 keys
+the loss of `revealed_to` on the shuffle, a search therefore also **ends all legal knowledge of
+where anything in that Deck is** — including of the card it just took. This falls out of a rule
+already implemented; no new knowledge mechanism was added.
+
+**A card added to the hand by a search is revealed to both players on the way.** It must be shown
+to prove it met the search's requirement [S1 p.53, "Reveal"]. It is out of the Deck before the
+tail shuffle runs, so it **keeps** `revealed_to`: the opponent legally knows the searcher holds
+it. Only knowledge of the cards still in the Deck is ended by the shuffle.
+
+**A MILL — Deck → Graveyard by choice — is a search too.** It looks through the Deck, so it
+shuffles. It is public on arrival because the Graveyard is public knowledge [S1 p.5]. It emits an
+ordinary send-to-GY, so "if this card is sent to the GY" triggers see it. It can **never** deck a
+player out: decking out is a failure to **draw** [S1 p.35], and a mill is not a draw.
+
+**Activation restriction (the GENERAL rule).** You cannot activate an effect **to search your
+Deck** for a card when no card in your Deck meets the requirements [S1 p.53]. `can_search_deck()`
+implements it and a card whose activation exists in order to search consumes it in its
+`condition`.
+
+**Two card-specific official exceptions to the general shape, both load-bearing:**
+
+1. **A mandatory trigger whose condition is not "search" still activates on an empty search.**
+   `The White Stone of Legend` (cid 7850) activates whenever it is sent to the GY — *including*
+   with no `Blue-Eyes White Dragon` in the Deck, resolving and adding nothing — and activates in
+   the Damage Step. Card-specific official guidance outranks the general sentence. The general
+   restriction is for effects activated *in order to* search; a trigger whose condition is "this
+   card was sent to the GY" is not one.
+2. **"Draw 2" carries its own activation requirement.** A card that says "draw N" cannot be
+   activated unless the Deck holds N (cid 7248, cid 8656, each explicit). `can_draw()` implements
+   it generically. The deck-out path in `GameState.draw()` is **unchanged and still reachable** —
+   a future card that draws without this gate must still lose the Duel correctly.
+
+**A qualified COST is a candidate-list question, not a new primitive.** "Discard 1 *Level 8
+monster*", "discard 1 *Dragon Tuner with 1000 or less ATK*", "send 1 face-up *non-Effect Monster
+you control*" are the existing `pay_discard_cost()` and `pay_send_to_gy_cost()` given a filtered
+candidate list. **Discarding and sending stay distinct** [S1 p.52-53]: a discard is specifically
+hand → GY (`MoveReason.DISCARDED`), a send from the field is `MoveReason.SENT_AS_COST`, and a
+clause worded for one must never see the other.
+
+*Engine:* `EffectPrimitives.draw_cards()` / `can_draw()` / `deck_search_candidates()` /
+`can_search_deck()` / `search_deck_to_hand()` / `send_from_deck_to_gy()` /
+`qualified_hand_cards()` / `qualified_own_field_monsters()`, over the existing
+`GameState.draw()`, `GameState.reveal()`, `GameState.shuffle_deck()` and `GameState.move_card()`.
+Nothing in `GameState` was reshaped for this: the subsystem is a card-facing layer over four
+primitives that were already correct.
+*Tests:* `DeckAccessTests` (the gate, written and green before any card), then the batch-10 cards.
+
 ### 8.1 When a Continuous Spell/Trap's continuous effect begins applying — **DECIDED**
 
 Recorded as an open question during Phase 4b and resolved in Phase 4c (2026-08-12).

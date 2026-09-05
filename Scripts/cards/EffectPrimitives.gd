@@ -2064,6 +2064,194 @@ static func return_excavated(ctx: EffectContext, cards: Array,
 			n += 1
 	return n
 
+# ---------------------------------------------------------------------------
+# The DECK as a zone an effect may look THROUGH. RULES_SPEC.md 8.4, CARD_RULINGS.md R40.
+#
+# This is the FOURTH way an effect reaches a Deck and it is deliberately not any of the
+# other three. `GameState`'s own comment above `reveal()` already named the gap:
+#
+#   * DRAW      — top of the Deck to the hand, in order, private, and a failed draw LOSES.
+#   * REVEAL    — nothing moves.
+#   * EXCAVATE  — top N into a holding area, public, nothing shuffled.
+#   * SEARCH    — look THROUGH the Deck by predicate; ALWAYS ends in a shuffle [S1 p.5, p.53].
+#
+# Collapsing any pair of them is observably wrong, so each of these primitives goes through
+# exactly one of `GameState.draw()`, `GameState.reveal()`, `GameState.move_card()` and
+# `GameState.shuffle_deck()` — all four of which already existed and none of which was
+# reshaped for this subsystem.
+# ---------------------------------------------------------------------------
+
+## "…draw 2 cards" as an EFFECT. Returns the cards actually drawn.
+##
+## Deliberately a thin wrapper over `GameState.draw()` rather than a reimplementation: a
+## player who must draw and cannot LOSES THE DUEL [S1 p.35], the partial draw stands, and
+## that path must stay reachable for any future card that draws without the activation gate
+## below. The caller must check `ctx.state.is_duel_over()` if it does anything afterwards.
+##
+## It is NOT an excavate: the drawn cards are private to the drawer and nothing is shuffled.
+static func draw_cards(ctx: EffectContext, pid: int, count: int) -> Array:
+	return ctx.state.draw(pid, count)
+
+
+## "You cannot activate this card unless your Deck holds `count` cards."
+##
+## R40 part D. This does NOT follow from the general rules — from those alone a "draw 2" on a
+## one-card Deck would draw 1 and lose the Duel. Two official Konami supplements say
+## otherwise, independently and explicitly: cid 7248 (`Trade-In`) "can be activated when your
+## Deck has 2 or more cards", cid 8656 (`Cards of Consonance`) "cannot be activated when your
+## Deck has 1 or fewer cards".
+##
+## Generic on `count` rather than a per-card constant, because the rule is about "draw N".
+static func can_draw(ctx: EffectContext, pid: int, count: int) -> bool:
+	return ctx.state.player(pid).deck_count() >= count
+
+
+## The private look-through: every card in `pid`'s Deck satisfying `predicate`.
+##
+## Its own named primitive rather than a bare `cards_in(..., Zone.DECK, ...)` so that
+## "an effect looked through a Deck" has exactly one spelling in the card layer, and so the
+## shuffle obligation below can never be attached to the wrong call site.
+static func deck_search_candidates(ctx: EffectContext, pid: int,
+		predicate: Callable) -> Array:
+	return cards_in(ctx, pid, Enums.Zone.DECK, predicate)
+
+
+## [S1 p.53] "You cannot activate an effect to search your Deck for a card if there are no
+## cards that meet the requirements in your Deck."
+##
+## Consumed by the `condition` of a card whose activation exists IN ORDER TO search. It is
+## deliberately NOT applied anywhere else: a MANDATORY trigger whose condition is something
+## else entirely still activates on an empty search and simply adds nothing — the official
+## supplement for `The White Stone of Legend` (cid 7850) says so in as many words, and
+## card-specific guidance outranks the general sentence. R40 part C.
+static func can_search_deck(ctx: EffectContext, pid: int, predicate: Callable) -> bool:
+	return not deck_search_candidates(ctx, pid, predicate).is_empty()
+
+
+## "Add 1 <qualifying card> from your Deck to your hand."
+##
+## The full search, in the order the rules require it:
+##
+##   1. look through the Deck for the qualifying cards;
+##   2. the controller chooses one (`choose_one` correctly asks nothing when there is
+##      exactly one candidate, and nothing at all when there are none);
+##   3. **reveal it to BOTH players** — it has to be shown to prove it met the requirement
+##      [S1 p.53, "Reveal"]. This happens while it is still in the Deck;
+##   4. add it to the hand (`MoveReason.ADDED_TO_HAND`, never `RETURNED_TO_HAND`);
+##   5. **shuffle the Deck**. Not optional and not the card's choice: [S1 p.5] requires a Deck
+##      that an effect made you look through to be shuffled and put back.
+##
+## Step 5 clears `revealed_to` for everything still IN the Deck (RULES_SPEC.md 12.1), which is
+## the point — knowledge of the rest of the Deck ends. The card that LEFT keeps its reveal,
+## and correctly so: both players watched it go to the hand.
+##
+## The shuffle happens even when nothing qualified, because the Deck was still looked through.
+## Returns the card added, or null.
+static func search_deck_to_hand(ctx: EffectContext, pid: int, predicate: Callable,
+		prompt: String) -> CardInstance:
+	var candidates := deck_search_candidates(ctx, pid, predicate)
+	var chosen: CardInstance = null
+	if not candidates.is_empty():
+		chosen = choose_one(ctx, candidates, prompt)
+	if chosen != null:
+		ctx.state.reveal(chosen, [0, 1], ctx.source.id)
+		if not add_to_hand(ctx, chosen):
+			push_error("EffectPrimitives.search_deck_to_hand: could not add %s"
+				% chosen.card_name())
+			chosen = null
+	ctx.state.shuffle_deck(pid)
+	return chosen
+
+
+## "Send 1 <qualifying card> from your Deck to the GY."
+##
+## A MILL BY CHOICE. It looks through the Deck, so it shuffles for the same reason a search
+## does. It needs no reveal — the Graveyard is public knowledge [S1 p.5], so the card is
+## public the moment it arrives. It emits an ordinary `CARD_SENT_TO_GY`, so
+## "if this card is sent to the GY" triggers see it (`The White Stone of Legend` is exactly
+## that case, and is in the same Deck as `Dragon Shrine`).
+##
+## It can NEVER deck a player out: decking out is a failure to DRAW [S1 p.35]. An empty
+## candidate list sends nothing and is not a loss.
+static func send_from_deck_to_gy(ctx: EffectContext, pid: int, predicate: Callable,
+		prompt: String) -> CardInstance:
+	var candidates := deck_search_candidates(ctx, pid, predicate)
+	var chosen: CardInstance = null
+	if not candidates.is_empty():
+		chosen = choose_one(ctx, candidates, prompt)
+	if chosen != null:
+		if not ctx.state.move_card(chosen, Enums.Zone.GRAVEYARD,
+				Enums.MoveReason.SENT_TO_GY_BY_EFFECT, {"source_id": ctx.source.id}):
+			push_error("EffectPrimitives.send_from_deck_to_gy: could not send %s"
+				% chosen.card_name())
+			chosen = null
+	ctx.state.shuffle_deck(pid)
+	return chosen
+
+
+## "Discard 1 **Level 8 monster**" / "discard 1 **Dragon Tuner with 1000 or less ATK**" — the
+## candidate list a QUALIFIED discard cost needs.
+##
+## The qualification lives here, in the candidate list, and NOT in `pay_discard_cost()`:
+## paying is one behaviour and qualifying is another, and `Cards of Consonance` officially
+## "does not target" (cid 8656), so its qualification cannot live in `legal_targets` either.
+static func qualified_hand_cards(ctx: EffectContext, predicate: Callable) -> Array:
+	return own_cards_in(ctx, Enums.Zone.HAND, predicate)
+
+
+## "Send 1 face-up **non-Effect Monster you control** to the GY" — the candidate list a
+## QUALIFIED field-send cost needs. Face-up only by default, because every clause in the pool
+## that sends from the field as a cost says "face-up".
+static func qualified_own_field_monsters(ctx: EffectContext, predicate: Callable,
+		face_up_only: bool = true) -> Array:
+	var out: Array = []
+	for entry in ctx.me().monsters():
+		var card: CardInstance = entry
+		if card == null or card.definition == null:
+			continue
+		if face_up_only and not card.is_face_up():
+			continue
+		if predicate.is_valid() and not bool(predicate.call(card)):
+			continue
+		out.append(card)
+	return out
+
+
+## "1 monster that is not an Effect Monster."
+##
+## Officially WIDER than "Normal Monster" (cid 9138): effectless Ritual, Fusion, Synchro, Xyz
+## and Link monsters count too. Written as "is a monster AND is not an Effect Monster" rather
+## than as `is_normal_monster`, because those are different questions and only one of them is
+## the card's. In the V1 pool the two sets coincide — both Extra Decks are empty — and
+## `WhiteElephantsGiftTests` asserts that coincidence against the real pool so it cannot rot.
+static func non_effect_monster() -> Callable:
+	return func(card: CardInstance) -> bool:
+		return card.is_monster() and not card.definition.is_effect_monster
+
+
+## "1 Dragon Tuner with 1000 or less ATK". A Tuner is a printed property of the card, so it
+## is read from the definition; the ATK read is the PRINTED one, because a card in the hand
+## carries no continuous modifiers (master prompt 35), exactly as `monster_filter` does.
+static func tuner_monster(race: String = "", max_atk: int = -1) -> Callable:
+	return func(card: CardInstance) -> bool:
+		if not card.is_monster():
+			return false
+		var d := card.definition
+		if not d.is_tuner:
+			return false
+		if race != "" and d.race != race:
+			return false
+		return max_atk < 0 or d.base_atk <= max_atk
+
+
+## "1 **Level 7 or higher** monster" — a FLOOR, where `monster_of_level` is an exact match
+## and `monster_filter`'s `max_level` is a ceiling. `Herald of Creation` is the only clause in
+## the pool that reads a Level this way, and reading it with the wrong comparison would have
+## been silently wrong rather than loud.
+static func monster_of_level_at_least(level: int) -> Callable:
+	return func(card: CardInstance) -> bool:
+		return card.is_monster() and card.current_level() >= level
+
 ## R39: a target that left and returned is a different stay on the field.
 static func target_kept_field_identity(ctx: EffectContext, target: CardInstance) -> bool:
 	return target != null and (ctx.link == null or int(ctx.link.target_field_revisions.get(target.id, -1)) == target.field_revision)

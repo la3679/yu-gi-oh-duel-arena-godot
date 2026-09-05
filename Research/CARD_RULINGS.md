@@ -1015,6 +1015,171 @@ so R7 is CLOSED: `Scripts/cards/registry/SoulExchange.gd`, the generic gate
 `ChoiceConstraintTests` (137/137) and the card suite `SoulExchangeTests` (174/174).
 `RULES_SPEC.md` §5.9 is the normative statement of the mechanism.
 
+### R40 — the DECK as a zone an effect may look through: SEARCH, MILL and an effect DRAW
+
+Opened and closed by Phase 5 batch 10 unit A, **before** any batch-10 card was written. It is the
+only ruling batch 10 opens; every batch-10 card carries `Special Ruling Needed = NO` in the matrix.
+
+**Why it needed research at all.** `GameState`'s own comment above `reveal()` already separates
+DRAW / REVEAL / EXCAVATE / SEARCH and records of the fourth: *"Nothing here does that;
+`shuffle_deck()` is its tail."* Batch 10 builds the fourth. Three questions had to be settled
+before the primitive could be written: what a search does to Deck knowledge, when a
+search-shaped effect may be **activated** at all, and whether "draw 2" is legal on a short Deck.
+
+**Sources.** All PRIMARY (official Konami), all re-fetched for this batch:
+
+| Source | What it gives | Date on the page |
+|---|---|---|
+| [S1 p.5] and [S1 p.53] "Search your Deck" / "Reveal" — `Research/sources/SD_RuleBook_EN_10.pdf`, the cached copy already hashed in `RULES_SOURCES.md` | the general shuffle rule and the general search-activation restriction | rulebook v10 |
+| `faq_search.action?ope=4&cid=10590&request_locale=ja` — `Dragon Shrine` supplemental information | the two sends, sequential, second optional, cap of 2 | 2024-03-23 |
+| `faq_search.action?ope=5&fid=12831&request_locale=ja` — `Dragon Shrine` Q&A | the Normal-Monster test reads the GY, not the print | 2026-06-26 |
+| `faq_search.action?ope=5&fid=22194&request_locale=ja` — `Dragon Shrine` Q&A | the two sends are not simultaneous | 2022-12-30 |
+| `faq_search.action?ope=4&cid=7850&request_locale=ja` — `The White Stone of Legend` supplemental information | mandatory; activates with an empty search; Damage Step legal | 2024-03-23 |
+| `faq_search.action?ope=4&cid=7248&request_locale=ja` — `Trade-In` supplemental information | Deck must hold 2+; the discard is a cost | 2021-02-06 |
+| `faq_search.action?ope=4&cid=8656&request_locale=ja` — `Cards of Consonance` supplemental information | Deck must hold 2+; cost; does not target | 2020-08-29 |
+| `faq_search.action?ope=4&cid=9138&request_locale=ja` — `White Elephant's Gift` supplemental information | cost; "non-Effect Monster" is wider than "Normal Monster" | 2021-04-01 |
+| `faq_search.action?ope=4&cid=7246&request_locale=ja` — `Herald of Creation` supplemental information | Ignition; cost; a GY target must already exist | 2015-03-21 |
+| `faq_search.action?ope=4&cid=9910&request_locale=ja` — `Divine Dragon Apocralyph` supplemental information | Ignition; Extra Deck target returns to the Extra Deck | 2016-09-01 |
+
+**A methodology note that cost this session real time and must not be repeated.** The FIRST
+fetches used `request_locale=en` and returned, for every cid, the database's generic marketing
+boilerplate — byte-identical between two different cards. That was very nearly recorded as
+"no official Q&A exists for these cards", which would have been **false**. `request_locale=ja`
+returns the real supplemental information for all ten lookups above. **A generic-boilerplate
+response from this database is evidence of a bad locale, not of an absent ruling.** Re-check any
+earlier "no Q&A entry" conclusion in this file against the `ja` locale before relying on it.
+
+#### Part A — a search shuffles; a draw does not. Confidence: HIGH.
+
+[S1 p.5] requires that a Deck a card effect made you reveal from **or look through** be shuffled
+and put back, and [S1 p.53] repeats it for searching and adds that the opponent may shuffle or
+cut. `RULES_SPEC.md` §12.1 already keys the loss of `revealed_to` on the **shuffle**, so a search
+clears Deck knowledge as a consequence of a rule already implemented; nothing new was needed
+there. A DRAW is private and shuffles nothing; an EXCAVATE is public and shuffles nothing. The
+three stay three. `RULES_SPEC.md` §8.4 is the normative statement.
+
+A card **added to the hand** by a search is revealed to both players on its way — it must be
+shown to prove it met the search's requirement — and then it is an ordinary private hand card.
+The search's tail shuffle then clears `revealed_to` for everything still **in** the Deck, which
+is the point — knowledge of the rest of the Deck ends. The card that LEFT keeps its reveal, and
+correctly so: both players watched it go to the hand, so the opponent legally knows it is held.
+Confidence HIGH for the reveal; it follows [S1 p.53]'s "Reveal" entry directly.
+
+#### Part B — the general search-activation restriction. Confidence: HIGH, but it is GENERAL.
+
+[S1 p.53] states that you cannot activate an effect **to search your Deck** for a card when no
+card in your Deck meets the requirements. Implemented as `can_search_deck()` and consumed by the
+`condition` of any card whose activation exists in order to search.
+
+The sentence is worded for "add a card from your Deck to your hand, or Special Summon a monster
+from your Deck". Whether it also governs a Deck→**GY** send is an **inference** (MEDIUM-HIGH),
+and it is applied to `Dragon Shrine`: its first send is mandatory and unconditional, so an
+activation with no Dragon monster in the Deck could not perform any part of its resolution. No
+card-specific official statement on that point was found for cid 10590. Recorded as an inference,
+not as an official ruling.
+
+#### Part C — `The White Stone of Legend` is the EXCEPTION, not an instance. Confidence: HIGH.
+
+**This reversed the first draft of the batch-10 plan and would otherwise have been a silent bug.**
+The general rule in part B suggests a mandatory GY trigger should not activate with no
+`Blue-Eyes White Dragon` in the Deck. The card-specific official supplement (cid 7850,
+2024-03-23) says the opposite, explicitly:
+
+* it is a Trigger Effect that activates **in the Graveyard**;
+* it activates **necessarily** whenever its condition is met — **including when there is no
+  `Blue-Eyes White Dragon` in the Deck**, in which case it resolves and adds nothing;
+* it activates even when its condition is met **during the Damage Step**.
+
+Card-specific official guidance outranks the general sentence, so the engine implements the
+card's own rule. The general restriction stays as `can_search_deck()` for cards that are
+activated *in order to* search; a mandatory trigger whose condition is "this card was sent to the
+GY" is not such a card. Both halves are asserted directly in `TheWhiteStoneOfLegendTests`.
+
+Consequences that follow and are also asserted: the trigger fires on **any** send to the GY —
+Tributed, discarded, sent as a cost, destroyed by battle, destroyed by effect — because the
+condition names none of them; and it is a `GRAVEYARD` activation location, so the card is already
+in the GY when the effect activates.
+
+#### Part D — "draw 2" cannot be activated on a Deck of fewer than 2. Confidence: HIGH (two cards), MEDIUM-HIGH (the third).
+
+The engine's `GameState.draw()` correctly implements [S1 p.35]: a player who must draw and cannot
+loses. From the general rules alone, activating `Trade-In` with 1 card in the Deck would draw 1
+and lose the Duel. **That is not what the official supplements say.** Independently, for two
+different cards:
+
+* cid 7248 (`Trade-In`, 2021-02-06) — it can be activated in a situation where your Deck has
+  **2 or more** cards;
+* cid 8656 (`Cards of Consonance`, 2020-08-29) — it **cannot** be activated when your Deck has
+  1 or fewer cards.
+
+Two independent explicit statements, so HIGH. Implemented generically as `can_draw(ctx, pid, n)`
+on the draw primitive rather than as a per-card constant, because the rule is plainly about
+"draw N", not about these two card names.
+
+`White Elephant's Gift` (cid 9138, 2021-04-01) draws 2 in the same wording but its supplement is
+**silent** on the Deck requirement. Applying the same gate to it is an **inference by analogy**,
+recorded at MEDIUM-HIGH. It is stated here as an inference and must not be quoted as an official
+ruling for that card. The alternative — letting it deck the player out — is equally unsourced and
+is inconsistent with the two cards that are sourced, so the consistent reading was chosen.
+
+The deck-out path itself is **not** removed and is still tested: `draw_cards()` still loses the
+Duel when it genuinely cannot complete, so a future card that draws without this activation gate
+behaves correctly.
+
+#### Part E — the payment is a COST in all five cards that have one. Confidence: HIGH.
+
+Every relevant supplement says so in as many words (cid 7248, cid 8656, cid 9138, cid 7246, and
+cid 9910 by the same "捨て…発動できる" construction). It is therefore `pay_cost`, never `resolve`,
+and [S1 p.53, "Pay a Cost"] adds that it is not refunded when the activation is negated — which
+the engine already implements and which batch 10 asserts again for the new cards.
+
+Two distinctions inside that, both already modelled by separate primitives and both asserted:
+
+* `Trade-In`, `Cards of Consonance`, `Herald of Creation` and `Divine Dragon Apocralyph`
+  **discard** — hand → GY, `MoveReason.DISCARDED`, `pay_discard_cost()`;
+* `White Elephant's Gift` **sends from the field** — `MoveReason.SENT_AS_COST`,
+  `pay_send_to_gy_cost()`. It is not a discard and a future "if this card is discarded" clause
+  must not see it.
+
+`Cards of Consonance` additionally **does not target** (cid 8656), so its qualification lives in
+the cost's candidate list and not in `legal_targets`.
+
+#### Part F — "non-Effect Monster" is wider than "Normal Monster". Confidence: HIGH; never-live in V1.
+
+cid 9138 states that non-Effect Monsters include not only Normal Monsters but also effectless
+Ritual / Fusion / Synchro / Xyz / Link monsters, and that a monster which cannot be sent to the
+GY (a Token, a Pendulum) may not pay the cost. Implemented as "is a monster **and** is not an
+Effect Monster", not as "is a Normal Monster". Both Extra Decks are empty in V1 and the pool has
+no Tokens or Pendulums, so the two sets coincide **in this pool** — asserted directly, the
+R21 / R23 never-live treatment, so the fact cannot rot silently.
+
+#### Part G — `Dragon Shrine`'s two sends. Confidence: HIGH.
+
+cid 10590 (2024-03-23) plus two Q&As:
+
+* the first send is performed, and **only if it succeeded in sending a Dragon Normal Monster**
+  may the second be performed; the two are **explicitly not simultaneous** (fid 22194);
+* the second send is **optional** — `may()`;
+* the Normal-Monster test is applied to the monster **as it now sits in the Graveyard**, not to
+  its printed identity: fid 12831 (2026-06-26) answers "yes, you can" for a card that is merely
+  *treated as* a Normal Monster while in the GY. In the V1 pool nothing is treated-as, so the two
+  readings coincide here — but the implementation reads the GY, because that is what is correct;
+* **at most 2** Dragon monsters are sent by one `Dragon Shrine`: a Dragon Normal Monster sent by
+  the SECOND send does not start a third.
+
+#### Part H — `Herald of Creation` and `Divine Dragon Apocralyph`. Confidence: HIGH.
+
+cid 7246 (2015-03-21) and cid 9910 (2016-09-01): both are **IGNITION** effects activatable from
+the Monster Zone, both take the discard as a **COST**, and `Herald` cannot be activated unless a
+legal target already exists in the GY — which is ordinary targeting and needs no special code.
+Both note that a Level 7+ / Dragon **Extra Deck** monster in the GY may be targeted and would
+return to the Extra Deck rather than the hand. Both Extra Decks are empty in V1, so that branch is
+**never live**; it is asserted as impossible rather than implemented as a branch that can never
+run.
+
+**R40 is CLOSED.** `RULES_SPEC.md` §8.4 is the normative statement of the mechanism; the gate is
+`Tests/rules/DeckAccessTests.gd`, written and green before any batch-10 card existed.
+
 ## 5. Banlist note (master prompt §51)
 
 These are fixed casual decks built from an owned physical collection. Current Forbidden/Limited

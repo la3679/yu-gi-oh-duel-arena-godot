@@ -641,6 +641,33 @@ static func give(engine: DuelEngine, pid: int, def: CardDef, zone: Enums.Zone,
 	return inst
 
 
+## Put a fresh instance of `def` straight into `pid`'s DECK, without moving it anywhere.
+##
+## `give()` cannot express this: it exists to move a card OUT of the Deck, so it always
+## emits a move. A test that cares about what a search or a mill finds needs cards that have
+## simply always been in the Deck. Appends to the bottom by default; `to_bottom = false`
+## puts it on TOP, which is what a draw takes.
+static func give_to_deck(engine: DuelEngine, pid: int, def: CardDef,
+		to_bottom: bool = true) -> CardInstance:
+	var state := engine.state
+	var inst := CardInstance.new(def, pid)
+	state.register_instance(inst)
+	inst.zone = Enums.Zone.DECK
+	inst.position = Enums.Position.FACE_DOWN
+	if to_bottom:
+		state.player(pid).deck.append(inst)
+	else:
+		state.player(pid).deck.insert(0, inst)
+	return inst
+
+
+## Empty `pid`'s Deck, for a test that needs an EXACT Deck. Deck-out and "cannot activate
+## unless your Deck holds 2" are both about the Deck's exact size, so a test that asserts on
+## them cannot start from the 40-card filler deck.
+static func clear_deck(engine: DuelEngine, pid: int) -> void:
+	engine.state.player(pid).deck.clear()
+
+
 static func give_to_hand(engine: DuelEngine, pid: int, def: CardDef) -> CardInstance:
 	return give(engine, pid, def, Enums.Zone.HAND, Enums.Position.FACE_DOWN)
 

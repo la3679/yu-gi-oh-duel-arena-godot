@@ -1708,7 +1708,7 @@ Decisions in these two units that must not be reversed:
   reports "no legal choice", with a real-pool assertion — the R21/R23/R2 treatment, now used five
   times.
 
-### The NEXT step — plan batch 10 from the matrix. Nothing is half-finished.
+### The NEXT step — BATCH 10 IS PLANNED. Execute it in unit order; nothing is half-finished.
 
 **Batch 9 is CLOSED. Do not reopen any of it, and do not rewrite any gate.** Nine gates plus
 three generic units are green and must stay so: `EquipTests`, `ControlTests`, `MovementTests`,
@@ -1717,19 +1717,156 @@ three generic units are green and must stay so: `EquipTests`, `ControlTests`, `M
 `SpellTrapTests`, the tribute-value rule in `SummonTests`, and the combination enumeration in
 `SummonRules.tribute_combinations()`.
 
-**23 cards remain.** Read `Reports/CARD_IMPLEMENTATION_MATRIX.csv` for the authoritative list;
-do not work from memory and do not plan from this file's prose. **Batch 10 is not planned yet.**
-Plan it from the matrix, group it the way every batch since 7 has been grouped — a generic
-subsystem unit with its own tests FIRST, then the cards that consume it — and settle any
-per-card ruling **before** writing the card, not after.
+**23 cards remain** — `Reports/CARD_IMPLEMENTATION_MATRIX.csv` is the authoritative list.
+They were inspected in full and grouped by shared mechanic before batch 10 was chosen:
 
-**Also scheduled and NOT optional:** the **ObjectDB characterisation task** (§7). It is now at
-**187347 at exit, ~21.6 per new assertion — lower again than the previous checkpoint's ~34.9,
-which was itself lower than the ~44.6 before it.** Two consecutive falls now follow a run of
-five consecutive rises. No explanation for that is recorded, because none has been measured,
-and two data points are not a trend. It still fails nothing, so it must not derail a card unit,
-but it **must be characterised or fixed before Phase 7**, and no explanation may be recorded
-for it that has not been measured.
+| Group | Cards | Needs a NEW engine subsystem? |
+|---|---|---|
+| **DECK ACCESS + qualified cost** (batch 10) | `Trade-In`, `Cards of Consonance`, `White Elephant's Gift`, `Herald of Creation`, `Divine Dragon Apocralyph`, `Dragon Shrine`, `The White Stone of Legend` | **YES** — Deck SEARCH, Deck to GY MILL and effect DRAW do not exist |
+| DESTRUCTION with an activation condition | `Stamping Destruction`, `Straight Flush`, `Burst Stream of Destruction`, `Chiron the Mage` | no — reuses destruction + targeting; `Burst Stream` needs the existing attack restriction |
+| ATK modification | `Back-Up Rider`, `Honest` (R20) | `Back-Up Rider` no; `Honest` needs a Damage-Step hand Quick Effect |
+| Tribute-as-cost Spiritual Arts | `Spiritual Fire Art - Kurenai`, `Spiritual Water Art - Aoi` | no — `pay_tribute_cost()` exists; Aoi needs a hand LOOK |
+| Special Summon from a private zone | `Damage Condenser`, `A Hero Emerges` (R15) | partly — both need Deck/hand Special Summons; `A Hero Emerges` needs RANDOM choice |
+| LP gain on battle damage | `Vampiric Koala` | no |
+| **Genuinely new subsystems, deliberately NOT in batch 10** | `The Monarchs Awaken` (R12 — "unaffected by effects"), `Fairy Tail - Sleeper` (R5 — an effect that REPLACES another effect's text), `Hidden Springs of the Far East` (R14 — un-negatable Summons), `Witchcrafter Golem Aruru` (R13), `Fairy Tail - Luna` (R11) | **YES**, each a different one |
+
+**Unresolved rulings among the 23:** R5, R11, R12, R13, R14, R15, R20. **None of them touches a
+batch-10 card** — every card in batch 10 carries `Special Ruling Needed = NO` in the matrix. That
+is deliberate: batch 10 opens exactly ONE new ruling, **R40**, and closes it in unit A before any
+card is written.
+
+#### BATCH 10 — "the Deck-access / card-advantage group". 7 cards, 54 to **61 / 77**.
+
+Two related mechanics, not an arbitrary card count: **(1) the Deck as an accessible private
+zone** — SEARCH (Deck to hand), MILL (Deck to GY) and an effect DRAW — and **(2) a QUALIFIED
+hand-or-field cost** — "discard 1 *Level 8 monster*", "discard 1 *Dragon Tuner with 1000 or less
+ATK*", "send 1 face-up *non-Effect Monster you control*". Every batch-10 card is exactly one of
+those two mechanics wrapped around an existing primitive.
+
+**The engine says itself that the subsystem is missing.** `GameState`'s own comment above
+`reveal()` enumerates DRAW / REVEAL / EXCAVATE / SEARCH and records of the fourth: *"Nothing here
+does that; `shuffle_deck()` is its tail."* No card in the pool draws, searches or mills. That is
+unit A.
+
+| Unit | Contents | Status |
+|---|---|---|
+| **A** | the generic DECK-ACCESS gate — `Tests/rules/DeckAccessTests.gd`, green BEFORE any card, plus **R40** and `RULES_SPEC.md` §8.4 | NOT STARTED |
+| **B** | the DRAW cards — `Trade-In`, `Cards of Consonance`, `White Elephant's Gift` | NOT STARTED |
+| **C** | the GY-RETRIEVAL once-per-turn cards — `Herald of Creation`, `Divine Dragon Apocralyph` | NOT STARTED |
+| **D** | the DECK-ACCESS cards — `Dragon Shrine`, `The White Stone of Legend` | NOT STARTED |
+
+**UNIT A — write the gate FIRST, before any card.** This is the pattern that has now paid off
+seven times. What is genuinely new is **the Deck as a zone an effect may look THROUGH**, which is
+neither a draw nor an excavate and must not be collapsed into either. New primitives:
+
+* `draw_cards(ctx, pid, count)` — an effect draw. Wraps `GameState.draw()`; a Deck that runs out
+  still loses the Duel and the partial draw stands. It is **not** an excavate.
+* `deck_search_candidates(ctx, pid, predicate)` — the private look-through.
+* `can_search_deck(ctx, pid, predicate)` — **the [S1 p.53] activation restriction**.
+* `search_deck_to_hand(ctx, pid, predicate, prompt)` — choose 1, **reveal it to both players**,
+  `add_to_hand`, then **shuffle the Deck**. The shuffle is not optional and is the tail
+  `RULES_SPEC.md` §12.1 already names.
+* `send_from_deck_to_gy(ctx, pid, predicate, prompt)` — a MILL by choice: it looks through the
+  Deck, so it shuffles, but it is public on arrival (the GY is public [S1 p.5]) and it can
+  **never** deck a player out.
+* `qualified_hand_cards(ctx, predicate)` / `qualified_own_field_monsters(ctx, predicate)` — the
+  candidate lists the qualified costs need. `pay_discard_cost()` and `pay_send_to_gy_cost()`
+  already exist and must be reused, **not** re-implemented.
+
+The gate must pin down: that a search shuffles and a draw does not · that a search-added card is
+revealed and a drawn card is not · that `revealed_to` is cleared by the search's own shuffle
+(§12.1) · that an empty predicate makes the activation ILLEGAL rather than a no-op · that
+a mill never decks out but a draw does · deck-out on the SECOND of two draws with 1 card left ·
+that a Deck to GY send emits the sent-to-GY event so "if this card is sent to the GY" triggers see
+it · both seats · replay determinism through the seeded `Rng`.
+
+**R40 is RESEARCHED and must be CLOSED in unit A, before any card.** The research was done
+first and it **changed the plan twice** — both times away from what the general rules alone
+would have produced. Full sourcing in `Research/CARD_RULINGS.md` R40; the two corrections:
+
+* **[S1 p.53, "Search your Deck"]** states outright that you must shuffle after any search and
+  that you cannot activate an effect to search your Deck when no card in it meets the
+  requirements. HIGH, quotable, PRIMARY.
+* **CORRECTION 1 — that general rule does NOT settle `The White Stone of Legend`, and the first
+  draft of this plan had it backwards.** The official Konami supplement for cid 7850
+  (dated 2024-03-23) says the opposite in as many words: it is a **mandatory** GY Trigger Effect,
+  it **must** activate whenever its condition is met, and it explicitly **activates even when
+  there is no `Blue-Eyes White Dragon` in the Deck** (it then resolves and adds nothing). It also
+  activates during the Damage Step. HIGH, PRIMARY, card-specific — and card-specific official
+  guidance outranks the general sentence. **Implement it that way and assert it directly.**
+* **CORRECTION 2 — the draw cards carry an activation restriction the generic rules do not give
+  them.** The supplements for cid 7248 (`Trade-In`, 2021-02-06) and cid 8656
+  (`Cards of Consonance`, 2020-08-29) each state explicitly that the card **cannot be activated
+  unless the Deck holds at least 2 cards**. HIGH, PRIMARY, and stated independently for both.
+  Without this the engine would happily let a player activate `Trade-In` on 1 card and deck out.
+  `White Elephant's Gift`'s own supplement (cid 9138, 2021-04-01) is **silent** on the point, so
+  applying the same gate to it is an **inference by analogy** at MEDIUM-HIGH — record it as an
+  inference, not as an official ruling. Build the gate as a generic `can_draw()` on the draw
+  primitive, not as three card-specific hacks.
+* Earlier English-locale fetches (`request_locale=en`) for these cids returned only the site's
+  generic boilerplate and were **wrongly** read as "no Q&A exists". The Japanese locale
+  (`request_locale=ja`) returns the real supplemental information. Use `ja` for future lookups.
+
+**UNIT B — the DRAW cards.** All three are "pay a qualified cost; draw 2", and all three are
+**live in the real pool** — verified against the deck lists, not assumed:
+
+| Card | Qualified cost | Live? |
+|---|---|---|
+| `Trade-In` | discard 1 **Level 8** monster | deck 1 holds `Blue-Eyes White Dragon` (8) and `Rabidragon` (8) |
+| `Cards of Consonance` | discard 1 **Dragon Tuner with 1000 or less ATK** | deck 1 holds `Flamvell Guard` (100), `Rider of the Storm Winds` (500) and `The White Stone of Legend` (300) — and `Maiden with Eyes of Blue` is a Tuner that is **not** a Dragon, so it is the negative case |
+| `White Elephant's Gift` | send 1 face-up **non-Effect Monster you control** to the GY | deck 2 holds `Metaphys Armed Dragon` x2, `Sabersaurus`, `Gladiator Beast Andal`, `Zure` |
+
+All three additionally **cannot be activated unless the Deck holds 2 cards** — see R40
+correction 2. `White Elephant's Gift`'s "non-Effect Monster" is officially **wider** than
+"Normal Monster" (cid 9138: it also covers effectless Ritual/Fusion/Synchro/Xyz/Link monsters),
+so implement it as "is a monster and is NOT an Effect Monster" and assert that in the V1 pool
+the two sets happen to coincide, the R21/R23 never-live treatment.
+
+The cost is a **COST** in all three (it precedes the semicolon) — `pay_cost`, never `resolve`, and
+never refunded when the activation is negated [S1 p.53, "Pay a Cost"]. `White Elephant's Gift`
+says **send**, not discard, and it comes from the FIELD, so it is `pay_send_to_gy_cost()`;
+the other two are `pay_discard_cost()`. Assert the distinction, because a future
+"if this card is discarded" clause must not see a send.
+
+**UNIT C — the GY-retrieval cards.** `Herald of Creation` and `Divine Dragon Apocralyph` are the
+same shape and must share no code beyond the primitives: "Once per turn: You can discard 1 card,
+then target 1 [X] monster in your Graveyard; add that target to your hand." The discard is an
+unqualified COST; the target is chosen from the **controller's own** GY; `add_to_hand()` already
+exists and already uses `MoveReason.ADDED_TO_HAND`. "Once per turn" with no card name printed is
+`opt_instance()`, **not** `opt_named_effect()`. `Herald` wants Level 7 or higher (deck 1 has
+exactly `Blue-Eyes White Dragon` and `Rabidragon`); `Apocralyph` wants a **Dragon**, and the
+matrix's "Dragon-Type" wording is the card's, so match on `race`, not on name. Both supplements
+(cid 7246, 2015-03-21; cid 9910, 2016-09-01) confirm: **IGNITION** effects activatable in the
+Monster Zone, the discard is a **COST**, and there must already be a legal GY target or the
+effect cannot be activated. Both also note an Extra Deck target would return to the Extra Deck
+rather than the hand — **never live in V1** (both Extra Decks are empty); assert that negative
+rather than implementing a branch that can never run.
+
+**UNIT D — the DECK-ACCESS cards.** These are the two that exist to consume unit A:
+
+* `Dragon Shrine` — "Send 1 Dragon monster from your Deck to the GY, then, if that monster in
+  your GY is a Dragon **Normal** Monster, you can send 1 more Dragon monster from your Deck to the
+  GY. You can only activate 1 'Dragon Shrine' per turn." The official supplement (cid 10590,
+  2024-03-23) fixes all of it: the two sends are **sequential and explicitly NOT simultaneous**,
+  the second is **optional** (`may()`), the Normal-Monster test reads the monster **as it now
+  sits in the GY** (fid 12831, 2026-06-26 — a card merely *treated as* a Normal Monster in the GY
+  satisfies it), and **at most 2** are ever sent: a Normal Monster sent by the SECOND send does
+  not start a third. `opt_named_activation()`, not `opt_named_effect()`. Cannot be activated with
+  no Dragon monster in the Deck.
+* `The White Stone of Legend` — "If this card is sent to the GY: Add 1 'Blue-Eyes White Dragon'
+  from your Deck to your hand." **MANDATORY** (no "You can"), a TRIGGER from `GRAVEYARD`, and it
+  fires on **any** send to the GY — Tributed, discarded, destroyed by battle, sent as a cost —
+  not only on destruction, and per cid 7850 **also during the Damage Step**. Per the same
+  supplement it **still activates with no `Blue-Eyes White Dragon` in the Deck** and then adds
+  nothing: this card is the exception to [S1 p.53]'s search-activation restriction, not an
+  instance of it. Assert both halves. It is the pool's first card whose own trigger can fire off
+  the cost of another batch-10 card (`Cards of Consonance` discards it — it is a Dragon Tuner
+  with 300 ATK; `Trade-In` cannot, it is Level 1). **Test that interaction directly** — it is the
+  reason both cards are in deck 1.
+
+**Also scheduled and NOT optional:** the **ObjectDB characterisation task** (§7), at **187347 at
+exit**. It still fails nothing, so it must not derail a card unit, but it **must be characterised
+or fixed before Phase 7**, and no explanation may be recorded for it that has not been measured.
 
 ---
 
