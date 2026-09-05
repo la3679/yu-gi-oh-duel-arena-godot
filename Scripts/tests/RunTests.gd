@@ -88,6 +88,8 @@ func _initialize() -> void:
 
 	# --- Interaction suites (Phase 5). Cross-card behaviour, no card-under-test. ---
 	suites.append(SpecialSummonInteractionTests.run())
+	suites.append(DragonShrineTests.run())
+	suites.append(TheWhiteStoneOfLegendTests.run())
 	suites.append(HeraldOfCreationTests.run())
 	suites.append(DivineDragonApocralyphTests.run())
 	suites.append(TradeInTests.run())

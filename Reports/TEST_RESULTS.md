@@ -1,9 +1,8 @@
 # TEST_RESULTS
 
-**Last run:** 2026-09-05 (Phase 5 **batch 9 COMPLETE**: the attack-restriction gate, all three
-attack-modification cards, the generic "it remains on the field" override, `Kaiser Sea Horse`,
-the generic **lingering material-choice constraint**, and `Soul Exchange` — the last card in
-the batch.)
+**Last run:** 2026-09-05 (Phase 5 **batch 10 COMPLETE**: the generic DECK-ACCESS gate, the three
+DRAW cards, the two GY-retrieval cards, and the two DECK-access cards — seven cards over one
+new subsystem, plus **R40** and one real engine defect found and fixed.)
 **Engine:** Godot 4.7.1.stable.official.a13da4feb (headless)
 
 Command:
@@ -35,19 +34,177 @@ The raw command still works and produces the same numbers:
 
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
-| Core rules tests | 22 | 1959 | **1959** | 0 |
-| Per-card tests | 46 | 4279 | **4279** | 0 |
+| Core rules tests | 23 | 2098 | **2098** | 0 |
+| Per-card tests | 53 | 4770 | **4770** | 0 |
 | Interaction tests | 1 | 46 | **46** | 0 |
 | Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **69** | **6284** | **6284** | **0** |
+| **TOTAL** | **77** | **6914** | **6914** | **0** |
 
-SmokeCheck: **PASS**. Matrix: **54 / 77 implemented, 54 / 77 tested, 23 remaining** (computed by
+SmokeCheck: **PASS**. Matrix: **61 / 77 implemented, 61 / 77 tested, 16 remaining** (computed by
 `python Tools/build_matrix.py`, not written by hand).
 
-**All 5973 assertions from the previous checkpoint pass unchanged.** None was weakened,
-retargeted or deleted, and this time **no pre-existing suite moved at all**: the whole delta is
-the two new suites. 6284 − 5973 = 311 = `ChoiceConstraintTests` (137) + `SoulExchangeTests`
-(174). The 5509 → 5973 → 6284 chain is therefore unbroken.
+**All 6284 assertions from the previous checkpoint pass unchanged.** None was weakened,
+retargeted or deleted, and **no pre-existing suite moved at all**: the whole delta is the eight
+new suites. 6914 − 6284 = 630 = `DeckAccessTests` (139) + `TradeInTests` (70) +
+`CardsOfConsonanceTests` (63) + `WhiteElephantsGiftTests` (64) + `HeraldOfCreationTests` (73) +
+`DivineDragonApocralyphTests` (65) + `DragonShrineTests` (78) + `TheWhiteStoneOfLegendTests`
+(78). The 5509 → 5973 → 6284 → 6914 chain is therefore unbroken.
+
+**No `SCRIPT ERROR` appeared in any run.** The two `ERROR:` lines on stderr are the two
+deliberate negative tests that assert the engine fails loudly
+(`ChainTests._test_unimplemented_effect_fails_loudly` and
+`ContinuousTests._test_restriction_flags_are_owned_by_this_system`); they are unchanged and
+expected.
+
+---
+
+## Batch 10 — COMPLETE. Nothing in it is partial or unverified.
+
+| Batch 10 unit | Status |
+|---|---|
+| **Unit A — the generic DECK-ACCESS gate (`DeckAccessTests`, 139)**, plus **R40** and `RULES_SPEC.md` §8.4 | **COMPLETE** |
+| **Unit B — `Trade-In` (`TradeInTests`, 70)** | **COMPLETE** |
+| **Unit B — `Cards of Consonance` (`CardsOfConsonanceTests`, 63)** | **COMPLETE** |
+| **Unit B — `White Elephant's Gift` (`WhiteElephantsGiftTests`, 64)** | **COMPLETE** |
+| **Unit C — `Herald of Creation` (`HeraldOfCreationTests`, 73)** | **COMPLETE** |
+| **Unit C — `Divine Dragon Apocralyph` (`DivineDragonApocralyphTests`, 65)** | **COMPLETE** |
+| **Unit D — `Dragon Shrine` (`DragonShrineTests`, 78)** | **COMPLETE** |
+| **Unit D — `The White Stone of Legend` (`TheWhiteStoneOfLegendTests`, 78)** | **COMPLETE** |
+
+### The new generic subsystem — the DECK as a zone an effect may look THROUGH
+
+`RULES_SPEC.md` §8.4 is the normative statement; `CARD_RULINGS.md` **R40** carries the sourcing.
+§8.2 already separated DRAW / REVEAL / EXCAVATE and `GameState`'s own comment recorded that
+nothing implemented the fourth — *"SEARCH … Nothing here does that; `shuffle_deck()` is its
+tail."* Batch 10 implements the fourth, and the gate was written and green **before any card**.
+
+New primitives, all in `EffectPrimitives`, all over `GameState` methods that already existed and
+were already correct (`draw()`, `reveal()`, `shuffle_deck()`, `move_card()`): `draw_cards()`,
+`can_draw()`, `deck_search_candidates()`, `can_search_deck()`, `search_deck_to_hand()`,
+`send_from_deck_to_gy()`, `qualified_hand_cards()`, `qualified_own_field_monsters()`, plus the
+`non_effect_monster()`, `tuner_monster()` and `monster_of_level_at_least()` predicates.
+**Nothing in `GameState` was reshaped for this.**
+
+Two new `TestFixtures` helpers: `give_to_deck()` and `clear_deck()`. A test that asserts on
+deck-out or on "the Deck must hold 2" cannot start from the 40-card filler deck.
+
+### The engine defect batch 10 found and fixed
+
+**Events raised by paying an activation COST never reached the trigger check.**
+`DuelEngine._resolve_current_chain()` takes its event mark at the start of chain RESOLUTION,
+but a cost is paid during chain BUILDING, long before that mark. So a card **discarded as a
+cost** could never fire its own "If this card is sent to the GY" trigger. No card in the pool
+triggered off a cost before batch 10, so nothing had exercised the path.
+
+Fixed with `DuelEngine._cost_events`, deliberately in the **same shape** `_carried_events`
+already uses to withhold the Damage Step's flip for sub-step 4: the events are **held**, not
+acted on immediately, because a Trigger Effect that meets its condition while a Chain is being
+built does not interrupt it — it activates after that Chain finishes resolving (master prompt
+45). The cost events are placed **before** the resolution's own events in the batch, because
+they happened first and a batch's order decides the order simultaneous triggers are offered in.
+
+`DeckAccessTests` asserts the path generically (a synthetic discard-engine Spell firing a
+synthetic GY searcher) and `TheWhiteStoneOfLegendTests` asserts it on the real cards
+(`Cards of Consonance` discarding `The White Stone of Legend`). Both suites failed before the
+fix and pass after it.
+
+### R40 — and the two places the research CHANGED THE PLAN
+
+R40 is the only ruling batch 10 opened, and it is CLOSED. Every batch-10 card carries
+`Special Ruling Needed = NO` in the matrix; that was a deliberate criterion for choosing the
+batch. The research was done **before** any card was written, and it contradicted the plan
+twice:
+
+1. **`The White Stone of Legend` is the EXCEPTION to [S1 p.53]'s search-activation restriction,
+   not an instance of it.** The general rule says you cannot activate an effect to search your
+   Deck when nothing qualifies; the first draft of the batch-10 plan applied it to this card.
+   The official supplement (cid 7850, 2024-03-23) says the opposite in as many words: it is a
+   mandatory GY Trigger Effect, it **must** activate whenever its condition is met, and it
+   **activates even with no `Blue-Eyes White Dragon` in the Deck**, resolving and adding
+   nothing. It also activates during the Damage Step. Card-specific official guidance outranks
+   the general sentence. Asserted directly, in both directions.
+2. **A "draw 2" cannot be activated on a Deck of fewer than 2.** The general rules alone would
+   have let a player activate `Trade-In` on a one-card Deck, draw 1 and lose by deck-out. The
+   supplements for cid 7248 (`Trade-In`) and cid 8656 (`Cards of Consonance`) each state the
+   restriction explicitly and independently. Implemented generically as `can_draw()`, not as
+   per-card constants. `White Elephant's Gift`'s own supplement (cid 9138) is silent, so the
+   same gate is applied to it **by analogy** and is recorded as an inference at MEDIUM-HIGH —
+   not as an official ruling for that card.
+
+**A research-methodology defect was found and is recorded in R40.** The first fetches used
+`request_locale=en` and returned the database's generic marketing boilerplate for every cid —
+byte-identical between two different cards. That was very nearly written down as "no official
+Q&A exists for these cards", which would have been **false**. `request_locale=ja` returns the
+real supplemental information for all ten lookups. A generic-boilerplate response from that
+database is evidence of a bad locale, not of an absent ruling.
+### Mutation checks — the new suites are not vacuous
+
+Every mutation below was applied to the SHIPPED code, the full suite was run, and the code was
+restored from a byte-exact backup. **All 31 were caught.** A mutation caught by only one
+assertion was treated as a weakness in the test, not as a pass: **D1** and **W1** were each
+caught by a single assertion on the first pass, both suites were strengthened, and both were
+re-run — that is where the last 4 assertions of the 6914 came from.
+
+| # | Mutation | Result |
+|---|---|---:|
+| M1 | drop the search's tail shuffle | 2 failed |
+| M2 | drop the reveal on a search | 4 failed |
+| M3 | `can_draw()` always true | 2 failed |
+| M4 | `can_search_deck()` always true | 2 failed |
+| M5 | mill via `draw()` instead of a send | 2 failed |
+| T1 | `Trade-In` accepts Level 7 | 13 failed |
+| T2 | `Trade-In` drops the Deck gate | 5 failed |
+| T3 | `Trade-In` draws 1 | 5 failed |
+| C1 | `Cards of Consonance` ignores the race | 4 failed |
+| C2 | `Cards of Consonance` ignores the ATK cap | 4 failed |
+| C3 | `Cards of Consonance` sends instead of discarding | 3 failed |
+| W1g | `White Elephant's Gift` accepts face-down monsters | 3 failed |
+| W2g | `White Elephant's Gift` accepts Effect Monsters | 4 failed |
+| W3g | `White Elephant's Gift` drops the Deck gate | 3 failed |
+| H1 | `Herald` floor becomes 6 | 3 failed |
+| H2 | `Herald` floor becomes an exact match | 9 failed |
+| H3 | `Herald` once-per-turn dropped | 2 failed |
+| H4 | `Herald` target chased instead of dropped | 2 failed |
+| H5 | `Herald` reaches either Graveyard | 2 failed |
+| A1 | `Apocralyph` race ignored | 5 failed |
+| A2 | `Apocralyph` once-per-turn dropped | 2 failed |
+| A3 | `Apocralyph` reaches either Graveyard | 2 failed |
+| D1 | `Dragon Shrine` second send always unlocked | 1 → **4** failed after strengthening |
+| D2 | `Dragon Shrine` second send not optional | 6 failed |
+| D3 | `Dragon Shrine` named ACTIVATION → named EFFECT | 2 failed |
+| D4 | `Dragon Shrine` activation gate dropped | 2 failed |
+| D5 | `Dragon Shrine` race ignored | 10 failed |
+| W1 | **`The White Stone of Legend` gated on `can_search_deck()`** — i.e. the general [S1 p.53] rule re-applied, the exact mistake R40 corrects | 1 → **3** failed after strengthening |
+| W2 | `The White Stone of Legend` mandatory → optional | 16 failed |
+| W3 | `The White Stone of Legend` keys on destruction, not a send | 7 failed |
+| W4 | `The White Stone of Legend` fires on ANY card's send | 2 failed |
+
+**W1 is the one that mattered most.** It re-introduces exactly the reading that the first draft
+of the batch-10 plan had, and that the official supplement for cid 7850 contradicts. It is now
+caught by three assertions, including one that checks the stone's OWN Chain Link by card id
+rather than counting links.
+
+### Test-harness lessons this batch paid for (all recorded in the suites themselves)
+
+1. **An unqualified "discard 1 card" makes the whole hand a candidate**, including the five
+   opening-hand cards. `ScriptedController`'s default answer is "the first option", which is
+   almost never the card a test means. Queue it with `queue_for()` and then assert
+   `controller.errors == []` — that is what proves the queued answer reached the intended prompt.
+2. **`TestFixtures.activation_negator()` only answers Spell/Trap activations** (it asks
+   `spell_trap_activation_below()`). Holding a window open against a monster's Ignition Effect
+   needs `interferer()` or `any_effect_negator()`.
+3. **An interferer must belong to the TURN PLAYER.** `get_legal_actions(pid)` returns nothing
+   for a player who is not the turn player, and the failure is silent — the helper just returns
+   false. This cost a cycle; it is the same trap §8's reminders already record, hit from a new
+   direction.
+4. **`TestFixtures.end_turn()` leaves the engine in the DRAW phase**, not Main Phase 1. A
+   once-per-turn reset test for a **Spell** must `advance_to_phase(MAIN_1)` afterwards; a monster
+   Ignition Effect happens not to need it, which is exactly why the Spell case was the one that
+   failed.
+5. **Event counts must be read as DELTAS.** A duel has already drawn two opening hands before any
+   test starts, so an absolute `count_events(CARD_DRAWN)` measures the setup. And a Normal Spell's
+   own trip to the GY after resolving is a real `CARD_SENT_TO_GY`, so "the milled card was sent"
+   is `count_events_for(..., card_id)`, never a bare count.
 
 ---
 

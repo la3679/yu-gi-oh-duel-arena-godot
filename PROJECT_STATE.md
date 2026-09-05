@@ -3,81 +3,101 @@
 > Persistent resume file. A new Claude Code session should read **this file first**,
 > then read only the targeted files named in §8. Do **not** recursively reread the repository.
 
-**Last updated:** 2026-09-05
+**Last updated:** 2026-09-05 (batch 10 complete)
 **Current phase:** **Phase 5 — the card effect library.** Phases 0–4 are complete and
 Gate B (the generic rules engine) is MET; nothing in Phase 4 needs revisiting.
 
 ---
 
-## 0. READ THIS FIRST — batch 9 is COMPLETE; batch 10 is NOT planned
+## 0. READ THIS FIRST — batch 10 is COMPLETE; batch 11 is NOT planned
 
-**Batches 1–9 are complete. Nothing in batch 9 is partial or unverified.**
+**Batches 1–10 are complete. Nothing in batch 10 is partial or unverified.**
 
-| Batch 9 unit | Status |
+| Batch 10 unit | Status |
 |---|---|
-| Unit A — the generic attack-restriction / attack-negation gate (`AttackRestrictionTests`, 229) | **COMPLETE** |
-| Unit B card 1 — `Mirage Dragon` (`MirageDragonTests`, 121) | **COMPLETE** |
-| The generic "it remains on the field" override (`SpellTrapTests` 27 → 49) | **COMPLETE** |
-| Unit B card 2 — `Swords of Revealing Light` (`SwordsOfRevealingLightTests`, 122) | **COMPLETE** |
-| Unit B card 3 — `Maiden with Eyes of Blue` (`MaidenWithEyesOfBlueTests`, 139) | **COMPLETE** |
-| Unit C card 1 — `Kaiser Sea Horse` (`KaiserSeaHorseTests`, 57) | **COMPLETE** |
-| The generic lingering material-choice constraint (`ChoiceConstraintTests`, 137) | **COMPLETE** |
-| Unit C card 2 — `Soul Exchange` (`SoulExchangeTests`, 174) | **COMPLETE** — it finished batch 9 |
+| Unit A — the generic DECK-ACCESS gate (`DeckAccessTests`, 139), plus **R40** and `RULES_SPEC.md` §8.4 | **COMPLETE** |
+| Unit B — `Trade-In` (`TradeInTests`, 70) | **COMPLETE** |
+| Unit B — `Cards of Consonance` (`CardsOfConsonanceTests`, 63) | **COMPLETE** |
+| Unit B — `White Elephant's Gift` (`WhiteElephantsGiftTests`, 64) | **COMPLETE** |
+| Unit C — `Herald of Creation` (`HeraldOfCreationTests`, 73) | **COMPLETE** |
+| Unit C — `Divine Dragon Apocralyph` (`DivineDragonApocralyphTests`, 65) | **COMPLETE** |
+| Unit D — `Dragon Shrine` (`DragonShrineTests`, 78) | **COMPLETE** |
+| Unit D — `The White Stone of Legend` (`TheWhiteStoneOfLegendTests`, 78) | **COMPLETE** — it finished batch 10 |
 
-**Measured at this checkpoint: 6284 passed / 0 failed across 69 suites; SmokeCheck PASS;
-54 / 77 implemented, 54 / 77 tested, 23 remaining** (counts computed by
-`python Tools/build_matrix.py`, never written by hand). **All 5973 assertions from the previous
-checkpoint pass unchanged** — none was weakened, retargeted or deleted, and this time **no
-pre-existing suite moved at all**: 6284 − 5973 = 311 = `ChoiceConstraintTests` (137) +
-`SoulExchangeTests` (174). ObjectDB at exit: **187347**.
-**Previous clean HEAD:** `b7afb67`. **Batch-9 completion commit:** `1b1848f` (all of the code,
-the tests and the reports; this commit records the hash).
+**Measured at this checkpoint: 6914 passed / 0 failed across 77 suites; SmokeCheck PASS;
+61 / 77 implemented, 61 / 77 tested, 16 remaining** (counts computed by
+`python Tools/build_matrix.py`, never written by hand). **All 6284 assertions from the previous
+checkpoint pass unchanged** — none was weakened, retargeted or deleted, and **no pre-existing
+suite moved at all**: 6914 − 6284 = 630 = the eight new suites exactly
+(139 + 70 + 63 + 64 + 73 + 65 + 78 + 78). **No `SCRIPT ERROR` in any run**; the two `ERROR:`
+lines on stderr are the two deliberate fail-loudly negative tests and are unchanged.
+ObjectDB at exit: **204316**.
+**Previous clean HEAD:** `142b930`. **Batch-10 commits:** `c82d1db` (unit A), `639e206`
+(unit B), `be901d2` (unit C), and the unit-D / checkpoint commit that records this hash.
 
-> **How this checkpoint was produced.** The batch-9 finish (the generic material-choice
-> constraint and `Soul Exchange`) was written by a previous session that ran out of quota
-> **before it could checkpoint**. This session recovered that work from the working tree, did
-> not reset or rewrite any of it, verified it (137/137, 174/174, full regression, SmokeCheck,
-> mutation checks, no `SCRIPT ERROR`), added **four** assertions to `SoulExchangeTests` that
-> mutation testing proved were missing, refreshed the matrix and the two report files, and
-> committed. Nothing else was changed.
+**Batch 10 was PLANNED FROM THE MATRIX before anything was written.** All 23 remaining cards
+were inspected and grouped by shared mechanic; the group chosen was the **Deck-access /
+card-advantage group** — two related mechanics, not an arbitrary card count: the **Deck as a
+zone an effect may look THROUGH** (SEARCH, MILL, effect DRAW) and a **QUALIFIED hand-or-field
+COST**. The grouping table, including which of the remaining cards need genuinely new
+subsystems, is preserved in §8 and is the starting point for batch 11.
 
-**Four per-card rulings were CLOSED across this batch — R3, R6, R7 and R8** — recorded as
-**R37**, **R36**, **R39** and **R38** in `Research/CARD_RULINGS.md`. **R1 and R2 remain OPEN**;
-they belong to cards that are already implemented and are carried as recorded questions, not as
-gaps in batch 9. Do not treat them as closed.
+**ONE new generic subsystem, built as its own unit BEFORE any card that needed it:** the
+DECK-ACCESS layer (`RULES_SPEC.md` §8.4). §8.2 had already separated DRAW / REVEAL / EXCAVATE,
+and `GameState`'s own comment recorded that nothing implemented the fourth — *"SEARCH … Nothing
+here does that; `shuffle_deck()` is its tail."* Batch 10 implements the fourth:
+`EffectPrimitives.draw_cards()` / `can_draw()` / `deck_search_candidates()` /
+`can_search_deck()` / `search_deck_to_hand()` / `send_from_deck_to_gy()` /
+`qualified_hand_cards()` / `qualified_own_field_monsters()`, plus the `non_effect_monster()`,
+`tuner_monster()` and `monster_of_level_at_least()` predicates. **Nothing in `GameState` was
+reshaped** — the subsystem is a card-facing layer over four methods that already existed and
+were already correct.
 
-**R34 part D was re-checked and NOT closed.** The official Konami database has **no Q&A entry
-for cid 6196**, and Yugipedia and the Fandom wiki were unreachable (HTTP 403 / 402). [S1 p.30]
-and [S1 p.53] back the card-versus-effect distinction generally — better sourcing than "PSCT
-alone" — but it is still not a quoted ruling on `Mirage Dragon`. **It stays MEDIUM-HIGH**, and
-the honest result is recorded in **R35**.
+**One real engine defect was found and fixed.** Events raised by paying an activation **COST**
+never reached the trigger check: `_resolve_current_chain()` takes its event mark at the start of
+chain RESOLUTION, but a cost is paid during chain BUILDING. So a card **discarded as a cost**
+could never fire its own "If this card is sent to the GY" trigger — and `The White Stone of
+Legend` discarded by `Cards of Consonance` is exactly that, the real deck-1 line. No card in the
+pool triggered off a cost before batch 10, so nothing had exercised it. Fixed with
+`DuelEngine._cost_events`, in the **same shape** `_carried_events` already uses for the Damage
+Step's withheld flip: held rather than acted on immediately, because a trigger raised while a
+Chain is being built waits for that Chain to finish resolving. Asserted generically in
+`DeckAccessTests` and on the real cards in `TheWhiteStoneOfLegendTests`.
 
-**One real engine defect was found and fixed:** `SummonRules.tribute_value()` honoured
-`effects_are_negated()` but not face-orientation, so a **face-down `Kaiser Sea Horse` wrongly
-counted as two Tributes**. Fixed in the rules layer, with the rule now asserted in the generic
-gate (`SummonTests`) as well as in the card's suite. The other three cards found no engine
-defect, which is the expected result — unit A and the two new generic units had already
-flushed their machinery out.
+**One ruling was OPENED and CLOSED — R40 — and the research CHANGED THE PLAN TWICE.** Both
+corrections were away from what the general rules alone would have produced, and both would
+otherwise have been silent bugs:
 
-**Three new generic mechanisms were built, each as its own unit BEFORE the card that needed
-it:** the card-declared **"it remains on the field" override**
-(`DuelEngine.REMAINS_ON_FIELD_EFFECT_ID`), the **optional step inside a resolving effect**
-(`EffectPrimitives.may()`), and the **lingering material-choice constraint**
-(`GameState.choice_constraints` + `RULES_SPEC.md` §5.9) — the first restriction in the engine
-that answers *"if you do, it must be THIS card"* rather than *"may I?"*. Full write-up,
-including the mutation-check table, is in `Reports/TEST_RESULTS.md`.
+* **`The White Stone of Legend` is the EXCEPTION to [S1 p.53]'s search-activation restriction,
+  not an instance of it.** Official supplement cid 7850 (2024-03-23): it is a MANDATORY GY
+  Trigger Effect, it **must** activate whenever its condition is met, it **activates even with
+  no `Blue-Eyes White Dragon` in the Deck** (resolving and adding nothing), and it activates
+  during the Damage Step. The first draft of the batch-10 plan had this backwards.
+* **A "draw 2" cannot be activated on a Deck of fewer than 2.** cid 7248 (`Trade-In`) and cid
+  8656 (`Cards of Consonance`) each state it explicitly and independently. Without it the
+  engine would let a player activate on a one-card Deck, draw 1 and lose by deck-out.
+  Implemented as a generic `can_draw()`. `White Elephant's Gift` (cid 9138) is **silent** on the
+  point, so the same gate is applied to it **by analogy** and recorded as an inference at
+  MEDIUM-HIGH — never as an official ruling for that card.
 
-**A second real engine defect was found by the material-choice unit.**
-`SummonRules.tributes_satisfy()` was a **greedy maximum-value** check that rejected any material
-it judged unnecessary, which is wrong for an **optional** double-Tribute clause: it refused a
-legal two-card selection for a two-Tribute Summon whenever one of the two was a
-`Kaiser Sea Horse`. It now **enumerates complete legal combinations** (`tribute_combinations()`,
-published on the action so a UI never re-derives them), and `tribute_candidates()` now filters
-non-monsters and `cannot_be_tributed` at the single source.
+**A RESEARCH-METHODOLOGY defect was found and is recorded in R40. It matters beyond batch 10.**
+The first Konami-database fetches used `request_locale=en` and returned the site's generic
+marketing boilerplate for every cid — **byte-identical between two different cards**. That was
+very nearly recorded as "no official Q&A exists for these cards", which would have been FALSE.
+`request_locale=ja` returns the real supplemental information; all ten lookups succeeded that
+way. **A generic-boilerplate response from that database is evidence of a bad locale, not of an
+absent ruling.** Any earlier "no Q&A entry" conclusion in `CARD_RULINGS.md` — including the one
+recorded for cid 6196 in **R35** — should be re-checked against the `ja` locale before it is
+relied on again. That re-check was NOT done in this batch and is not claimed.
+
+**R1, R2, R5, R11, R12, R13, R14, R15 and R20 remain OPEN.** R1 and R2 belong to cards that are
+already implemented and are carried as recorded questions. The other seven belong to cards among
+the 16 that remain. Do not treat any of them as closed.
+
+**Batch 11 is NOT started and NOT planned.** §8 carries the grouping of all remaining cards.
 
 ---
-
-## 0a. The record of batch 8 — COMPLETE
+## 0a. The record of batch 9 and batch 8 — COMPLETE
 
 **Batches 1–8 are complete.** Every unit is done, tested and committed. Nothing is partial and
 nothing is left UNVERIFIED.
@@ -1301,17 +1321,31 @@ Everything previously listed here is now done and tested; see §6a and
 * **`Kunai with Chain` and `Fairy Tail - Rella` still exercise Equip mechanics** and are not
   implemented yet. The generic subsystem they need now exists and is tested; they still need
   their own per-card work.
-* **180615 leaked ObjectDB instances at exit** (measured at this checkpoint, up from 164444 at
-  batch 9 unit A, 154223 at batch 8 and 113897 at batch 7) — RefCounted cycles between
-  `GameState`, the `DuelLog` signal and test closures. It grows in proportion to the number of
-  duels the suite builds. This checkpoint added **16171 for 464 assertions, about 34.9 each,
-  which is LOWER than the previous checkpoint's 44.6** and breaks the run of five consecutive
-  rising per-assertion figures. **No explanation for that is recorded, because none has been
-  measured** — it is one data point and this session did not investigate it. It causes no test
-  failure, hang, memory pressure or unreliable result, so it was correctly not allowed to
-  derail a card unit, but it must be characterised or cleaned up **before Phase 7**, when the
-  UI keeps one duel alive for a long session. This is a harness / object-lifetime issue and is
-  **not** a rules correctness failure.
+* **204316 leaked ObjectDB instances at exit** (measured at the **batch 10** checkpoint, up
+  from 187347 at batch 9, 180615 at batch 9 unit A, 164444 earlier in batch 9, 154223 at batch
+  8 and 113897 at batch 7) — RefCounted cycles between `GameState`, the `DuelLog` signal and
+  test closures. It grows in proportion to the number of duels the suite builds. Batch 10 added
+  **16969 for 630 assertions, about 26.9 each**, against 21.6 at batch 9, 34.9 before that and
+  44.6 before that. The per-assertion figure has now fallen twice, risen once and fallen once
+  across four checkpoints. **No explanation for any of that is recorded, because none has been
+  measured**, and none may be recorded until one is. It causes no test failure, hang, memory
+  pressure or unreliable result, so it was correctly not allowed to derail a card unit, but it
+  must be characterised or cleaned up **before Phase 7**, when the UI keeps one duel alive for a
+  long session. This is a harness / object-lifetime issue and is **not** a rules correctness
+  failure.
+* **Nine per-card rulings are OPEN**, seven of them blocking a card among the 16 that remain:
+  **R5** (`Fairy Tail - Sleeper`), **R11** (`Fairy Tail - Luna`), **R12**
+  (`The Monarchs Awaken`), **R13** (`Witchcrafter Golem Aruru`), **R14**
+  (`Hidden Springs of the Far East`), **R15** (`A Hero Emerges`) and **R20** (`Honest`).
+  **R1** and **R2** belong to cards that are already implemented and are carried as recorded
+  questions, not as gaps. Settle each one BEFORE writing its card, and use `request_locale=ja`
+  on the Konami database — see the methodology note in **R40**.
+* **An earlier "no official Q&A exists" conclusion has NOT been re-checked and may be wrong.**
+  **R35** records that the Konami database has no Q&A entry for cid 6196 (`Mirage Dragon`),
+  which is why R34 part D stayed at MEDIUM-HIGH. That conclusion was reached with
+  `request_locale=en`, which batch 10 discovered returns generic boilerplate for every card.
+  The `ja` lookup was **not** performed for cid 6196 in batch 10 and no claim is made about
+  what it would return. Re-check it before relying on R35's negative result again.
 
 ---
 
@@ -1708,165 +1742,61 @@ Decisions in these two units that must not be reversed:
   reports "no legal choice", with a real-pool assertion — the R21/R23/R2 treatment, now used five
   times.
 
-### The NEXT step — BATCH 10 IS PLANNED. Execute it in unit order; nothing is half-finished.
+### The NEXT step — plan batch 11 from the matrix. Nothing is half-finished.
 
-**Batch 9 is CLOSED. Do not reopen any of it, and do not rewrite any gate.** Nine gates plus
-three generic units are green and must stay so: `EquipTests`, `ControlTests`, `MovementTests`,
+**Batch 10 is CLOSED. Do not reopen any of it, and do not rewrite any gate.** Ten gates plus
+four generic units are green and must stay so: `EquipTests`, `ControlTests`, `MovementTests`,
 `BanishTests`, `LifePointCostTests`, `TrapMonsterTests`, `BattlePhaseRestrictionTests`,
-`AttackRestrictionTests`, `ChoiceConstraintTests`, the remains-on-field override in
-`SpellTrapTests`, the tribute-value rule in `SummonTests`, and the combination enumeration in
-`SummonRules.tribute_combinations()`.
+`AttackRestrictionTests`, `ChoiceConstraintTests`, `DeckAccessTests`, the remains-on-field
+override in `SpellTrapTests`, the tribute-value rule in `SummonTests`, the combination
+enumeration in `SummonRules.tribute_combinations()`, and `DuelEngine._cost_events`.
 
-**23 cards remain** — `Reports/CARD_IMPLEMENTATION_MATRIX.csv` is the authoritative list.
-They were inspected in full and grouped by shared mechanic before batch 10 was chosen:
+**16 cards remain.** `Reports/CARD_IMPLEMENTATION_MATRIX.csv` is the authoritative list; do not
+work from memory and do not plan from this file's prose. **Batch 11 is not planned yet.** Plan it
+from the matrix, group it the way every batch since 7 has been grouped — a generic subsystem
+unit with its own tests FIRST, then the cards that consume it — and settle any per-card ruling
+**before** writing the card, not after.
 
-| Group | Cards | Needs a NEW engine subsystem? |
+The grouping below was produced by inspecting all 23 remaining cards at the start of batch 10.
+Seven of them are now done; the rest is **still current** and is the starting point for batch 11.
+**Re-derive it from the matrix rather than trusting this table blindly**, but do not throw it
+away — the work of reading every remaining card has already been paid for once.
+
+| Group | Cards still remaining | Needs a NEW engine subsystem? |
 |---|---|---|
-| **DECK ACCESS + qualified cost** (batch 10) | `Trade-In`, `Cards of Consonance`, `White Elephant's Gift`, `Herald of Creation`, `Divine Dragon Apocralyph`, `Dragon Shrine`, `The White Stone of Legend` | **YES** — Deck SEARCH, Deck to GY MILL and effect DRAW do not exist |
-| DESTRUCTION with an activation condition | `Stamping Destruction`, `Straight Flush`, `Burst Stream of Destruction`, `Chiron the Mage` | no — reuses destruction + targeting; `Burst Stream` needs the existing attack restriction |
-| ATK modification | `Back-Up Rider`, `Honest` (R20) | `Back-Up Rider` no; `Honest` needs a Damage-Step hand Quick Effect |
-| Tribute-as-cost Spiritual Arts | `Spiritual Fire Art - Kurenai`, `Spiritual Water Art - Aoi` | no — `pay_tribute_cost()` exists; Aoi needs a hand LOOK |
-| Special Summon from a private zone | `Damage Condenser`, `A Hero Emerges` (R15) | partly — both need Deck/hand Special Summons; `A Hero Emerges` needs RANDOM choice |
-| LP gain on battle damage | `Vampiric Koala` | no |
-| **Genuinely new subsystems, deliberately NOT in batch 10** | `The Monarchs Awaken` (R12 — "unaffected by effects"), `Fairy Tail - Sleeper` (R5 — an effect that REPLACES another effect's text), `Hidden Springs of the Far East` (R14 — un-negatable Summons), `Witchcrafter Golem Aruru` (R13), `Fairy Tail - Luna` (R11) | **YES**, each a different one |
+| ~~DECK ACCESS + qualified cost~~ | **DONE in batch 10** — all seven | the DECK-ACCESS layer, built |
+| DESTRUCTION with an activation condition | `Stamping Destruction`, `Straight Flush`, `Burst Stream of Destruction`, `Chiron the Mage` | **no** — destruction + targeting already exist; `Burst Stream`'s "cannot attack this turn" is the existing attack restriction, and `Chiron`'s cost is a **qualified discard**, which batch 10 built. This is the cheapest coherent next batch. |
+| ATK modification | `Back-Up Rider`, `Honest` (**R20**) | `Back-Up Rider` no — `gain_atk_until_end_of_turn()` exists. `Honest` **yes**: a Quick Effect activated **from the HAND** during the **Damage Step**, which nothing in the pool does. |
+| Tribute-as-cost Spiritual Arts | `Spiritual Fire Art - Kurenai`, `Spiritual Water Art - Aoi` | mostly no — `pay_tribute_cost()` exists and `Kurenai` reads an **original** ATK, which `CardInstance.original_atk()` already answers. `Aoi` needs a **look at the opponent's hand**, which is a new hidden-information operation (§12) rather than a new subsystem. |
+| Special Summon from a private zone | `Damage Condenser`, `A Hero Emerges` (**R15**) | partly — both Special Summon out of a hidden zone, and batch 10's Deck layer helps `Damage Condenser`. `A Hero Emerges` needs a **RANDOM choice made by the OPPONENT** from your hand, which the engine has never done; [S1 p.53] "Random" says only that neither player may know which card is chosen, so it must go through the seeded `Rng` to stay replayable. |
+| LP gain on battle damage | `Vampiric Koala` | **no** — a trigger on battle damage plus `change_life_points()`. |
+| Genuinely new subsystems, each a DIFFERENT one | `The Monarchs Awaken` (**R12** — "unaffected by the effects of cards other than this card"), `Fairy Tail - Sleeper` (**R5** — an effect that REPLACES another effect's text), `Hidden Springs of the Far East` (**R14** — Summons and activations that **cannot be negated**, plus targeting/destruction protection for Set cards), `Witchcrafter Golem Aruru` (**R13** — a Quick Effect that answers *being targeted*, including by an attack), `Fairy Tail - Luna` (**R11** — an effect the OPPONENT may pay to negate) | **yes**, and no two of them share one. `CardInstance.unaffected_by_effects` exists as a field but has no subsystem behind it; treat R12 as the place to build one. |
 
-**Unresolved rulings among the 23:** R5, R11, R12, R13, R14, R15, R20. **None of them touches a
-batch-10 card** — every card in batch 10 carries `Special Ruling Needed = NO` in the matrix. That
-is deliberate: batch 10 opens exactly ONE new ruling, **R40**, and closes it in unit A before any
-card is written.
+**Recommended shape for batch 11, if the matrix still agrees when you re-read it:** take the
+**DESTRUCTION-with-a-condition group** (`Stamping Destruction`, `Straight Flush`,
+`Burst Stream of Destruction`, `Chiron the Mage`) plus `Back-Up Rider` and `Vampiric Koala`.
+Six cards, **no new subsystem at all**, every one of them `Special Ruling Needed = NO`, and it
+would take the library to 67 / 77 while leaving all five genuinely-new-subsystem cards and the
+four ruling-blocked ones to be tackled one subsystem per unit afterwards. That ordering is a
+recommendation, not a decision — make it from the matrix.
 
-#### BATCH 10 — "the Deck-access / card-advantage group". 7 cards, 54 to **61 / 77**.
+**Seven rulings are still OPEN and each blocks its own card: R5, R11, R12, R13, R14, R15, R20.**
+Two more, **R1 and R2**, belong to cards that are already implemented and are carried as
+recorded questions, not as gaps. When settling any of them, **use `request_locale=ja`** on the
+Konami database — see R40's methodology note, which cost this session real time.
 
-Two related mechanics, not an arbitrary card count: **(1) the Deck as an accessible private
-zone** — SEARCH (Deck to hand), MILL (Deck to GY) and an effect DRAW — and **(2) a QUALIFIED
-hand-or-field cost** — "discard 1 *Level 8 monster*", "discard 1 *Dragon Tuner with 1000 or less
-ATK*", "send 1 face-up *non-Effect Monster you control*". Every batch-10 card is exactly one of
-those two mechanics wrapped around an existing primitive.
+**Also scheduled and NOT optional:** the **ObjectDB characterisation task** (§7). It is now at
+**204316 at exit, ~26.9 per new assertion** — up from the previous checkpoint's ~21.6, and
+below the ~34.9 and ~44.6 before that. That is now three falls and one rise inside five
+checkpoints, which is still not a trend and still has **no measured explanation**; none may be
+recorded until one is measured. It fails nothing, so it must not derail a card unit, but it
+**must be characterised or fixed before Phase 7**.
 
-**The engine says itself that the subsystem is missing.** `GameState`'s own comment above
-`reveal()` enumerates DRAW / REVEAL / EXCAVATE / SEARCH and records of the fourth: *"Nothing here
-does that; `shuffle_deck()` is its tail."* No card in the pool draws, searches or mills. That is
-unit A.
-
-| Unit | Contents | Status |
-|---|---|---|
-| **A** | the generic DECK-ACCESS gate — `Tests/rules/DeckAccessTests.gd`, green BEFORE any card, plus **R40** and `RULES_SPEC.md` §8.4 | NOT STARTED |
-| **B** | the DRAW cards — `Trade-In`, `Cards of Consonance`, `White Elephant's Gift` | NOT STARTED |
-| **C** | the GY-RETRIEVAL once-per-turn cards — `Herald of Creation`, `Divine Dragon Apocralyph` | NOT STARTED |
-| **D** | the DECK-ACCESS cards — `Dragon Shrine`, `The White Stone of Legend` | NOT STARTED |
-
-**UNIT A — write the gate FIRST, before any card.** This is the pattern that has now paid off
-seven times. What is genuinely new is **the Deck as a zone an effect may look THROUGH**, which is
-neither a draw nor an excavate and must not be collapsed into either. New primitives:
-
-* `draw_cards(ctx, pid, count)` — an effect draw. Wraps `GameState.draw()`; a Deck that runs out
-  still loses the Duel and the partial draw stands. It is **not** an excavate.
-* `deck_search_candidates(ctx, pid, predicate)` — the private look-through.
-* `can_search_deck(ctx, pid, predicate)` — **the [S1 p.53] activation restriction**.
-* `search_deck_to_hand(ctx, pid, predicate, prompt)` — choose 1, **reveal it to both players**,
-  `add_to_hand`, then **shuffle the Deck**. The shuffle is not optional and is the tail
-  `RULES_SPEC.md` §12.1 already names.
-* `send_from_deck_to_gy(ctx, pid, predicate, prompt)` — a MILL by choice: it looks through the
-  Deck, so it shuffles, but it is public on arrival (the GY is public [S1 p.5]) and it can
-  **never** deck a player out.
-* `qualified_hand_cards(ctx, predicate)` / `qualified_own_field_monsters(ctx, predicate)` — the
-  candidate lists the qualified costs need. `pay_discard_cost()` and `pay_send_to_gy_cost()`
-  already exist and must be reused, **not** re-implemented.
-
-The gate must pin down: that a search shuffles and a draw does not · that a search-added card is
-revealed and a drawn card is not · that `revealed_to` is cleared by the search's own shuffle
-(§12.1) · that an empty predicate makes the activation ILLEGAL rather than a no-op · that
-a mill never decks out but a draw does · deck-out on the SECOND of two draws with 1 card left ·
-that a Deck to GY send emits the sent-to-GY event so "if this card is sent to the GY" triggers see
-it · both seats · replay determinism through the seeded `Rng`.
-
-**R40 is RESEARCHED and must be CLOSED in unit A, before any card.** The research was done
-first and it **changed the plan twice** — both times away from what the general rules alone
-would have produced. Full sourcing in `Research/CARD_RULINGS.md` R40; the two corrections:
-
-* **[S1 p.53, "Search your Deck"]** states outright that you must shuffle after any search and
-  that you cannot activate an effect to search your Deck when no card in it meets the
-  requirements. HIGH, quotable, PRIMARY.
-* **CORRECTION 1 — that general rule does NOT settle `The White Stone of Legend`, and the first
-  draft of this plan had it backwards.** The official Konami supplement for cid 7850
-  (dated 2024-03-23) says the opposite in as many words: it is a **mandatory** GY Trigger Effect,
-  it **must** activate whenever its condition is met, and it explicitly **activates even when
-  there is no `Blue-Eyes White Dragon` in the Deck** (it then resolves and adds nothing). It also
-  activates during the Damage Step. HIGH, PRIMARY, card-specific — and card-specific official
-  guidance outranks the general sentence. **Implement it that way and assert it directly.**
-* **CORRECTION 2 — the draw cards carry an activation restriction the generic rules do not give
-  them.** The supplements for cid 7248 (`Trade-In`, 2021-02-06) and cid 8656
-  (`Cards of Consonance`, 2020-08-29) each state explicitly that the card **cannot be activated
-  unless the Deck holds at least 2 cards**. HIGH, PRIMARY, and stated independently for both.
-  Without this the engine would happily let a player activate `Trade-In` on 1 card and deck out.
-  `White Elephant's Gift`'s own supplement (cid 9138, 2021-04-01) is **silent** on the point, so
-  applying the same gate to it is an **inference by analogy** at MEDIUM-HIGH — record it as an
-  inference, not as an official ruling. Build the gate as a generic `can_draw()` on the draw
-  primitive, not as three card-specific hacks.
-* Earlier English-locale fetches (`request_locale=en`) for these cids returned only the site's
-  generic boilerplate and were **wrongly** read as "no Q&A exists". The Japanese locale
-  (`request_locale=ja`) returns the real supplemental information. Use `ja` for future lookups.
-
-**UNIT B — the DRAW cards.** All three are "pay a qualified cost; draw 2", and all three are
-**live in the real pool** — verified against the deck lists, not assumed:
-
-| Card | Qualified cost | Live? |
-|---|---|---|
-| `Trade-In` | discard 1 **Level 8** monster | deck 1 holds `Blue-Eyes White Dragon` (8) and `Rabidragon` (8) |
-| `Cards of Consonance` | discard 1 **Dragon Tuner with 1000 or less ATK** | deck 1 holds `Flamvell Guard` (100), `Rider of the Storm Winds` (500) and `The White Stone of Legend` (300) — and `Maiden with Eyes of Blue` is a Tuner that is **not** a Dragon, so it is the negative case |
-| `White Elephant's Gift` | send 1 face-up **non-Effect Monster you control** to the GY | deck 2 holds `Metaphys Armed Dragon` x2, `Sabersaurus`, `Gladiator Beast Andal`, `Zure` |
-
-All three additionally **cannot be activated unless the Deck holds 2 cards** — see R40
-correction 2. `White Elephant's Gift`'s "non-Effect Monster" is officially **wider** than
-"Normal Monster" (cid 9138: it also covers effectless Ritual/Fusion/Synchro/Xyz/Link monsters),
-so implement it as "is a monster and is NOT an Effect Monster" and assert that in the V1 pool
-the two sets happen to coincide, the R21/R23 never-live treatment.
-
-The cost is a **COST** in all three (it precedes the semicolon) — `pay_cost`, never `resolve`, and
-never refunded when the activation is negated [S1 p.53, "Pay a Cost"]. `White Elephant's Gift`
-says **send**, not discard, and it comes from the FIELD, so it is `pay_send_to_gy_cost()`;
-the other two are `pay_discard_cost()`. Assert the distinction, because a future
-"if this card is discarded" clause must not see a send.
-
-**UNIT C — the GY-retrieval cards.** `Herald of Creation` and `Divine Dragon Apocralyph` are the
-same shape and must share no code beyond the primitives: "Once per turn: You can discard 1 card,
-then target 1 [X] monster in your Graveyard; add that target to your hand." The discard is an
-unqualified COST; the target is chosen from the **controller's own** GY; `add_to_hand()` already
-exists and already uses `MoveReason.ADDED_TO_HAND`. "Once per turn" with no card name printed is
-`opt_instance()`, **not** `opt_named_effect()`. `Herald` wants Level 7 or higher (deck 1 has
-exactly `Blue-Eyes White Dragon` and `Rabidragon`); `Apocralyph` wants a **Dragon**, and the
-matrix's "Dragon-Type" wording is the card's, so match on `race`, not on name. Both supplements
-(cid 7246, 2015-03-21; cid 9910, 2016-09-01) confirm: **IGNITION** effects activatable in the
-Monster Zone, the discard is a **COST**, and there must already be a legal GY target or the
-effect cannot be activated. Both also note an Extra Deck target would return to the Extra Deck
-rather than the hand — **never live in V1** (both Extra Decks are empty); assert that negative
-rather than implementing a branch that can never run.
-
-**UNIT D — the DECK-ACCESS cards.** These are the two that exist to consume unit A:
-
-* `Dragon Shrine` — "Send 1 Dragon monster from your Deck to the GY, then, if that monster in
-  your GY is a Dragon **Normal** Monster, you can send 1 more Dragon monster from your Deck to the
-  GY. You can only activate 1 'Dragon Shrine' per turn." The official supplement (cid 10590,
-  2024-03-23) fixes all of it: the two sends are **sequential and explicitly NOT simultaneous**,
-  the second is **optional** (`may()`), the Normal-Monster test reads the monster **as it now
-  sits in the GY** (fid 12831, 2026-06-26 — a card merely *treated as* a Normal Monster in the GY
-  satisfies it), and **at most 2** are ever sent: a Normal Monster sent by the SECOND send does
-  not start a third. `opt_named_activation()`, not `opt_named_effect()`. Cannot be activated with
-  no Dragon monster in the Deck.
-* `The White Stone of Legend` — "If this card is sent to the GY: Add 1 'Blue-Eyes White Dragon'
-  from your Deck to your hand." **MANDATORY** (no "You can"), a TRIGGER from `GRAVEYARD`, and it
-  fires on **any** send to the GY — Tributed, discarded, destroyed by battle, sent as a cost —
-  not only on destruction, and per cid 7850 **also during the Damage Step**. Per the same
-  supplement it **still activates with no `Blue-Eyes White Dragon` in the Deck** and then adds
-  nothing: this card is the exception to [S1 p.53]'s search-activation restriction, not an
-  instance of it. Assert both halves. It is the pool's first card whose own trigger can fire off
-  the cost of another batch-10 card (`Cards of Consonance` discards it — it is a Dragon Tuner
-  with 300 ATK; `Trade-In` cannot, it is Level 1). **Test that interaction directly** — it is the
-  reason both cards are in deck 1.
-
-**Also scheduled and NOT optional:** the **ObjectDB characterisation task** (§7), at **187347 at
-exit**. It still fails nothing, so it must not derail a card unit, but it **must be characterised
-or fixed before Phase 7**, and no explanation may be recorded for it that has not been measured.
+**Also worth one cheap unit at some point:** re-check the `request_locale=en` conclusions
+already recorded in `CARD_RULINGS.md` against the `ja` locale — specifically **R35**'s "the
+official Konami database has no Q&A entry for cid 6196". That claim was reached the same way
+this session's near-miss was, and it has NOT been re-checked. Do not silently upgrade R34
+part D's confidence without doing the lookup.
 
 ---
 
