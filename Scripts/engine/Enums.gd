@@ -244,6 +244,14 @@ enum DamageStepPermission {
 	## A mandatory trigger the rules require to occur inside the Damage Step.
 	## Collected by the trigger system, never offered as a fast-effect choice.
 	MANDATORY_TRIGGER,
+	## An effect whose rules-mandated window is sub-step 4, AFTER damage calculation —
+	## "when this card battles", "when you take battle damage". RULES_SPEC.md 7.1.
+	##
+	## Distinct from MANDATORY_TRIGGER, which is gated on the effect being collected by the
+	## trigger system and so cannot describe a Trap CARD activation. `Damage Condenser`
+	## (cid 6582) is activated from a Set position in exactly this window and is the reason
+	## this value exists. RULES_SPEC.md 7.2, CARD_RULINGS.md R42 Part C.
+	AFTER_DAMAGE_CALC,
 }
 
 ## Kinds of decision the engine can ask a controller for. Master prompt 42.

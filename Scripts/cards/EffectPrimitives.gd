@@ -1018,6 +1018,40 @@ static func battle_opponent_of(state: GameState, card: CardInstance) -> CardInst
 ## event that made it eligible, so `ctx.trigger_event` is null by the time a Trigger Effect
 ## resolves. The event is the right source in a `condition`, which runs while it is still
 ## available; this is the right source at resolution.
+## The same question as `battle_damage_just_inflicted_on()`, asked from an ACTIVATION
+## CONDITION rather than from a resolution. The two exist because they are asked in two
+## places that have access to different things, and neither can answer for the other.
+##
+## `ActivationRules.make_context()` builds a context with **no engine attached** — it is a
+## rules-layer question and the rules layer has no `DuelEngine` — so
+## `battle_damage_just_inflicted_on()`, which reads `BattleRules.last_damage` through
+## `ctx.engine`, answers 0 in every condition. A card whose activation legality depends on
+## how much battle damage was just taken would therefore be silently un-activatable, which
+## is exactly the bug `Damage Condenser`'s first draft had.
+##
+## Read from the authoritative **event log**, for the same reason
+## `named_monster_attacked_this_turn()` is: `GameState.events` is append-only, carries the
+## turn each entry was emitted in, and is stable under replay. The scan is bounded to the
+## CURRENT battle by walking backwards only as far as the most recent `ATTACK_DECLARED`,
+## so damage from an earlier battle in the same turn can never leak into the answer.
+##
+## Returns 0 when no attack has been declared, or when this battle inflicted no damage on
+## `pid`. CARD_RULINGS.md R42 Part C, RULES_SPEC.md 7.1.
+static func battle_damage_taken_in_this_battle(ctx: EffectContext, pid: int) -> int:
+	var events: Array = ctx.state.events
+	for i in range(events.size() - 1, -1, -1):
+		var ev: GameEvent = events[i]
+		# The boundary: anything before this belongs to an earlier battle.
+		if ev.kind == GameEvent.Kind.ATTACK_DECLARED:
+			return 0
+		if ev.kind != GameEvent.Kind.BATTLE_DAMAGE_INFLICTED:
+			continue
+		if int(ev.data.get("player", -1)) != pid:
+			continue
+		return maxi(0, int(ev.data.get("amount", 0)))
+	return 0
+
+
 static func battle_damage_just_inflicted_on(ctx: EffectContext, pid: int) -> int:
 	if ctx.engine == null or ctx.engine.battle == null:
 		return 0

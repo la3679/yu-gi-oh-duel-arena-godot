@@ -432,6 +432,7 @@ Engine model: every effect definition carries an explicit `damage_step_permissio
 | `NONE` | never activatable in the Damage Step (default) |
 | `UNTIL_DAMAGE_CALC` | Counter Trap, or an effect that directly changes ATK/DEF — legal in sub-steps 1–2 only |
 | `MANDATORY_TRIGGER` | triggers whose rules-mandated **timing** falls inside the Damage Step (e.g. destroyed-by-battle triggers in sub-step 5) — these are not "activated by choice" and are collected by the trigger system, not offered as a fast-effect option |
+| `AFTER_DAMAGE_CALC` | an effect whose rules-mandated window is **sub-step 4** — "when this card battles", "when you take battle damage". Legal in sub-step 4 and in no other sub-step |
 
 **Clarification (added when the Damage Step was implemented):** `MANDATORY_TRIGGER`
 describes the *timing*, not the *optionality*. `Shining Angel`'s "when this card is
@@ -439,6 +440,31 @@ destroyed by battle and sent to the GY: You can Special Summon…" is an **optio
 Trigger Effect whose window is nevertheless inside the Damage Step, and its controller is
 still asked whether to use it. The engine therefore gates this permission on the effect
 being trigger-collected, not on `Optionality.MANDATORY`.
+
+**`AFTER_DAMAGE_CALC` (added in Phase 5 batch 12, `CARD_RULINGS.md` R42 Part C).** §7.1
+sub-step 4 already named "when battle damage is inflicted" as a window, but no permission
+value could give it to a **card activation**, and that is why the value exists rather than
+because a fourth is tidier:
+
+* `UNTIL_DAMAGE_CALC` is sub-steps 1–2 — the *earlier* window, and the wrong answer rather
+  than a near-enough one;
+* `MANDATORY_TRIGGER` is gated on `TriggerCollector._is_collectable()`, which answers true
+  only for `EffectType.TRIGGER` and `FLIP`. A Normal Trap's own activation is
+  `EffectType.CARD_ACTIVATION` — that is what flips it face-up and sends it to the
+  Graveyard afterwards — so the permission can never apply to it.
+
+`Damage Condenser` (cid 6582, 「ダメージ計算後に発動します」) is the pool's only consumer.
+Both exclusions above are asserted in `DamageStepTests` so the reason the value exists
+cannot quietly stop being true.
+
+**A card activation in this window may not read `ctx.trigger_event`.** A `CARD_ACTIVATION`
+carrying `trigger_events` is offered by `DuelEngine._activation_actions()` as a response in
+a matching window, and that path calls `ActivationRules.can_activate(..., null)` — so the
+event is null in the condition, and `ActivationRules.make_context()` attaches no engine
+either. A condition that needs the battle's numbers reads the **event log** instead, through
+`EffectPrimitives.battle_damage_taken_in_this_battle()`, bounded backwards to the most
+recent `ATTACK_DECLARED`. Resolution keeps using `battle_damage_just_inflicted_on()`, where
+the engine is attached. The two readers are deliberate and neither can answer for the other.
 
 An effect with `NONE` is never surfaced during the Damage Step. There is no generic
 "allow everything" path (master prompt §33).
@@ -917,6 +943,35 @@ information than the physical game gives.
 *Engine:* `GameState.shuffle_deck()` clears `revealed_to` for every card in that Deck, and
 `GameState.move_card()` clears it for a move whose reason is `SHUFFLED_INTO_DECK`.
 *Tests:* `RulesQuestionTests` — both directions.
+
+### 12.2 Looking at a hidden zone — **DECIDED** (Phase 5 batch 12)
+
+Decided in `CARD_RULINGS.md` **R42 Part B**, for `Spiritual Water Art - Aoi`'s "look at your
+opponent's hand". This is an **operation** over §12.1, not a new subsystem.
+
+**Rule: "look at" is a REVEAL TO ONE PLAYER. Nothing moves, nothing is turned face-up, and
+the knowledge is kept until a shuffle — which for a hand means forever.**
+
+A hand is private [S1 p.50] and §12.1 already models legal knowledge as
+`CardInstance.revealed_to`, ends it only at a shuffle, and already marks a partial reveal
+`private_to` so the public log never carries what one player alone may see. Looking at a
+hand is therefore `reveal(card, [looker])` per card. Three things it deliberately is not:
+
+* **not a reveal to both** — the clause names one player, and passing only that player is
+  the whole difference;
+* **not a move** — a clause that looks and then sends does the sending separately, and the
+  two stay separable, because a look may find nothing to send;
+* **not forgotten** — there is no "forget", and none may be added for this. A hand is never
+  shuffled, so a card looked at and kept is still legally known, which is what the physical
+  game gives you.
+
+**Sending a card out of an opponent's hand is a SEND, never a DISCARD.** "Discard" is a
+player's own hand [S1 p.52-53]; `MoveReason.SENT_TO_GY_BY_EFFECT` keeps a future
+discard-trigger from seeing it. R40 already made that separation load-bearing.
+
+*Engine:* `EffectPrimitives.look_at_hand()` and `send_from_hand_to_gy()`, over the existing
+`GameState.reveal()` and `GameState.move_card()`. Nothing in `GameState` was reshaped.
+*Tests:* `HiddenInfoTests` — the gate, written and green before `Aoi` existed.
 
 ---
 

@@ -3,125 +3,137 @@
 > Persistent resume file. A new Claude Code session should read **this file first**,
 > then read only the targeted files named in §8. Do **not** recursively reread the repository.
 
-**Last updated:** 2026-09-06 (batch 11 complete)
+**Last updated:** 2026-09-06 (batch 12 complete)
 **Current phase:** **Phase 5 — the card effect library.** Phases 0–4 are complete and
 Gate B (the generic rules engine) is MET; nothing in Phase 4 needs revisiting.
 
 ---
 
-## 0. READ THIS FIRST — batch 11 is COMPLETE; batch 12 is RECOMMENDED but NOT started
+## 0. READ THIS FIRST — batch 12 is COMPLETE; batch 13 is RECOMMENDED but NOT started
 
-**Batches 1–11 are complete. Nothing in batch 11 is partial or unverified.**
+**Batches 1–12 are complete. Nothing in batch 12 is partial or unverified.**
 
-| Batch 11 unit | Status |
+| Batch 12 unit | Status |
 |---|---|
-| Unit A — `Stamping Destruction` (`StampingDestructionTests`, 134) | **COMPLETE** |
-| Unit A — `Straight Flush` (`StraightFlushTests`, 143) | **COMPLETE** |
-| Unit B — the generic **name-keyed turn-scoped attack ban** (`AttackRestrictionTests` 229 → 272, +43), plus `RULES_SPEC.md` §6.5 | **COMPLETE** |
-| Unit B — `Burst Stream of Destruction` (`BurstStreamOfDestructionTests`, 132) | **COMPLETE** |
-| Unit B — `Chiron the Mage` (`ChironTheMageTests`, 113) | **COMPLETE** |
-| Unit C — `Back-Up Rider` (`BackUpRiderTests`, 115) | **COMPLETE** |
-| Unit D — `Vampiric Koala` (`VampiricKoalaTests`, 131) | **COMPLETE** — it finished batch 11 |
+| Unit A — **R42** research (cids 6441, 6440, 6582, 8197, `request_locale=ja`) | **COMPLETE** |
+| Unit A — `Spiritual Fire Art - Kurenai` (`SpiritualFireArtKurenaiTests`, 160) | **COMPLETE** |
+| Unit B — the generic **look-at-a-hidden-zone operation** (`HiddenInfoTests` 76 → 116, +40), plus `RULES_SPEC.md` §12.2 | **COMPLETE** |
+| Unit B — `Spiritual Water Art - Aoi` (`SpiritualWaterArtAoiTests`, 179) | **COMPLETE** |
+| Unit C — the generic **`AFTER_DAMAGE_CALC` Damage Step permission** (`DamageStepTests` 86 → 98, +12), plus `RULES_SPEC.md` §7.2 | **COMPLETE** |
+| Unit C — `Damage Condenser` (`DamageCondenserTests`, 156) | **COMPLETE** — it finished batch 12 |
 
-**Measured at this checkpoint: 7725 passed / 0 failed across 83 suites; SmokeCheck PASS;
-67 / 77 implemented, 67 / 77 tested, 10 remaining** (counts computed by
-`python Tools/build_matrix.py`, never written by hand). **All 6914 assertions from the previous
-checkpoint pass unchanged** — none was weakened, retargeted or deleted, and **exactly one
-pre-existing suite moved**: `AttackRestrictionTests` **grew** 229 → 272 because the new
-prevention channel's gate was added to it, which is where every generic unit since batch 7 has
-gone. 7725 − 6914 = 811 = 43 (the gate) + 134 + 143 + 132 + 113 + 115 + 131, arithmetic
-checked rather than asserted. **No `SCRIPT ERROR` in any run**; the two `ERROR:` lines on stderr are the two
-deliberate fail-loudly negative tests and are unchanged. ObjectDB at exit: **226705**.
-**Previous clean HEAD:** `f45b2f3`. **Batch-11 commits:** `ed9cac3` (unit A), `4def064`
-(unit B) and `2c7fcd0` (units C and D, R41 closed, and this checkpoint).
+**Measured at this checkpoint: 8272 passed / 0 failed across 86 suites; SmokeCheck PASS;
+70 / 77 implemented, 70 / 77 tested, 7 remaining** (counts computed by
+`python Tools/build_matrix.py`, never written by hand). **All 7725 assertions from the previous
+checkpoint pass unchanged** — none was weakened, retargeted or deleted, and **exactly two
+pre-existing suites moved, both by GROWING**: `HiddenInfoTests` 76 → 116 and `DamageStepTests`
+86 → 98, because this batch built two generic units and each went into the suite that already
+owns its subsystem. 8272 − 7725 = 547 = 40 + 12 + 160 + 179 + 156, arithmetic checked rather
+than asserted. **No `SCRIPT ERROR` in any run**; stderr is 19 lines and the two `ERROR:` lines on
+it are the two deliberate fail-loudly negative tests, unchanged. ObjectDB at exit: **242314**.
+**Previous clean HEAD:** `397d155`. **Batch-12 commits:** `cc43e62` (unit A), `3f52c27`
+(unit B) and the unit C / checkpoint commit recorded at the end of this file.
 
-**Batch 11 was PLANNED FROM THE MATRIX before anything was written**, and it took the exact six
-cards §8 had recommended — the four destruction-with-a-condition cards plus `Back-Up Rider` and
-`Vampiric Koala`. All six were verified still `NOT_IMPLEMENTED` in the matrix first, and the
-whole batch-10 baseline was reproduced from disk before a line was changed.
+**Batch 12 was PLANNED FROM THE MATRIX before anything was written**, and it took the exact three
+cards §8 had recommended. All three were verified still `NOT_IMPLEMENTED` in the matrix first, and
+the whole batch-11 baseline (7725 / 83 suites / SmokeCheck / ObjectDB 226705) was reproduced from
+disk before a line was changed.
 
-**The four destruction cards were NOT treated as four instances of one mechanic**, and they are
-not. They differ on targeting, on what is destroyed, on whether there is a cost, on whether a
-consequence follows the destruction, and on what their condition is — the comparison table is in
-§8 and was written before any of them existed.
+**§8's prediction that these three cards carried no open ruling was HALF WRONG, and the wrong
+half mattered more than the right half.** R42 was opened and closed **before** any card was
+written, against PRIMARY Konami supplemental information fetched with `request_locale=ja` per
+R40's methodology note.
 
-**ONE new generic subsystem, built as its own unit BEFORE the card that needed it:** the
-**turn-scoped attack ban keyed by card NAME** (`RULES_SPEC.md` §6.5) —
-`PlayerState.ban_attacks_by_name()` / `attacks_banned_by_name()`, asked by
-`BattleRules.can_declare_attack()` alongside §6.4's two existing channels, plus the single reader
-`EffectPrimitives.named_monster_attacked_this_turn()`. It exists because the engine **could not
-express the card**, not because it would be more elegant: §6.4's two channels are both continuous
-and lift with their source, and `Burst Stream of Destruction` is a Normal Spell that is in the
-Graveyard before the first attack it forbids, while its ban has to reach a `Blue-Eyes White
-Dragon` Summoned **later in the same turn**. The value stored is the turn number, so it
-self-expires exactly the way `named_effect_usage` does and no cleanup hook has to remember it.
-**Nothing else was added and nothing was refactored** — every other clause of all six cards is
-built from primitives that already existed.
+* **`Damage Condenser` carries an ACTIVATION RESTRICTION that appears nowhere in its printed
+  English text.** cid 6582 (2017-04-20): with no monster in your Deck whose ATK is at or below
+  the damage you just took, the card **cannot be activated at all**. §8 believed this card had
+  only "two open questions"; this was a third, and it is the difference between a card that
+  resolves for nothing and one that is never offered. The same page also settles §8's first
+  question (the ATK compared **is** the printed ATK in the Deck) officially rather than by
+  inference.
+* **§8's claim that `Damage Condenser` would be "the first Special Summon FROM THE DECK in the
+  pool" is FALSE.** `One for One` — implemented in batch 10, shipped and green — Special Summons
+  "1 Level 1 monster from your hand **or Deck**". No new Summon surface was built, because none
+  was needed: `special_summon_one()` already takes a fixed `Enums.Position`, which is exactly
+  what "in Attack Position" wants. R42 Part E records what batch 12 therefore did **not** build,
+  so the next session does not build it speculatively.
+* **`Kurenai`'s damage is the ATK PRINTED ON THE CARD** (cid 6441, 「カードに記載されている
+  攻撃力」), which after batch 11's `Back-Up Rider` is demonstrably not `current_atk()`.
+* **Both Spiritual Arts forbid the Damage Step outright** (cids 6441, 6440), which is the exact
+  opposite of `Damage Condenser`, whose window IS the Damage Step. All three are asserted so the
+  contrast cannot quietly collapse.
 
-**Two smaller additions, both forced rather than chosen:**
-`EffectPrimitives.named_monster_attacked_this_turn()` reads the authoritative **event log**
-rather than `CardInstance.has_attacked_this_turn`, because `on_leave_field()` clears that flag
-and a monster that attacked and was then destroyed would silently stop counting — RULES_SPEC.md
-§15 applied to an attack. And `EffectPrimitives.battle_damage_just_inflicted_on()` reads
-`BattleRules.last_damage`, because a `ChainLink` does not carry the event that made it eligible,
-so `ctx.trigger_event` is null by the time a Trigger Effect resolves.
+**TWO new generic units, each built as its own unit BEFORE the card that needed it, and each
+added to the suite that already owns its subsystem rather than to a new one:**
 
-**R41 was OPENED and CLOSED before any card was written**, against PRIMARY Konami supplemental
-information fetched with `request_locale=ja` per R40's methodology note. **§8's prediction that
-batch 11 would need no research was WRONG**, and that matters more than the batch itself:
+1. **The look-at-a-hidden-zone operation** (`RULES_SPEC.md` §12.2) —
+   `EffectPrimitives.look_at_hand()` and `send_from_hand_to_gy()`, over the existing
+   `GameState.reveal()`. It is an **operation**, not a subsystem: §12.1 already modelled legal
+   knowledge as `revealed_to` and already ended it only at a shuffle, and `reveal()` already
+   marked a partial reveal `private_to`. Gate: `HiddenInfoTests` (+40).
+2. **`Enums.DamageStepPermission.AFTER_DAMAGE_CALC`** (`RULES_SPEC.md` §7.2) — this one exists
+   because the engine **could not express the card**, not because a fourth value is tidier.
+   §7.1 sub-step 4 already named "when battle damage is inflicted" as a window, but
+   `UNTIL_DAMAGE_CALC` is the *earlier* window and `MANDATORY_TRIGGER` is gated on the effect
+   being trigger-COLLECTED, which a Trap's own `CARD_ACTIVATION` never is. Both exclusions are
+   asserted. Gate: `DamageStepTests` (+12).
 
-* **`Burst Stream of Destruction` carries an activation restriction that appears nowhere in its
-  printed English text.** cid 5979 (2024-09-07): you cannot activate it on a turn in which a
-  `Blue-Eyes White Dragon` has **already attacked**. Without it the card is a free "attack, then
-  wipe the board". The same note says the ban covers **every** copy including one Summoned later,
-  that it attaches at **activation** so effect negation does not lift it, and that **activation**
-  negation does — which is exactly the R39 `activation_confirmed` channel, so no new timing
-  mechanism was needed.
-* **`Vampiric Koala` triggers when it is ATTACKED, not only when it attacks.** cid 8858: the
-  subject is 自身 — *this card itself battles* — so it fires in Attack Position when a weaker
-  monster attacks it, and in Defence Position when the attacker's ATK is below its DEF.
-* **`Stamping Destruction`'s activation condition is NOT re-checked at resolution.** cid 5345
-  says so outright, which is the opposite of what this engine's re-check habit would produce.
-* **`Straight Flush` counts zone OCCUPANCY**, and cid 6911 settles both live cases: an Equip Card
-  equipped to a monster **does** fill one of the five, and a Trap Monster in a Monster Zone does
-  **not** — and the card then cannot be activated at all.
-* **`Back-Up Rider` may target either player's monster and two copies stack to +3000** (cid
-  11848), and the gain is explicitly **not** the original ATK.
+**Three smaller additions, all forced rather than chosen:**
 
-**R41 Part G is the one question the official database does not answer** — whether
-`Stamping Destruction` can target itself. Implemented as **NO**, at MEDIUM confidence, from R28's
-precedent and the `Mystical Space Typhoon` rulings, and recorded honestly as reasoned-from-
-precedent rather than as an official ruling.
+* **`EffectPrimitives.field_monster_of_attribute()`** reads `CardInstance.current_attribute()`
+  rather than `definition.attribute`. `monster_filter()` is written for the Deck, GY and hand,
+  where the printed value is the only truthful one; on the **field** a Trap Monster carries its
+  Attribute in its runtime identity and its `CardDef` carries none, so the printed reader
+  silently refuses a legal Tribute. `opponent_monsters()` — the three Charmers — already reads
+  the field this way.
+* **`EffectPrimitives.battle_damage_taken_in_this_battle()`** reads the authoritative event log,
+  bounded backwards to the most recent `ATTACK_DECLARED`. It exists because
+  `ActivationRules.make_context()` attaches **no engine** and passes a **null** trigger event, so
+  in an activation CONDITION neither `ctx.trigger_event` nor `BattleRules.last_damage` is
+  available — a condition written against either is silently false and the card is never offered.
+  This is RULES_SPEC §15's reasoning applied the way batch 11 applied it to an attack.
+* **`Kurenai` snapshots the Tributed monster's ATK at COST time**, because `pay_tribute_cost()`
+  chooses and moves in one call and the move is what clears a Trap Monster's runtime identity.
 
-**A FALSE CLAIM was caught by its own assertion, and the ruling was corrected.** The first draft
-of R41 Part B said "nothing in the V1 pool is a Field Spell" and asserted it as a **count**; the
-count failed, because deck 2 holds `Hidden Springs of the Far East`. The Field Zone branch is
-therefore **live**, the two cards genuinely differ on it — "on the field" reaches the Field Zone,
-"Spell & Trap Zones" does not — and each now has its own test against a real Field Spell. This is
-the whole reason such claims are written as measurements rather than as prose.
+**Mutation testing: 44 mutations applied to the shipped code, 42 caught.** Four initially
+survived and **three were closed by writing the test that was missing** rather than by weakening
+anything — the predicate's `is_monster()` half, the resolution-side ATK ceiling, and the event
+reader's attack-declaration boundary (which is load-bearing only in a narrow case: a second
+battle that damages the **opponent** opens the trigger window, and only the boundary stops the
+reader reaching back into the first battle). One mutation was mis-written (a non-unique anchor),
+was re-specified and re-run, and is caught. **ONE mutation still SURVIVES and is recorded rather
+than hidden:** deleting `Kurenai`'s `check_life_point_loss()` call changes nothing, because
+`DuelEngine._resolve_current_chain()` already calls it after every Chain resolution. That is a
+**redundancy in the code, not a gap in the tests**; the call is kept for consistency with the
+pool's four other damage-dealing cards, and the card comment that had claimed the call was what
+ends the Duel was corrected to say the engine is. Removing it from all five would be a refactor
+of stable shipped code and was deliberately not done.
 
-**A REDUNDANCY was found by mutation testing rather than by reading.** `Chiron the Mage`'s
-"your opponent controls" check was duplicated — once in the candidate loop's scope and once in
-the predicate — so a mutation that broke the predicate half survived. The candidate list now
-scans the whole field and filters by the single predicate, so every word of the clause lives in
-one place and answers identically at activation and at resolution.
+**TWO of my own mistakes were caught by the assertions rather than by reading**, and both are
+recorded because that is the point of writing them as measurements:
 
-**Mutation testing: 44 mutations applied to the shipped code, all caught.** Five
-were initially caught by a single assertion and every one of those suites was strengthened and
-re-run before this checkpoint; one mutation was found to be mis-written (it double-applied a
-consequence rather than relocating it) and was re-specified and re-run. One mutation SURVIVED, and it pointed at a real
-problem in the CODE rather than in the tests — a redundant check in `Chiron the Mage` that made
-half a clause untestable; the code was fixed and the mutation is now caught.
+* `Kurenai`'s first draft read the Tributed monster's ATK **after** `pay_tribute_cost()` had
+  already moved it, and the Trap Monster test caught it.
+* `Damage Condenser`'s first two drafts read the battle damage from a source that is null or
+  empty inside an activation condition, and every positive test in its suite failed at once.
+* One `Aoi` test was itself wrong: the controller's Graveyard grows by **two** on a normal
+  resolution (the Tributed monster and the resolved Trap), not one.
+
+**An AUTHORITATIVE CORRECTION to already-shipped code was found and is NOT hidden.** `One for
+One` (cid 8197) was consulted only as the precedent for Summoning out of the Deck, and its
+supplement contradicts what `OneForOne.gd` detail 7 states in prose and its suite asserts.
+`CARD_RULINGS.md` **R42 Part D** records it in full. It is **not** part of batch 12 and is
+carried into §7 and the batch-13 recommendation as its own unit. **Nothing in batch 12 depends
+on it.**
 
 **R1, R2, R5, R11, R12, R13, R14, R15 and R20 remain OPEN.** R1 and R2 belong to cards that are
-already implemented and are carried as recorded questions. **The other seven belong to seven of
-the ten cards that remain, and no two of them share a subsystem.** Do not treat any as closed.
+already implemented and are carried as recorded questions. **The other seven belong to the seven
+cards that remain, one each, and no two of them share a subsystem.** Do not treat any as closed.
 
 **R35 / `Mirage Dragon` was NOT re-checked against the `ja` locale.** That cleanup item is still
 outstanding and is not claimed.
 
-**Batch 12 is RECOMMENDED in §8 and NOT started.** It is the three remaining cards that carry no
-open ruling: `Spiritual Fire Art - Kurenai`, `Spiritual Water Art - Aoi` and `Damage Condenser`.
+**Batch 13 is RECOMMENDED in §8 and NOT started.**
 
 ---
 
@@ -434,8 +446,8 @@ Key research outputs:
 
 ## 4. Build/verification status
 
-> **The current measured numbers are in §0 above: 6284 / 6284 across 69 suites, SmokeCheck PASS,
-> 54 / 77.** The batch-4 run reproduced below is kept only as a historical record of the format;
+> **The current measured numbers are in §0 above: 8272 / 8272 across 86 suites, SmokeCheck PASS,
+> 70 / 77.** The batch-4 run reproduced below is kept only as a historical record of the format;
 > `Reports/TEST_RESULTS.md` is the authoritative per-suite breakdown.
 
 Historical run (2026-08-13, at commit `565ae0c` plus the Phase 5 batch-4 work):
@@ -1237,6 +1249,41 @@ Legend: **DONE+TESTED** = implemented and covered by passing assertions ·
 
 None that stop work.
 
+### OPEN — `One for One`'s cost candidate list contradicts official guidance (found in batch 12)
+
+**This is a defect in SHIPPED, GREEN code, and it is open.** It is recorded in full, with its
+source and date, in `CARD_RULINGS.md` **R42 Part D**.
+
+cid 8197 (2020-03-20, `request_locale=ja`) says you must send the cost monster in such a way
+that the effect can still be carried out: with **no** Level 1 monster in your Deck and exactly
+**one** in your hand, that monster **cannot be used as the cost**.
+`Scripts/cards/registry/OneForOne.gd` detail 7 currently states the opposite in prose, and
+`OneForOneTests` asserts it. The activation being legal is correct and is not in question; what
+is wrong is the **cost candidate list**.
+
+The observable difference is narrow but real: with exactly one Level 1 monster in hand, none in
+the Deck, and at least one non-Level-1 monster also in hand, the engine offers that Level 1
+monster as a legal cost and Konami does not.
+
+It was **not** fixed in batch 12 on purpose. `One for One` is not a batch-12 card, the fix
+inverts an existing shipped assertion, and this project does not fold a correction to one card
+into another card's unit. It is the recommended **first unit of batch 13**. Nothing in batch 12
+depends on it, and no batch-12 card copies the behaviour it corrects.
+
+### NOT A DEFECT, but recorded so it is not rediscovered — `Miyabi` reads the printed Attribute
+
+`Spiritual Wind Art - Miyabi` (batch 7) filters its Tribute candidates with
+`monster_filter(WIND)`, which reads `definition.attribute`. Batch 12 established that on the
+**field** the correct reader is `CardInstance.current_attribute()`, and `Kurenai` and `Aoi` use
+the new `field_monster_of_attribute()` for exactly that reason. `Miyabi` therefore would not
+offer a **WIND Trap Monster** as a Tribute.
+
+It is **never live in the V1 pool** — the pool's only Trap Monster is
+`The Phantom Knights of Shadow Veil` — so this is a latent divergence rather than a reachable
+bug, and it was deliberately not changed in batch 12: `Miyabi` is stable shipped code and this
+batch had no card that needed it. A batch that touches `Miyabi` for any other reason should fix
+it then.
+
 ### CLOSED in batch 6 — Flip Summon negation (found in batch 5)
 
 **There is no open engine gap.** The one batch 5 recorded here is fixed.
@@ -1401,6 +1448,10 @@ negation gap, added the generic CONTROL subsystem, and implemented the three Cha
 and the **thirty-seven** design decisions that must not be reversed, and §7 for what is genuinely
 still open — which no longer includes any engine gap. Do **not** re-read the whole repository,
 re-run research, or re-derive rules.
+
+> **Start here instead of reading this section top to bottom.** Everything below the "How to
+> resume" paragraph is historical. The current state is §0; the next thing to do is
+> **"Batch 13 — RECOMMENDED, NOT STARTED"** further down this section.
 
 **Where that paragraph now ends: batches 7, 8 and 9 are all COMPLETE.** Batch 9 added the
 generic attack-restriction / attack-negation gate (`AttackRestrictionTests`, 229), then
@@ -1840,7 +1891,92 @@ outstanding and is not claimed.
   predicate half SURVIVED. Mutation testing found it; reading it had not. The clause now lives in
   exactly one place and answers identically at activation and at resolution.
 
-### Batch 12 — RECOMMENDED, NOT STARTED
+### Batch 13 — RECOMMENDED, NOT STARTED
+
+**Seven cards remain**, and `Reports/CARD_IMPLEMENTATION_MATRIX.csv` is the authoritative list.
+**Every one of the seven is blocked on an OPEN ruling, and no two of them share a subsystem.**
+There is no ruling-free card left: batch 12 took the last three.
+
+| Card | Ruling | The subsystem it needs |
+|---|---|---|
+| `Honest` | **R20** | a Quick Effect activated **from the HAND** during the **Damage Step** |
+| `A Hero Emerges` | **R15** | a **RANDOM choice made by the OPPONENT** from your hand, through the seeded `Rng` so replay survives |
+| `The Monarchs Awaken` | **R12** | "unaffected by the effects of cards other than this card" — `CardInstance.unaffected_by_effects` exists as a field with no subsystem behind it |
+| `Fairy Tail - Sleeper` | **R5** | an effect that **REPLACES another effect's text** |
+| `Hidden Springs of the Far East` | **R14** | Summons and activations that **cannot be negated**, plus targeting/destruction protection for Set cards. The pool's **only Field Spell** |
+| `Witchcrafter Golem Aruru` | **R13** | a Quick Effect that answers **being targeted**, including by an attack |
+| `Fairy Tail - Luna` | **R11** | an effect the **OPPONENT may pay to negate** |
+
+**Recommended shape for batch 13, in this order:**
+
+**Unit A first, and it is not a new card at all: fix `One for One`.** §7 carries it as an open
+defect against shipped, green code, and `CARD_RULINGS.md` R42 Part D carries the official source
+(cid 8197). It is the cheapest coherent unit in the repository right now, it is the only
+outstanding item that makes a currently-passing assertion **wrong**, and doing it first means
+batch 13 starts from a library with no known-incorrect card in it. Expect to **invert** an
+existing assertion in `OneForOneTests` and to rewrite `OneForOne.gd` detail 7 — that is the
+whole point, and it is the one case in this project where a prior assertion may be changed,
+because an authoritative correction is documented. Re-read R42 Part D before touching either
+file.
+
+**Then ONE ruling-blocked card, and only one, as unit B.** Settle its ruling **before** writing
+it, not after. The recommendation is **`Honest` (R20)**, for three reasons:
+
+* its subsystem — a Quick Effect activated **from the hand** in the Damage Step — is the closest
+  thing remaining to work already done. Batch 12 has just built the sub-step 4 permission and
+  has the Damage Step's sub-step machinery fresh in `DamageStepTests`, and `Honest`'s window is
+  `UNTIL_DAMAGE_CALC`, which already exists;
+* it is the only one of the seven whose new surface is a **location** (`ActivationLocation.HAND`
+  for a monster's effect) rather than a whole new rules concept, so it is the smallest;
+* the other six each need a genuinely new rules concept, and taking two of those in one batch
+  would repeat the mistake batch 11 nearly made.
+
+**Do NOT take more than one ruling-blocked card per unit**, and do not group them: the point of
+"one subsystem per unit" is that a gate can be written and made green before the card exists,
+and seven unrelated subsystems cannot share one gate.
+
+**Settle R20 with `request_locale=ja`** on `faq_search.action?ope=4&cid=<Honest's cid>` before
+writing anything, per R40's methodology note. Batch 11 and batch 12 both proved the same thing:
+**§8's prediction that a batch needs no research has been wrong twice in a row.** Assume it is
+wrong again. In particular, look for an activation restriction that the printed English text does
+not carry — that is exactly the shape of the fact `Damage Condenser` turned out to have, and of
+the one `Burst Stream of Destruction` turned out to have before it.
+
+**Two cheap cleanup items, neither of which should derail a card unit:**
+
+* **`R35` / `Mirage Dragon` has still NOT been re-checked against the `ja` locale.** It has now
+  been carried across three checkpoints unclaimed. The recorded conclusion is "the official
+  Konami database has no Q&A entry for cid 6196", which was reached the `en` way that R40's
+  methodology note warns about. Do not silently upgrade R34 part D's confidence without doing
+  the lookup.
+* **`Spiritual Wind Art - Miyabi` reads the printed Attribute** where batch 12 established the
+  field reader is correct. §7 records it as a latent divergence that is **never live in the V1
+  pool**, so it is not a bug to chase — but a batch that touches `Miyabi` for any other reason
+  should fix it then.
+
+**Also scheduled and NOT optional:** the **ObjectDB characterisation task** (§7). It is now at
+**242314 at exit**. Against the 547 new assertions this batch that is **~28.4 per new
+assertion**, up from batch 11's ~26.9, which was itself up from ~21.6 and down from ~34.9 and
+~44.6 before that. That is now four falls and two rises inside six checkpoints, which is still
+**not a trend and still has no measured explanation**; none may be recorded until one is
+measured. It fails nothing, so it must not derail a card unit, but it **must be characterised or
+fixed before Phase 7**.
+
+---
+
+### Batch 12 — COMPLETE (kept for the record; it is done, not a plan)
+
+> **Read this before the table below.** The plan is preserved verbatim because the work of
+> reading every remaining card was paid for once. **Two of its claims were proved WRONG by R42
+> and must not be re-used:**
+>
+> * `Damage Condenser` is **not** "the first Special Summon FROM THE DECK in the pool" —
+>   `One for One` has done that since batch 10, and no new Summon surface was built (R42 Part E);
+> * `Damage Condenser` did **not** have only two open questions — cid 6582 carries a hard
+>   ACTIVATION restriction the printed English text does not mention (R42 Part C).
+>
+> The counts below ("Ten cards remain") are the batch-11 counts. The current counts are in §0
+> and in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`: **70 / 77, seven remaining.**
 
 **Ten cards remain**, and `Reports/CARD_IMPLEMENTATION_MATRIX.csv` is the authoritative list.
 **Seven of the ten are blocked on an OPEN ruling and each needs a DIFFERENT new subsystem.**

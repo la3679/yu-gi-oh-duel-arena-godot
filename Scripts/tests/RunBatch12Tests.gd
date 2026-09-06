@@ -1,6 +1,6 @@
 extends SceneTree
 func _initialize() -> void:
-	var suites := [SpiritualFireArtKurenaiTests.run(), HiddenInfoTests.run(), SpiritualWaterArtAoiTests.run()]
+	var suites := [SpiritualFireArtKurenaiTests.run(), HiddenInfoTests.run(), SpiritualWaterArtAoiTests.run(), DamageStepTests.run(), DamageCondenserTests.run()]
 	var failed := 0
 	var total := 0
 	for s in suites:

@@ -28,6 +28,10 @@ static func run() -> TestCase:
 	_test_optional_battle_destruction_trigger_can_be_accepted(t)
 	_test_no_battle_destruction_trigger_without_battle_destruction(t)
 	_test_battle_damage_to_zero_ends_the_duel(t)
+	# The AFTER_DAMAGE_CALC gate — batch 12 unit C, written before `Damage Condenser`.
+	_test_after_damage_calc_permission_is_substep_4_only(t)
+	_test_after_damage_calc_is_not_the_other_two_permissions(t)
+	_test_after_damage_calc_in_a_real_damage_step(t)
 	return t
 
 
@@ -648,3 +652,135 @@ static func _test_battle_damage_to_zero_ends_the_duel(t: TestCase) -> void:
 	t.eq(engine.timing, DuelEngine.Timing.DUEL_OVER,
 		"and the timing machine reports the Duel as over")
 	t.eq(engine.get_legal_actions(0).size(), 0, "no further action is legal")
+
+
+# ---------------------------------------------------------------------------
+# AFTER_DAMAGE_CALC — the sub-step 4 permission. RULES_SPEC.md 7.2.
+#
+# The gate for batch 12 unit C, written and passing BEFORE `Damage Condenser` existed.
+#
+# It exists because the engine could NOT express the card, not because a fourth value is
+# tidier. §7.1 sub-step 4 is explicitly the window for "when battle damage is inflicted",
+# and `Damage Condenser` (cid 6582) is activated there from a Set position — but:
+#
+#   * `UNTIL_DAMAGE_CALC` is sub-steps 1-2 only, which is earlier than the card's window
+#     and is the wrong answer rather than a near-enough one;
+#   * `MANDATORY_TRIGGER` is gated on `TriggerCollector._is_collectable()`, which answers
+#     true only for `EffectType.TRIGGER` and `FLIP`. A Normal Trap's own activation is
+#     `EffectType.CARD_ACTIVATION` — that is what flips it face-up and sends it to the
+#     Graveyard afterwards — so the permission can never apply to it.
+#
+# Both of those are asserted below, so the reason the value exists cannot quietly stop
+# being true.
+# ---------------------------------------------------------------------------
+
+
+static func _test_after_damage_calc_permission_is_substep_4_only(t: TestCase) -> void:
+	t.start("AFTER_DAMAGE_CALC is legal in sub-step 4 and in NO other sub-step")
+	var d := TestFixtures.battle_duel(781)
+	var engine: DuelEngine = d["engine"]
+	var state := engine.state
+	var after_effect: EffectDef = _trap_with_permission("Late Responder",
+		Enums.DamageStepPermission.AFTER_DAMAGE_CALC).effects[0]
+
+	# Outside the Damage Step the restriction does not apply at all.
+	state.battle_step = Enums.BattleStep.BATTLE
+	state.damage_substep = Enums.DamageSubStep.NONE
+	t.is_true(ActivationRules.damage_step_ok(state, after_effect),
+		"outside the Damage Step the rule does not speak")
+
+	state.battle_step = Enums.BattleStep.DAMAGE
+	var allowed: Array = []
+	for sub in [Enums.DamageSubStep.START_OF_DAMAGE_STEP,
+			Enums.DamageSubStep.BEFORE_DAMAGE_CALCULATION,
+			Enums.DamageSubStep.DURING_DAMAGE_CALCULATION,
+			Enums.DamageSubStep.AFTER_DAMAGE_CALCULATION,
+			Enums.DamageSubStep.END_OF_DAMAGE_STEP]:
+		state.damage_substep = sub
+		if ActivationRules.damage_step_ok(state, after_effect):
+			allowed.append(sub)
+	t.eq(allowed.size(), 1, "exactly one sub-step admits it")
+	t.eq(allowed, [Enums.DamageSubStep.AFTER_DAMAGE_CALCULATION],
+		"and it is sub-step 4, after damage calculation [S1 p.41, RULES_SPEC 7.1]")
+
+
+static func _test_after_damage_calc_is_not_the_other_two_permissions(t: TestCase) -> void:
+	t.start("AFTER_DAMAGE_CALC is a genuinely new answer: neither existing value gives a "
+		+ "Trap CARD activation a sub-step 4 window")
+	var d := TestFixtures.battle_duel(782)
+	var engine: DuelEngine = d["engine"]
+	var state := engine.state
+	state.battle_step = Enums.BattleStep.DAMAGE
+	state.damage_substep = Enums.DamageSubStep.AFTER_DAMAGE_CALCULATION
+
+	var until_effect: EffectDef = _trap_with_permission("Early Responder",
+		Enums.DamageStepPermission.UNTIL_DAMAGE_CALC).effects[0]
+	t.is_false(ActivationRules.damage_step_ok(state, until_effect),
+		"UNTIL_DAMAGE_CALC is refused in sub-step 4 — it is the earlier window")
+
+	# MANDATORY_TRIGGER cannot describe a card activation, because it is gated on the
+	# effect being trigger-COLLECTED and a Trap's own activation never is.
+	var mandatory_card: EffectDef = _trap_with_permission("Wrongly Labelled",
+		Enums.DamageStepPermission.MANDATORY_TRIGGER).effects[0]
+	t.eq(mandatory_card.effect_type, Enums.EffectType.CARD_ACTIVATION,
+		"the fixture really is a CARD activation")
+	t.is_false(TriggerCollector._is_collectable(mandatory_card),
+		"which the trigger system does not collect")
+	t.is_false(ActivationRules.damage_step_ok(state, mandatory_card),
+		"so MANDATORY_TRIGGER gives it no window at all — this is the gap the new value "
+		+ "fills")
+
+	# And the control: the same permission on a genuinely collected effect still works, so
+	# the new value took nothing away.
+	var real_trigger: EffectDef = _battle_destruction_trigger("Angel", 1400, 800,
+		[]).effects[0]
+	state.damage_substep = Enums.DamageSubStep.END_OF_DAMAGE_STEP
+	t.is_true(ActivationRules.damage_step_ok(state, real_trigger),
+		"MANDATORY_TRIGGER still works for what it was written for")
+
+
+static func _test_after_damage_calc_in_a_real_damage_step(t: TestCase) -> void:
+	t.start("in a REAL Damage Step: a Set Trap with AFTER_DAMAGE_CALC is offered in the "
+		+ "window that follows battle damage, and one with NONE is not")
+	var d := TestFixtures.battle_duel(783)
+	var engine: DuelEngine = d["engine"]
+	var attacker := TestFixtures.give_monster_on_field(engine, 0,
+		TestFixtures.monster("Attacker", 4, 1800, 1000))
+	var late := TestFixtures.give_set_spell_trap(engine, 1,
+		_trap_with_permission("Late Responder",
+			Enums.DamageStepPermission.AFTER_DAMAGE_CALC))
+	var never := TestFixtures.give_set_spell_trap(engine, 1,
+		_trap_with_permission("Never Responder", Enums.DamageStepPermission.NONE))
+
+	t.is_true(TestFixtures.attack(engine, attacker, null), "a direct attack is declared")
+
+	# Walk to the first pause at which the defending player holds a response, and record
+	# what the Damage Step offered them at each one.
+	var offered_late := false
+	var offered_never := false
+	var saw_substep_4 := false
+	for i in range(24):
+		if engine.state.battle_step == Enums.BattleStep.DAMAGE \
+				and engine.state.damage_substep \
+					== Enums.DamageSubStep.AFTER_DAMAGE_CALCULATION:
+			saw_substep_4 = true
+			var responses := engine.get_legal_responses(1)
+			if TestFixtures.find_action(responses, Enums.ActionKind.ACTIVATE_CARD,
+					late.id) != null:
+				offered_late = true
+			if TestFixtures.find_action(responses, Enums.ActionKind.ACTIVATE_CARD,
+					never.id) != null:
+				offered_never = true
+		if engine.timing == DuelEngine.Timing.OPEN or engine.is_duel_over():
+			break
+		if not engine.submit_action(DuelAction.make(Enums.ActionKind.PASS, 1)) \
+				and not engine.submit_action(DuelAction.make(Enums.ActionKind.PASS, 0)):
+			break
+
+	t.is_true(saw_substep_4, "the Damage Step really reached sub-step 4")
+	t.is_true(offered_late,
+		"the AFTER_DAMAGE_CALC Trap was offered there — the permission is not merely a "
+		+ "rules-function answer, it reaches the legal-action list")
+	t.is_false(offered_never,
+		"while the NONE Trap was never offered, so the window is not simply open to all")
+

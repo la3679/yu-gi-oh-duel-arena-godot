@@ -1,9 +1,10 @@
 # TEST_RESULTS
 
-**Last run:** 2026-09-06 (Phase 5 **batch 11 COMPLETE**: the four destruction-with-a-condition
-cards, `Back-Up Rider` and `Vampiric Koala` — six cards over ONE new generic mechanism, the
-turn-scoped attack ban keyed by card NAME, plus **R41**, whose research changed the
-implementation of five of the six.)
+**Last run:** 2026-09-06 (Phase 5 **batch 12 COMPLETE**: `Spiritual Fire Art - Kurenai`,
+`Spiritual Water Art - Aoi` and `Damage Condenser` — three cards over TWO new generic units,
+the look-at-a-hidden-zone operation and the sub-step 4 Damage Step permission, plus **R42**,
+whose research added an activation restriction the printed text does not carry and corrected
+two claims PROJECT_STATE §8 had made about the repository itself.)
 **Engine:** Godot 4.7.1.stable.official.a13da4feb (headless)
 
 Command:
@@ -35,32 +36,126 @@ The raw command still works and produces the same numbers:
 
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
-| Core rules tests | 23 | 2141 | **2141** | 0 |
-| Per-card tests | 59 | 5538 | **5538** | 0 |
+| Core rules tests | 23 | 2193 | **2193** | 0 |
+| Per-card tests | 62 | 6033 | **6033** | 0 |
 | Interaction tests | 1 | 46 | **46** | 0 |
 | Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **83** | **7725** | **7725** | **0** |
+| **TOTAL** | **86** | **8272** | **8272** | **0** |
 
-SmokeCheck: **PASS**. Matrix: **67 / 77 implemented, 67 / 77 tested, 10 remaining** (computed by
-`python Tools/build_matrix.py`, not written by hand).
+SmokeCheck: **PASS**. Matrix: **70 / 77 implemented, 70 / 77 tested, 7 remaining** (computed by
+`python Tools/build_matrix.py`, not written by hand). ObjectDB at exit: **242314**.
 
-**All 6914 assertions from the previous checkpoint pass unchanged.** None was weakened,
-retargeted or deleted. **Exactly one pre-existing suite moved:** `AttackRestrictionTests`
-**grew** 229 → 272, because the new prevention channel's gate was added to it — which is where
-every generic unit since batch 7 has gone. Nothing in it was rewritten, and the arithmetic is
-checked rather than asserted: the 77 pre-existing suites sum to **exactly 6914** once that +43
-is removed.
+**All 7725 assertions from the previous checkpoint pass unchanged.** None was weakened,
+retargeted or deleted. **Exactly two pre-existing suites moved, and both GREW**, because this
+batch built two generic units and each went into the suite that already owns its subsystem —
+which is where every generic unit since batch 7 has gone:
 
-7725 − 6914 = 811 = 43 (the gate) + `StampingDestructionTests` (134) + `StraightFlushTests`
-(143) + `BurstStreamOfDestructionTests` (132) + `ChironTheMageTests` (113) + `BackUpRiderTests`
-(115) + `VampiricKoalaTests` (131). The 5509 → 5973 → 6284 → 6914 → 7725 chain is therefore
-unbroken.
+* `HiddenInfoTests` **76 → 116** (+40), the look-at-a-hidden-zone gate;
+* `DamageStepTests` **86 → 98** (+12), the `AFTER_DAMAGE_CALC` sub-step 4 gate.
+
+Nothing in either was rewritten. The arithmetic is checked rather than asserted:
+
+8272 − 7725 = 547 = 40 (the hidden-info gate) + 12 (the Damage Step gate)
++ `SpiritualFireArtKurenaiTests` (160) + `SpiritualWaterArtAoiTests` (179)
++ `DamageCondenserTests` (156). The 5509 → 5973 → 6284 → 6914 → 7725 → 8272 chain is
+therefore unbroken.
 
 **No `SCRIPT ERROR` appeared in any run.** The two `ERROR:` lines on stderr are the two
 deliberate negative tests that assert the engine fails loudly
 (`ChainTests._test_unimplemented_effect_fails_loudly` and
 `ContinuousTests._test_restriction_flags_are_owned_by_this_system`); they are unchanged and
 expected.
+
+---
+
+## Batch 12 — COMPLETE. Nothing in it is partial or unverified.
+
+| Batch 12 unit | Status |
+|---|---|
+| Unit A — **R42** research (cids 6441, 6440, 6582, 8197, `request_locale=ja`) | **COMPLETE** |
+| Unit A — `Spiritual Fire Art - Kurenai` (`SpiritualFireArtKurenaiTests`, 160) | **COMPLETE** |
+| Unit B — the generic **look-at-a-hidden-zone operation** (`HiddenInfoTests` 76 → 116, +40) | **COMPLETE** |
+| Unit B — `Spiritual Water Art - Aoi` (`SpiritualWaterArtAoiTests`, 179) | **COMPLETE** |
+| Unit C — the generic **`AFTER_DAMAGE_CALC` permission** (`DamageStepTests` 86 → 98, +12) | **COMPLETE** |
+| Unit C — `Damage Condenser` (`DamageCondenserTests`, 156) | **COMPLETE** |
+
+### Two generic units, both forced rather than chosen
+
+Each was built as its own unit with its own tests **before** the card that needed it, and each
+went into the suite that already owns its subsystem rather than into a new one.
+
+1. **`EffectPrimitives.look_at_hand()` / `send_from_hand_to_gy()`** — an OPERATION over the
+   hidden-information subsystem, not a subsystem of its own. `GameState.reveal()` already
+   revealed to a named subset of players and already marked a partial reveal `private_to`;
+   what was missing was the card-facing loop and the send that is deliberately **not** a
+   discard. `RULES_SPEC.md` §12.2.
+2. **`Enums.DamageStepPermission.AFTER_DAMAGE_CALC`** — the engine **could not express**
+   `Damage Condenser` without it. §7.1 sub-step 4 already named "when battle damage is
+   inflicted" as a window, but `UNTIL_DAMAGE_CALC` is the earlier window and
+   `MANDATORY_TRIGGER` is gated on the effect being trigger-COLLECTED, which a Trap's own
+   `CARD_ACTIVATION` never is. Both exclusions are asserted, so the reason the value exists
+   cannot quietly stop being true. `RULES_SPEC.md` §7.2.
+
+A third, smaller addition was also forced: **`battle_damage_taken_in_this_battle()`**, which
+reads the event log. `ActivationRules.make_context()` attaches no engine and passes a null
+trigger event, so neither `ctx.trigger_event` nor `BattleRules.last_damage` is available in an
+activation CONDITION — a condition written against either is silently false and the card is
+never offered. Two successive drafts of `Damage Condenser` got this wrong and its own suite
+caught both, each time by failing every positive test at once.
+
+### Mutation testing: 44 mutations, 42 caught, 2 SURVIVED with measured explanations
+
+Kurenai 13, Aoi 15, `Damage Condenser` and its gate 16. Four mutations initially survived and
+**three of them were closed by writing the test that was missing**, not by weakening anything:
+
+* **K13** — `field_monster_of_attribute()` dropping its `is_monster()` half. Closed by a
+  direct unit test of the predicate against a Trap that merely *carries* an Attribute.
+* **A15** — deleting `Aoi`'s empty-hand branch. It changed no board state, because
+  `choose_one()` on an empty candidate list already returns null. The branch is still not
+  redundant: it makes the duel log say *which* vacuous outcome happened, and "looked at an
+  empty hand" and "no card could be chosen" are different facts about the same board. The
+  test now asserts the resolution note carried by `CHAIN_LINK_RESOLVED`.
+* **D2** — dropping the resolution-side ATK ceiling. It survived because the *activation*
+  restriction already guarantees a qualifying monster exists. Closed by a test that puts an
+  over-ceiling monster first in the Deck and primes the controller to ask for it.
+* **G3** — dropping the event-log reader's `ATTACK_DECLARED` boundary. It survived because
+  the `trigger_events` window gate shadows it in the obvious two-battle case. The boundary is
+  genuinely load-bearing in a narrower one — a second battle that damages the **opponent**
+  opens the window, and only the boundary stops the reader reaching back into the first
+  battle's damage — and that is now the test.
+
+**The one that still survives is a redundancy in the CODE, not a gap in the tests, and it has
+a measured explanation rather than a guess:**
+
+* **K8** — deleting `Kurenai`'s `check_life_point_loss()` call changes nothing, because
+  `DuelEngine._resolve_current_chain()` already calls it after every Chain resolution and this
+  damage is always dealt inside one. The call is kept for consistency with the pool's four
+  other damage-dealing cards (`Chain Detonation`, `Five Brothers Explosion`, `Judge of the Ice
+  Barrier`, `Stamping Destruction`), and the card's comment — which had claimed the call was
+  what ends the Duel — was corrected to say the engine is. Removing it from all five would be
+  a refactor of stable, shipped code and was deliberately not done.
+
+One further mutation, **A4**, was initially a HARNESS error rather than a result: its anchor
+matched two places in `EffectPrimitives.gd`. It was re-specified with a unique anchor and
+re-run, and is caught. A mutation that never applied would otherwise look exactly like one
+that was caught, which is why the harness reports that case separately.
+
+### One test of my own was wrong, and the suite caught it
+
+`Aoi`'s "the card reaches its owner's Graveyard" test asserted the controller's Graveyard grew
+by one. It grows by **two** on a normal resolution — the Tributed WATER monster (the cost) and
+the resolved Trap — and the assertion now names both, which is a stronger statement than the
+one it replaced.
+
+### An authoritative correction to shipped code was found and is NOT hidden
+
+`One for One` (cid 8197) was consulted only as the precedent for Summoning out of the Deck, and
+its official supplement contradicts a conclusion `OneForOne.gd` states in prose and its suite
+asserts: a monster that is the **only** way to carry out the effect may not be used as the
+cost. `CARD_RULINGS.md` **R42 Part D** records it in full with its source and date. It is
+**not** part of batch 12 — it is another card, and the fix inverts an existing shipped
+assertion — and is carried into PROJECT_STATE §7 and the batch-13 recommendation as its own
+unit. Nothing in batch 12 depends on it.
 
 ---
 
@@ -904,10 +999,10 @@ removed.
 | `SummonTests` | 88 | `RULES_SPEC.md §5`, `§5.4`, `§5.9` |
 | `SpellTrapTests` | 49 | `RULES_SPEC.md §4.2` |
 | `BattleTests` | 72 | `RULES_SPEC.md §6` |
-| `DamageStepTests` | 86 | `RULES_SPEC.md §7` |
+| `DamageStepTests` | 98 | `RULES_SPEC.md §7`, R42 |
 | `ContinuousTests` | 52 | `RULES_SPEC.md §4.2/§8` |
 | `CounterTests` | 44 | `RULES_SPEC.md §14` |
-| `HiddenInfoTests` | 76 | `RULES_SPEC.md §9, §12` |
+| `HiddenInfoTests` | 116 | `RULES_SPEC.md §9, §12, §12.2`, R42 |
 | `SpecialSummonTests` | 54 | `RULES_SPEC.md §5.5` |
 | `RulesQuestionTests` | 37 | `RULES_SPEC.md §8.1, §12.1, §6/§7, §2.3` |
 | `ReplayTests` | 33 | master prompt §8 / §70 |
@@ -981,9 +1076,12 @@ removed.
 | `ChironTheMageTests` | 113 | per-card |
 | `BackUpRiderTests` | 115 | per-card |
 | `VampiricKoalaTests` | 131 | per-card |
-| **TOTAL** | **7725** | 83 suites |
+| `SpiritualFireArtKurenaiTests` | 160 | per-card |
+| `SpiritualWaterArtAoiTests` | 179 | per-card |
+| `DamageCondenserTests` | 156 | per-card |
+| **TOTAL** | **8272** | 86 suites |
 
-<!-- summary: core 23 suites / 2141 ; per-card 59 / 5538 ; interaction 1 / 46 ; total 83 / 7725 -->
+<!-- summary: core 23 suites / 2193 ; per-card 62 / 6033 ; interaction 1 / 46 ; total 86 / 8272 -->
 ### BanishTests — 158/158
 
 `Tests/rules/BanishTests.gd`. Rules: `RULES_SPEC.md §8, §8.3, §12, §15` [S1 p.52–53],
@@ -1088,7 +1186,7 @@ a Continuous Spell staying on the field, and a new Field Spell replacing the old
 | replay with a different monster | 6 | the original monster is still treated as having declared an attack and cannot attack again [S1 p.39] |
 | Battle Phase ends into Main Phase 2 | 6 | passes through the End Step, reaches Main Phase 2, leaves no battle state behind [S1 p.37, p.40] |
 
-### DamageStepTests — 86/86
+### DamageStepTests — 98/98
 `Tests/rules/DamageStepTests.gd`. Rules: `RULES_SPEC.md §7` [S1 p.41–43, 51–52; S3].
 
 | Test | Asserts | Rule verified |
@@ -1160,7 +1258,7 @@ kind/amount/total, a rejected removal emitting nothing, counters cleared when th
 leaves the field and not restored when it returns, and counters on a face-up card being
 public to both players.
 
-### HiddenInfoTests — 76/76
+### HiddenInfoTests — 116/116
 `Tests/rules/HiddenInfoTests.gd`. Rules: `RULES_SPEC.md §9, §12` [S1 p.50, p.52].
 
 Every leak test runs from **both** sides. Covers: hand contents private to their owner

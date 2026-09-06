@@ -114,6 +114,12 @@ static func damage_step_ok(state: GameState, effect: EffectDef) -> bool:
 		Enums.DamageStepPermission.UNTIL_DAMAGE_CALC:
 			return state.damage_substep == Enums.DamageSubStep.START_OF_DAMAGE_STEP \
 				or state.damage_substep == Enums.DamageSubStep.BEFORE_DAMAGE_CALCULATION
+		Enums.DamageStepPermission.AFTER_DAMAGE_CALC:
+			# Sub-step 4 ONLY. Not sub-steps 1-2, where UNTIL_DAMAGE_CALC lives and where
+			# this card's window has not opened yet; and not sub-step 5, by which time
+			# battle destruction is being carried out and the window has closed.
+			# RULES_SPEC.md 7.1.
+			return state.damage_substep == Enums.DamageSubStep.AFTER_DAMAGE_CALCULATION
 		Enums.DamageStepPermission.MANDATORY_TRIGGER:
 			# "Mandatory" here means the TIMING is rules-mandated, not that the effect
 			# itself is compulsory: `Shining Angel`'s "when this card is destroyed by
