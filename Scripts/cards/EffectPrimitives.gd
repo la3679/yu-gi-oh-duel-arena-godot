@@ -155,6 +155,23 @@ static func controls_archetype_monster(ctx: EffectContext, archetype: String,
 	return false
 
 
+## "1 FIRE monster" / "1 WATER monster" when the monster is ON THE FIELD.
+##
+## Deliberately NOT `monster_filter(attribute)`, and the difference is load-bearing.
+## `monster_filter()` reads `definition.attribute` because it is written for the Deck, the
+## Graveyard and the hand, where the printed value is the only truthful one and no runtime
+## identity exists. On the FIELD a Trap Monster carries its Attribute in its runtime
+## `monster_identity` and its `CardDef` carries none at all, so the printed reader would
+## silently answer "" and refuse a legal Tribute. `CardInstance.current_attribute()` is the
+## reader that documents itself as the one every rules-layer and card-layer question must
+## use on the field, and `opponent_monsters(attribute)` — the three Charmers — already
+## reads it. This names that choice once, for the two Spiritual Art cards that Tribute by
+## Attribute. RULES_SPEC.md 5.8, CARD_RULINGS.md R33.
+static func field_monster_of_attribute(attribute: String) -> Callable:
+	return func(card: CardInstance) -> bool:
+		return card.is_monster() and card.current_attribute() == attribute
+
+
 static func monster_filter(attribute: String = "", max_atk: int = -1,
 		max_level: int = -1, race: String = "",
 		normal_only: bool = false) -> Callable:

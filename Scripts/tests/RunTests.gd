@@ -104,6 +104,9 @@ func _initialize() -> void:
 	suites.append(BackUpRiderTests.run())
 	suites.append(VampiricKoalaTests.run())
 
+	# --- Batch 12 ---
+	suites.append(SpiritualFireArtKurenaiTests.run())
+
 	var total_passed := 0
 	var total_failed := 0
 	var empty_suites: Array[String] = []

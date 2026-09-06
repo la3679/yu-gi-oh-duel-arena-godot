@@ -1381,6 +1381,210 @@ R28, **not** an S1–S4 official source and **not** the Konami database. Consult
 R5, R11, R12, R13, R14, R15, R20 — are all still **OPEN**, all still belong to the ten cards that
 remain, and none of them was touched.
 
+### R42 — the three batch-12 cards: a Tribute-cost burn, a look at the opponent's hand, and a Special Summon from the Deck
+
+Opened and closed by Phase 5 batch 12, **before** any batch-12 card was written. §8 recommended
+these three precisely because it believed they carried no open ruling. That belief was **half
+right and half wrong**, in the same shape as R41's, and both halves are recorded here.
+
+* It was **right** that none of the seven carried-over open rulings (R5, R11, R12, R13, R14, R15,
+  R20) touches any of these three. None was reopened and none was consulted.
+* It was **wrong** that `Damage Condenser` had only "two open questions". Its official supplement
+  carries a **third** fact neither §8 nor the printed English text contains — a hard activation
+  restriction — and that fact is the difference between a card that resolves for nothing and a
+  card that cannot be activated at all. It is Part C below.
+* It was also **wrong** in a claim of fact about the repository: §8 called `Damage Condenser`
+  "the first Special Summon FROM THE DECK in the pool". It is not. `One for One` — implemented in
+  batch 10, shipped and green — Special Summons "1 Level 1 monster from your hand **or Deck**".
+  Part D records the correction and what it removes from batch 12's scope.
+
+**Sources.** All PRIMARY (official Konami supplemental information), fetched 2026-09-06 with
+`request_locale=ja` per R40's methodology note. Every response was verified card-specific by
+diffing them against each other before any of it was relied on: the four differ in content, and
+none is the `en` marketing boilerplate R40 warns about.
+
+| Source | What it gives | Date on the page |
+|---|---|---|
+| `faq_search.action?ope=4&cid=6441&request_locale=ja` — `Spiritual Fire Art - Kurenai` | cannot be activated in the **Damage Step**; the Tribute is a **cost**; a **face-down** monster is a legal Tribute; the damage is the ATK **written on the card** | 2020-07-04 |
+| `faq_search.action?ope=4&cid=6440&request_locale=ja` — `Spiritual Water Art - Aoi` | cannot be activated in the **Damage Step**; the Tribute is a **cost**; a **face-down** monster is a legal Tribute | 2020-07-04 |
+| `faq_search.action?ope=4&cid=6582&request_locale=ja` — `Damage Condenser` | does **not** target; activates **after damage calculation**; the discard is a **cost**; **cannot be activated** with no qualifying monster in the Deck | 2017-04-20 |
+| `faq_search.action?ope=4&cid=8197&request_locale=ja` — `One for One` (consulted as the precedent for Summoning out of the Deck) | the send is a **cost**; and a monster that is the **only** way to carry out the effect **cannot be used as the cost** | 2020-03-20 |
+
+All four cards return `このカードに関連するＱ＆Ａはありません` — *this card has no related Q&A* —
+for the Q&A section proper. That is the response shape R40 records for a genuine absence; the
+supplemental information above is a different section of the same page and is present for all four.
+
+#### Part A — `Kurenai`: the damage is the ATK PRINTED ON THE CARD. Confidence: HIGH.
+
+cid 6441 states the payment and the measurement in one breath:
+
+> ■このカードを発動する際にコストとして、自分のモンスターゾーンの炎属性モンスター１体をリリースします。（表示形式を問わずリリースできます。）
+> ■コストとしてリリースしたモンスターの、**カードに記載されている攻撃力**分のダメージを与えます。
+
+Three separable facts, each encoded:
+
+1. **The Tribute is a COST**, paid at activation — `pay_tribute_cost()` in `pay_cost`, never in
+   `resolve`, exactly as `Miyabi` does it. It is therefore **not refunded** when the activation or
+   the effect is negated, and both directions are asserted.
+2. **A face-down FIRE monster is a legal Tribute** — 表示形式を問わず, "regardless of display
+   position". You know your own Set monster's Attribute, and the cost asks no one else to read it.
+   This matches `Miyabi`'s already-shipped behaviour rather than departing from it.
+3. **The damage is the ATK written on the card** — the printed value, which is what
+   `CardInstance.original_atk()` answers and what the English "original ATK" means. This is the one
+   trap in the card: `current_atk()` would be wrong, and after batch 11's `Back-Up Rider` the two
+   demonstrably differ. A monster boosted +1500 by `Back-Up Rider` and then Tributed for `Kurenai`
+   deals its **printed** ATK, not the boosted figure. Asserted directly, in both directions.
+
+The damage is dealt **by the cost's payload**, not by a card still on the field: by the time the
+link resolves the Tributed monster is in the Graveyard. `record_cost()` is what carries it across,
+and `CardInstance.original_atk()` keeps answering in the Graveyard because it reads the definition.
+
+A further consequence the supplement does not need to state and the implementation must not
+forget: a FIRE monster with **0 printed ATK** is a legal Tribute and inflicts **0 damage**. The
+card says "inflict damage equal to", not "inflict damage, if any"; there is no minimum, and no
+clause forbids the cost. That path is asserted so it cannot silently become a no-op guard.
+
+*Damage Step:* ダメージステップには発動できません — `DamageStepPermission.NONE`, which is the
+default and is asserted rather than assumed.
+
+#### Part B — `Aoi`: looking at the hand is an OPERATION, and the ACTIVATING PLAYER chooses. Confidence: HIGH for the cost and the Damage Step; MEDIUM-HIGH for who chooses.
+
+cid 6440's supplement is the shorter of the pair and gives the same two structural facts as
+`Kurenai` — Damage Step forbidden, Tribute is a cost, face-down legal. It says **nothing** about
+the hand, which means the card's own English text and the general rules have to carry it:
+
+> "Tribute 1 WATER monster; **look at** your opponent's hand, then **send 1 card from their hand**
+> to the GY."
+
+* **"Look at" is a reveal to ONE player, not to both.** [S1 p.50] makes the contents of a hand
+  private; §12.1 already models legal knowledge as `CardInstance.revealed_to` and already ends it
+  only at a shuffle. "Look at your opponent's hand" is therefore `reveal(card, [me])` for every
+  card in that hand — additive, private, and permanent until a shuffle, which is exactly what the
+  physical game gives you (you saw them; you remember). **Nothing is turned face-up and nothing
+  moves.** This is an operation over an existing subsystem, not a new subsystem.
+* **The knowledge SURVIVES the effect.** The engine has no "forget" and must not grow one for
+  this: §12.1 keys the loss of `revealed_to` on the shuffle and on nothing else, and a hand is
+  never shuffled. A card that was looked at and then stays in the hand is still legally known.
+  Asserted.
+* **The activating player chooses which card is sent.** The subject of every verb in the sentence
+  is "you", and the sentence exists to be a discard-the-best-card effect; a random or
+  opponent-made choice would make "look at your opponent's hand" pointless. Confidence
+  **MEDIUM-HIGH**: reasoned from the text and from the contrast with `A Hero Emerges` (R15), whose
+  text says "**at random**" precisely because that is the exception. It is recorded here as
+  reasoned rather than as an official ruling, and it is **asserted** so it cannot drift.
+* **The send is an effect, not a cost**, and it is **not a discard**: it is your opponent's card
+  leaving their hand because of your card. `MoveReason.SENT_TO_GY` rather than `DISCARDED` —
+  [S1 p.52-53] keeps the two apart, and R40 already made that separation load-bearing.
+* **An empty opponent hand.** The supplement is silent, and the general rule decides: the clause
+  that would be impossible is the *second* one, and the first ("look at") is still performable.
+  Nothing in the card is an activation requirement — contrast `Damage Condenser` in Part C, whose
+  supplement makes its Deck requirement explicit precisely because such a restriction is *not* the
+  default. So `Aoi` **can** be activated against an empty hand and resolves having looked at
+  nothing and sent nothing. Confidence MEDIUM-HIGH, reasoned from the absence rather than from a
+  statement, recorded honestly, and asserted in both directions so the vacuous path is never
+  mistaken for a passing test.
+
+#### Part C — `Damage Condenser`: the Deck requirement is an ACTIVATION RESTRICTION. Confidence: HIGH.
+
+The fact §8 did not know existed. cid 6582:
+
+> ■自分のデッキに、『その時に受けたダメージの数値以下の攻撃力を持つモンスター』が存在しない場合、「ダメージ・コンデンサー」を発動する事はできません。
+
+*If your Deck contains no monster with ATK less than or equal to the damage received at that
+moment, `Damage Condenser` cannot be activated.*
+
+This settles **both** of §8's questions and adds a third:
+
+1. **The ATK compared is the ATK in the Deck** — necessarily, because the restriction is phrased
+   as a property of monsters *in the Deck*, and a card in the Deck has no field, no modifiers and
+   no controller. Printed = original = current there. `monster_filter(max_atk)` already reads
+   `definition.base_atk` for exactly this reason and says so in its own comment. **Question one is
+   answered YES**, and by an official source rather than by inference from "there is nothing else
+   to read".
+2. **It is an activation restriction, not a resolution filter.** The card cannot be activated at
+   all with an empty qualifying Deck — so the clause consumes it in its `condition`, the way
+   R40's general search restriction is consumed. This is the opposite of `One for One`, whose
+   activation is legal and whose resolution may legitimately find nothing (Part D), and the two
+   must not be made to share an implementation.
+3. **The comparison is against the damage taken AT THAT MOMENT** — その時に受けた, the specific
+   battle damage that triggered this activation, not a running total and not the controller's LP.
+   Read from the triggering event through `battle_damage_just_inflicted_on()`, which batch 11
+   built for `Vampiric Koala` and which exists precisely because a `ChainLink` does not carry the
+   event that made it eligible.
+
+Three more facts from the same page, each encoded:
+
+* **It does not target** (対象を取る効果ではありません) — the monster is chosen at RESOLUTION,
+  which it must be anyway since the candidates are in the hidden Deck. `targets` stays false.
+* **It activates AFTER DAMAGE CALCULATION** (自分が戦闘ダメージを受けたダメージ計算後に発動します).
+  That is a substep **of the Damage Step**, so this card needs a Damage Step permission — it is
+  the opposite of `Kurenai` and `Aoi`, whose supplements forbid the Damage Step outright. All
+  three are asserted, so the contrast cannot quietly collapse.
+* **The discard is a COST** (発動する際に、コストとして、手札を1枚捨てます) — `pay_discard_cost()`,
+  and `DISCARDED` rather than `SENT_AS_COST`, since the card says "Discard".
+
+**The shuffle — question two — is answered by the general rule, not by this page.** cid 6582 is
+silent on it. [S1 p.5] requires a Deck a card effect made you *look through* to be shuffled and
+put back, RULES_SPEC §8.4 already records that as normative, and `One for One` — the pool's other
+Deck Special Summon — already implements exactly that tail and cites the same line. `Damage
+Condenser` follows the established precedent rather than inventing a second answer. Confidence
+HIGH for the rule, and the honest note is that it is **general-rule-and-precedent, not
+card-specific official guidance**. It is observable (a shuffle clears `revealed_to` for that Deck,
+§12.1) and is therefore asserted.
+
+#### Part D — a CORRECTION to shipped code: `One for One`'s cost cannot be the last enabler. Confidence: HIGH.
+
+Consulted as precedent, cid 8197 turned out to correct a card that is already implemented,
+already tested and already green — which is why it is recorded here rather than quietly fixed:
+
+> ■処理を行えるようにコストのモンスターを墓地へ送る必要があります。レベル１のモンスターが自分のデッキに存在せず、自分の手札に１体のみ存在する状況では、そのモンスターをコストにできません。
+
+*You must send the cost monster to the Graveyard in such a way that the effect can be carried
+out. In a situation where no Level 1 monster is in your Deck and only one is in your hand, you
+cannot use that monster as the cost.*
+
+`Scripts/cards/registry/OneForOne.gd` detail 7 currently states the **opposite** in prose, and the
+suite asserts it:
+
+> "The cost is paid BEFORE the effect resolves, so a player who sends their only Level 1 monster
+> as the cost, holding none in the Deck, legitimately resolves the card for nothing. The
+> activation was still legal — the candidate check happens before the cost."
+
+The activation being legal is correct and is not in question. What is wrong is the **cost
+candidate list**: the official guidance removes from it any monster whose removal would leave the
+effect unperformable. The observable difference is narrow but real — with exactly one Level 1
+monster in hand, none in the Deck, and at least one non-Level-1 monster also in hand, the engine
+currently offers that Level 1 monster as a legal cost and Konami does not.
+
+This is an **authoritative correction to a previously-recorded conclusion**, so it is documented
+here in full, with its source and its date, before anything is changed. It is **not** part of
+batch 12 — `One for One` is not a batch-12 card, the fix inverts an existing shipped assertion,
+and this project does not fold a correction to one card into another card's unit. It is recorded
+in PROJECT_STATE §7 as an open defect and is carried into the batch-13 recommendation as its own
+unit. **Nothing in batch 12 depends on it**, and no batch-12 card copies the behaviour it
+corrects.
+
+#### Part E — what batch 12 does NOT need, having looked. Confidence: HIGH.
+
+Two subsystems §8 expected to be built are not needed, and each is recorded so the next session
+does not build them speculatively:
+
+* **"The first Special Summon from the Deck" does not exist to build.** `One for One` already
+  Summons from the Deck through `special_summon_one_any_position()`, and
+  `EffectPrimitives.special_summon_one()` already takes a fixed `Enums.Position`, which is what
+  "in Attack Position" needs. `Damage Condenser` is a pure consumer of both plus batch 10's
+  `monster_filter(max_atk)`. **No new Summon surface was added.**
+* **"Look at the opponent's hand" is one function, not a subsystem.** `GameState.reveal()` already
+  reveals to a named subset of players and already emits `private_to` for a partial reveal.
+  The new `EffectPrimitives.look_at_hand()` is a loop over it, and the choice it feeds goes
+  through the existing `choose_one()` so the duel stays replayable.
+
+**R42 is CLOSED.** It opens nothing that blocks a batch-12 card. It **opens one defect** against
+already-shipped code (Part D), which is carried in PROJECT_STATE §7 and in the batch-13
+recommendation. The seven rulings carried into batch 12 — R5, R11, R12, R13, R14, R15, R20 — are
+all still **OPEN**, all still belong to the seven cards that remain after batch 12, and none of
+them was touched.
+
 ## 5. Banlist note (master prompt §51)
 
 These are fixed casual decks built from an owned physical collection. Current Forbidden/Limited
