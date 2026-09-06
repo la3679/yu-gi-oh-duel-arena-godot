@@ -99,6 +99,8 @@ func _initialize() -> void:
 	# --- Batch 11 ---
 	suites.append(StampingDestructionTests.run())
 	suites.append(StraightFlushTests.run())
+	suites.append(BurstStreamOfDestructionTests.run())
+	suites.append(ChironTheMageTests.run())
 
 	var total_passed := 0
 	var total_failed := 0

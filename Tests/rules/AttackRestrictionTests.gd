@@ -99,6 +99,16 @@ static func run() -> TestCase:
 	_test_a_shared_group_resets_next_turn(t)
 	_test_a_shared_group_is_per_player_and_per_name(t)
 
+	# --- PREVENTION: per-NAME, turn-scoped (RULES_SPEC.md 6.5) ---
+	_test_a_name_ban_prevents_only_monsters_with_that_name(t)
+	_test_a_name_ban_reaches_a_monster_that_arrives_afterwards(t)
+	_test_a_name_ban_survives_the_source_leaving_the_field(t)
+	_test_a_name_ban_is_aimed_at_one_player(t)
+	_test_a_name_ban_expires_at_the_turn_boundary(t)
+	_test_a_name_ban_emits_no_attack_declared_event(t)
+	_test_the_three_prevention_channels_are_independent(t)
+	_test_the_attack_log_survives_the_attacker_leaving_the_field(t)
+
 	# --- Determinism ---
 	_test_prevention_and_negation_are_replay_deterministic(t)
 	return t
@@ -1299,3 +1309,209 @@ static func _test_prevention_and_negation_are_replay_deterministic(t: TestCase) 
 	t.eq(runs[1]["negated"], runs[0]["negated"], "the negation reproduces")
 	t.eq(str(runs[1]["trace"]), str(runs[0]["trace"]),
 		"and the event trace is identical between the two runs")
+
+
+# ---------------------------------------------------------------------------
+# PREVENTION, THIRD CHANNEL: a turn-scoped ban keyed by card NAME.
+# RULES_SPEC.md 6.5, CARD_RULINGS.md R41 Part C. Written as a GATE, before
+# `Burst Stream of Destruction` existed, and driven entirely through
+# `PlayerState.ban_attacks_by_name()` rather than through that card.
+#
+# The claim under test is that this is a THIRD thing, not a rewording of either
+# channel above: it survives its source, it reaches monsters that arrive later,
+# and it names one card NAME rather than one monster or one player.
+# ---------------------------------------------------------------------------
+
+const BANNED_NAME := "Gate Banned Name"
+
+
+## A battlefield where player 0 controls two monsters with DIFFERENT names.
+static func _name_ban_board(seed_value: int) -> Dictionary:
+	var d := TestFixtures.battle_duel(seed_value)
+	var engine: DuelEngine = d["engine"]
+	d["named"] = TestFixtures.give_monster_on_field(engine, 0,
+		TestFixtures.monster(BANNED_NAME, 4, 1800, 1000))
+	d["other"] = TestFixtures.give_monster_on_field(engine, 0,
+		TestFixtures.monster("Gate Other Name", 4, 1700, 1000))
+	d["defender"] = TestFixtures.give_monster_on_field(engine, 1,
+		TestFixtures.monster("Gate Defender", 4, 1000, 1000))
+	engine.continuous.recompute()
+	return d
+
+
+static func _test_a_name_ban_prevents_only_monsters_with_that_name(t: TestCase) -> void:
+	t.start("NAME BAN: it prevents every monster with the banned name and no other monster")
+	var d := _name_ban_board(9180)
+	var engine: DuelEngine = d["engine"]
+	var named: CardInstance = d["named"]
+	var other: CardInstance = d["other"]
+	# A second copy of the same NAME, to prove the ban is not secretly per-instance.
+	var second_copy := TestFixtures.give_monster_on_field(engine, 0,
+		TestFixtures.monster(BANNED_NAME, 4, 1900, 1000))
+
+	t.is_true(_can_attack(engine, named), "before the ban the named monster may attack")
+	t.is_true(_can_attack(engine, second_copy), "and so may the second copy")
+
+	engine.state.player(0).ban_attacks_by_name(BANNED_NAME, engine.state.turn_number)
+
+	t.is_false(_can_attack(engine, named), "the named monster may not attack")
+	t.is_false(_attack_offered(engine, named), "and the declaration is not offered")
+	t.is_false(_can_attack(engine, second_copy),
+		"nor may a DIFFERENT copy of the same name — the ban is per NAME, not per instance")
+	t.is_true(_can_attack(engine, other), "a monster with another name is untouched")
+	t.is_true(_attack_offered(engine, other), "and its declaration is still offered")
+	# The ban is not the per-card flag wearing a different hat.
+	t.is_false(bool(named.flags.get("cannot_attack", false)),
+		"no `cannot_attack` flag was written onto the monster")
+
+
+static func _test_a_name_ban_reaches_a_monster_that_arrives_afterwards(t: TestCase) -> void:
+	t.start("NAME BAN: a monster of that name that reaches the field AFTER the ban is also "
+		+ "prevented — which the per-card flag could never express")
+	var d := _name_ban_board(9181)
+	var engine: DuelEngine = d["engine"]
+	engine.state.player(0).ban_attacks_by_name(BANNED_NAME, engine.state.turn_number)
+
+	var latecomer := TestFixtures.give_monster_on_field(engine, 0,
+		TestFixtures.monster(BANNED_NAME, 4, 2100, 1000))
+	engine.continuous.recompute()
+	t.eq(latecomer.card_name(), BANNED_NAME, "it really carries the banned name")
+	t.is_false(_can_attack(engine, latecomer),
+		"and it is prevented even though it was not on the field when the ban was applied")
+	t.is_false(_attack_offered(engine, latecomer), "its declaration is not offered either")
+
+
+static func _test_a_name_ban_survives_the_source_leaving_the_field(t: TestCase) -> void:
+	t.start("NAME BAN: nothing lifts it when a card leaves the field or when the continuous "
+		+ "layer recomputes — that is what separates it from the two continuous channels")
+	var d := _name_ban_board(9182)
+	var engine: DuelEngine = d["engine"]
+	var named: CardInstance = d["named"]
+	engine.state.player(0).ban_attacks_by_name(BANNED_NAME, engine.state.turn_number)
+	t.is_false(_can_attack(engine, named), "the ban applies")
+
+	# A full recompute is what wipes and rebuilds both continuous prevention channels.
+	engine.continuous.recompute()
+	t.is_false(_can_attack(engine, named), "a continuous recompute does not lift it")
+
+	# And nothing at all is holding it up on the field.
+	t.eq(engine.state.player(0).spell_traps().size(), 0,
+		"no source card is on the field to hold the ban up")
+	t.is_false(_can_attack(engine, named), "it applies anyway")
+
+
+static func _test_a_name_ban_is_aimed_at_one_player(t: TestCase) -> void:
+	t.start("NAME BAN: it is recorded per PLAYER, so the opponent's monster of the same name "
+		+ "is untouched")
+	var d := _name_ban_board(9183)
+	var engine: DuelEngine = d["engine"]
+	engine.state.player(0).ban_attacks_by_name(BANNED_NAME, engine.state.turn_number)
+
+	t.is_false(_can_attack(engine, d["named"]), "player 0's copy is banned")
+	t.is_false(engine.state.player(1).attacks_banned_by_name(BANNED_NAME,
+		engine.state.turn_number), "player 1 carries no such ban")
+	# Asked of a real monster of theirs, on their own turn, rather than only of the record.
+	var theirs := TestFixtures.give_monster_on_field(engine, 1,
+		TestFixtures.monster(BANNED_NAME, 4, 1900, 1000))
+	t.is_true(TestFixtures.end_turn(engine), "the turn passes to player 1")
+	TestFixtures.advance_to_phase(engine, Enums.Phase.BATTLE)
+	t.eq(engine.state.turn_player_id, 1, "player 1 is the turn player")
+	t.is_true(engine.battle.can_declare_attack(theirs, 1),
+		"and their monster of the banned name may attack")
+
+
+static func _test_a_name_ban_expires_at_the_turn_boundary(t: TestCase) -> void:
+	t.start("NAME BAN: it lasts exactly one turn — it is keyed by turn number, so it expires "
+		+ "on its own rather than by being cleared")
+	var d := _name_ban_board(9184)
+	var engine: DuelEngine = d["engine"]
+	var named: CardInstance = d["named"]
+	var banned_turn := engine.state.turn_number
+	engine.state.player(0).ban_attacks_by_name(BANNED_NAME, banned_turn)
+	t.is_false(_can_attack(engine, named), "the ban applies on the turn it was acquired")
+
+	t.is_true(TestFixtures.end_turn(engine), "player 1 takes a turn")
+	t.is_true(TestFixtures.end_turn(engine), "and it comes back to player 0")
+	TestFixtures.advance_to_phase(engine, Enums.Phase.BATTLE)
+	t.ne(engine.state.turn_number, banned_turn, "a different turn number")
+	t.is_true(_can_attack(engine, named), "and the named monster may attack again")
+	t.is_true(_attack_offered(engine, named), "its declaration is offered again")
+
+
+static func _test_a_name_ban_emits_no_attack_declared_event(t: TestCase) -> void:
+	t.start("NAME BAN: it is PREVENTION — no ATTACK_DECLARED event exists and the monster "
+		+ "keeps its attack for the turn")
+	var d := _name_ban_board(9185)
+	var engine: DuelEngine = d["engine"]
+	var named: CardInstance = d["named"]
+	engine.state.player(0).ban_attacks_by_name(BANNED_NAME, engine.state.turn_number)
+	var before := _declared(engine)
+
+	t.is_false(TestFixtures.attack(engine, named, d["defender"]), "the attack is refused")
+	t.eq(_declared(engine) - before, 0, "no ATTACK_DECLARED event was emitted")
+	t.is_false(named.has_attacked_this_turn, "and the monster still has its attack")
+
+
+static func _test_the_three_prevention_channels_are_independent(t: TestCase) -> void:
+	t.start("NAME BAN: all three prevention channels are separate — lifting any one of them "
+		+ "does not lift the others")
+	var d := _name_ban_board(9186)
+	var engine: DuelEngine = d["engine"]
+	var named: CardInstance = d["named"]
+
+	# All three at once, by their three different writers.
+	named.flags["cannot_attack"] = true
+	engine.continuous.restrict_attacks(0)
+	engine.state.player(0).ban_attacks_by_name(BANNED_NAME, engine.state.turn_number)
+	t.is_false(_can_attack(engine, named), "with all three on, it cannot attack")
+
+	# Drop the per-CARD flag: the other two still refuse.
+	named.flags.erase("cannot_attack")
+	t.is_false(_can_attack(engine, named), "dropping the per-card flag is not enough")
+
+	# Drop the per-PLAYER lock: the name ban alone still refuses.
+	engine.state.player(0).clear_restriction(
+		ContinuousEffects.PLAYER_KEY_PREFIX + ContinuousEffects.ATTACK_LOCK_KEY)
+	t.is_false(ContinuousEffects.attacks_restricted(engine.state, 0),
+		"the player lock really is gone")
+	t.is_false(_can_attack(engine, named),
+		"and the NAME ban alone is still enough to refuse")
+
+	# Drop the name ban: now it may attack.
+	engine.state.player(0).attack_bans_by_name.clear()
+	t.is_true(_can_attack(engine, named), "with all three gone it may attack")
+
+
+static func _test_the_attack_log_survives_the_attacker_leaving_the_field(t: TestCase) -> void:
+	t.start("NAME BAN: `named_monster_attacked_this_turn()` reads the event log, so an "
+		+ "attacker that has since LEFT the field still counts — the instance flag would not")
+	var d := _name_ban_board(9187)
+	var engine: DuelEngine = d["engine"]
+	var named: CardInstance = d["named"]
+	# Any card can carry the probe; the primitive asks about the state, not about its source.
+	var probe := TestFixtures.give_monster_on_field(engine, 0,
+		TestFixtures.monster("Probe", 4, 100, 100))
+	var effect := EffectDef.new("probe", "test")
+	var ctx := ActivationRules.make_context(engine.state, probe, effect, 0, null)
+
+	t.is_false(EffectPrimitives.named_monster_attacked_this_turn(ctx, BANNED_NAME, 0),
+		"before any attack the answer is no")
+
+	t.is_true(TestFixtures.attack(engine, named, d["defender"]), "it attacks and battles")
+	t.is_true(named.has_attacked_this_turn, "the instance flag is set")
+	t.is_true(EffectPrimitives.named_monster_attacked_this_turn(ctx, BANNED_NAME, 0),
+		"and the event log agrees")
+
+	# Now remove the attacker from the field, which is what clears the instance flag.
+	t.is_true(engine.state.destroy(named, Enums.MoveReason.DESTROYED_BY_EFFECT, -1),
+		"the attacker is destroyed")
+	t.is_false(named.has_attacked_this_turn,
+		"`on_leave_field()` cleared the instance flag — this is the trap being avoided")
+	t.is_true(EffectPrimitives.named_monster_attacked_this_turn(ctx, BANNED_NAME, 0),
+		"but the event log still records that it attacked this turn")
+
+	# It is scoped to the player and to the name, not merely "some attack happened".
+	t.is_false(EffectPrimitives.named_monster_attacked_this_turn(ctx, BANNED_NAME, 1),
+		"the opponent declared no such attack")
+	t.is_false(EffectPrimitives.named_monster_attacked_this_turn(ctx, "Gate Other Name", 0),
+		"and no monster of a different name attacked")

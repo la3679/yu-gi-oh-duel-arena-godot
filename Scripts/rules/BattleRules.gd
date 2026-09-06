@@ -109,6 +109,12 @@ func can_declare_attack(card: CardInstance, pid: int) -> bool:
 		return false
 	if ContinuousEffects.attacks_restricted(state, pid):
 		return false
+	# THIRD channel, and it is neither of the two above: a turn-scoped ban keyed by card
+	# NAME (`Burst Stream of Destruction`). Both channels above are continuous and lift with
+	# their source; this one outlives a Normal Spell that is already in the Graveyard, and it
+	# reaches a monster of that name Summoned later in the same turn. RULES_SPEC.md 6.5.
+	if state.player(pid).attacks_banned_by_name(card.card_name(), state.turn_number):
+		return false
 	return true
 
 

@@ -1750,6 +1750,36 @@ static func forbid_card_activation(ctx: EffectContext, pid: int,
 	ctx.continuous.restrict_card_activation(pid, category, phase)
 
 
+## "You cannot activate this card on a turn in which a monster with this name has ALREADY
+## attacked." (`Burst Stream of Destruction`; CARD_RULINGS.md R41 Part C, RULES_SPEC.md 6.5.)
+##
+## Read from the authoritative **event log** — the `ATTACK_DECLARED` entries of the current
+## turn — and deliberately **not** from `CardInstance.has_attacked_this_turn`.
+##
+## That flag is the natural thing to reach for and it is wrong here:
+## `CardInstance.on_leave_field()` clears it, so a monster that attacked and was then
+## destroyed, Tributed, bounced or banished would silently stop counting, and the activation
+## this gate exists to forbid would quietly become legal. This is RULES_SPEC.md 15's "facts
+## that must outlive a card leaving the field" applied to an attack rather than to a card.
+##
+## `GameState.events` is append-only and every entry carries the turn it was emitted in, so
+## the answer is stable under replay. This is the **only** supported way for a card to ask it;
+## nothing else in the pool reads the event log, and nothing else should start.
+static func named_monster_attacked_this_turn(ctx: EffectContext, card_name: String,
+		pid: int) -> bool:
+	for entry in ctx.state.events:
+		var ev: GameEvent = entry
+		if ev.kind != GameEvent.Kind.ATTACK_DECLARED:
+			continue
+		if ev.turn != ctx.state.turn_number:
+			continue
+		if int(ev.data.get("player", -1)) != pid:
+			continue
+		if str(ev.data.get("attacker_name", "")) == card_name:
+			return true
+	return false
+
+
 ## Is `card` the monster the current attack was declared against?
 ##
 ## Reads the authoritative battle state rather than the trigger event, so it stays true for

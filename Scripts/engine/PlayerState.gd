@@ -51,6 +51,23 @@ var named_activation_usage: Dictionary = {}
 ## e.g. {"skip_battle_phase_this_turn": true}
 var restrictions: Dictionary = {}
 
+## Turn-scoped attack bans keyed by card NAME. RULES_SPEC.md 6.5, CARD_RULINGS.md R41 Part C.
+##
+## "'Blue-Eyes White Dragon' you control cannot attack the turn you activate this card"
+## (`Burst Stream of Destruction`). Deliberately **not** in `restrictions` and **not** either
+## of the two continuous prevention channels of 6.4, because it is neither:
+##
+##   * `CardInstance.flags["cannot_attack"]` names one monster and is rebuilt from the board
+##     by `ContinuousEffects.recompute()`. This ban must cover a monster of that name Summoned
+##     **after** the activation, and it must survive its source — a Normal Spell that is in
+##     the Graveyard before the first attack it forbids could be declared.
+##   * `ContinuousEffects.ATTACK_LOCK_KEY` names a player and would ban EVERY monster they
+##     control, not the named one.
+##
+## `card name -> the turn number the ban applies to`, so it **self-expires** at the turn
+## boundary exactly the way `named_effect_usage` does and no cleanup hook has to remember it.
+var attack_bans_by_name: Dictionary = {}
+
 ## Outstanding "skip your NEXT Battle Phase" obligations. RULES_SPEC.md 2.4, CARD_RULINGS.md
 ## R1/R32.
 ##
@@ -242,6 +259,20 @@ func clear_restriction(key: String) -> void:
 	restrictions.erase(key)
 
 
+## "'<name>' you control cannot attack the turn you activate this card." RULES_SPEC.md 6.5.
+##
+## Records the ban for `turn` only. Re-applying it in the same turn is idempotent, and
+## applying it in a later turn simply overwrites the stale entry, which is why nothing has to
+## clear it between turns.
+func ban_attacks_by_name(name: String, turn: int) -> void:
+	attack_bans_by_name[name] = turn
+
+
+## Is a monster of this name forbidden to declare an attack for this player, this turn?
+func attacks_banned_by_name(name: String, turn: int) -> bool:
+	return int(attack_bans_by_name.get(name, -1)) == turn
+
+
 ## Called at the start of this player's turn.
 func begin_turn() -> void:
 	normal_summons_used = 0
@@ -260,6 +291,11 @@ func end_turn(turn: int) -> void:
 	for key in named_activation_usage.keys():
 		if int(named_activation_usage[key]) < turn:
 			named_activation_usage.erase(key)
+	# Keyed by turn like the two above, so this prune is housekeeping and never the thing
+	# that makes the ban expire. `attacks_banned_by_name()` compares turn numbers.
+	for key in attack_bans_by_name.keys():
+		if int(attack_bans_by_name[key]) < turn:
+			attack_bans_by_name.erase(key)
 
 
 func _to_string() -> String:
