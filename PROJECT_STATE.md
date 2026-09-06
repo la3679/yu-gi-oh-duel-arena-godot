@@ -33,7 +33,7 @@ gone. 7725 − 6914 = 811 = 43 (the gate) + 134 + 143 + 132 + 113 + 115 + 131, a
 checked rather than asserted. **No `SCRIPT ERROR` in any run**; the two `ERROR:` lines on stderr are the two
 deliberate fail-loudly negative tests and are unchanged. ObjectDB at exit: **226705**.
 **Previous clean HEAD:** `f45b2f3`. **Batch-11 commits:** `ed9cac3` (unit A), `4def064`
-(unit B) and the commit that carries this checkpoint (units C and D).
+(unit B) and `2c7fcd0` (units C and D, R41 closed, and this checkpoint).
 
 **Batch 11 was PLANNED FROM THE MATRIX before anything was written**, and it took the exact six
 cards §8 had recommended — the four destruction-with-a-condition cards plus `Back-Up Rider` and
