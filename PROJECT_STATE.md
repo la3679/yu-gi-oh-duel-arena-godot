@@ -32,7 +32,7 @@ owns its subsystem. 8272 − 7725 = 547 = 40 + 12 + 160 + 179 + 156, arithmetic 
 than asserted. **No `SCRIPT ERROR` in any run**; stderr is 19 lines and the two `ERROR:` lines on
 it are the two deliberate fail-loudly negative tests, unchanged. ObjectDB at exit: **242314**.
 **Previous clean HEAD:** `397d155`. **Batch-12 commits:** `cc43e62` (unit A), `3f52c27`
-(unit B) and the unit C / checkpoint commit recorded at the end of this file.
+(unit B) and `5bf03d3` (unit C, `Damage Condenser`, and this checkpoint).
 
 **Batch 12 was PLANNED FROM THE MATRIX before anything was written**, and it took the exact three
 cards §8 had recommended. All three were verified still `NOT_IMPLEMENTED` in the matrix first, and
