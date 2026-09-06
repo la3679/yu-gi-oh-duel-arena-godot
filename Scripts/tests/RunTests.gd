@@ -106,6 +106,7 @@ func _initialize() -> void:
 
 	# --- Batch 12 ---
 	suites.append(SpiritualFireArtKurenaiTests.run())
+	suites.append(SpiritualWaterArtAoiTests.run())
 
 	var total_passed := 0
 	var total_failed := 0

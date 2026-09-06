@@ -2327,3 +2327,60 @@ static func monster_of_level_at_least(level: int) -> Callable:
 ## R39: a target that left and returned is a different stay on the field.
 static func target_kept_field_identity(ctx: EffectContext, target: CardInstance) -> bool:
 	return target != null and (ctx.link == null or int(ctx.link.target_field_revisions.get(target.id, -1)) == target.field_revision)
+
+
+# ---------------------------------------------------------------------------
+# Looking at a hidden zone. RULES_SPEC.md 12 [S1 p.50], CARD_RULINGS.md R42 Part B.
+# ---------------------------------------------------------------------------
+#
+# "Look at your opponent's hand" is an OPERATION over the hidden-information subsystem
+# that already exists, not a new subsystem — §12.1 already models legal knowledge as
+# `CardInstance.revealed_to`, `GameState.reveal()` already reveals to a named subset of
+# players, and it already marks a partial reveal `private_to` so the public log never
+# carries what only one player may see.
+#
+# Three things this deliberately is NOT:
+#
+#   * It is not a REVEAL TO BOTH. A reveal shows a card to everyone the clause names; this
+#     clause names one player. Passing `[ctx.controller_id]` rather than both is the whole
+#     difference, and it is what keeps the opponent's hand private to everyone else.
+#   * It is not a MOVE. Nothing leaves the hand and nothing is turned face-up. A clause
+#     that looks and then sends does the sending separately, and the two must stay
+#     separable — `Aoi` looks at a hand it may then send nothing from.
+#   * It is not FORGOTTEN afterwards. §12.1 keys the loss of `revealed_to` on a shuffle and
+#     on nothing else, and a hand is never shuffled. That is the physical game's answer
+#     too: you saw the cards, and you remember them.
+
+
+## "Look at your opponent's hand" — reveal every card in `target_pid`'s hand to
+## `ctx.controller_id` alone. Returns the cards that were looked at, in hand order.
+##
+## Returns [] for an empty hand, which is a legal outcome and not an error: a clause may
+## look at a hand that has nothing in it. The caller decides what that means for the rest
+## of its text.
+static func look_at_hand(ctx: EffectContext, target_pid: int) -> Array:
+	var seen: Array = []
+	for entry in ctx.state.player(target_pid).hand:
+		var card: CardInstance = entry
+		if card == null:
+			continue
+		ctx.state.reveal(card, [ctx.controller_id], ctx.source.id)
+		seen.append(card)
+	return seen
+
+
+## "Send 1 card from their hand to the GY" — the opponent's card leaving their hand
+## because of your card.
+##
+## Deliberately NOT `pay_discard_cost()` and not a discard at all: PSCT keeps "discard"
+## (your own hand, as a cost or an effect) apart from "send from their hand to the GY"
+## [S1 p.52-53], and R40 already made that separation load-bearing. The move reason is
+## `SENT_TO_GY_BY_EFFECT`, so a future card that triggers on a DISCARD must not see this.
+##
+## Returns whether a card was actually sent. False when there was nothing to send, or when
+## the card is no longer in a hand — a resolution-time re-check, not an error.
+static func send_from_hand_to_gy(ctx: EffectContext, card: CardInstance) -> bool:
+	if card == null or card.zone != Enums.Zone.HAND:
+		return false
+	return ctx.state.move_card(card, Enums.Zone.GRAVEYARD,
+		Enums.MoveReason.SENT_TO_GY_BY_EFFECT, {"source_id": ctx.source.id})

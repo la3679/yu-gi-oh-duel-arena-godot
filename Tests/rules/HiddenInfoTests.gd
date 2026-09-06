@@ -30,6 +30,13 @@ static func run() -> TestCase:
 	_test_chain_information_is_public(t)
 	_test_owner_is_reported_separately_from_controller(t)
 	_test_no_hidden_field_leaks_the_card_name(t)
+	# The `look_at_hand` gate — batch 12 unit B, written before `Aoi`.
+	_test_looking_at_a_hand_reveals_it_to_one_player_only(t)
+	_test_looking_at_a_hand_moves_nothing(t)
+	_test_looking_at_an_empty_hand_is_legal_and_sees_nothing(t)
+	_test_the_knowledge_survives_the_look(t)
+	_test_a_look_does_not_leak_into_the_public_log(t)
+	_test_sending_from_a_hand_is_not_a_discard(t)
 	return t
 
 
@@ -393,3 +400,186 @@ static func _test_no_hidden_field_leaks_the_card_name(t: TestCase) -> void:
 		"and their own face-down monster")
 	t.eq(in_hand.owner_id, 1, "both cards belong to player 1")
 	t.eq(face_down.owner_id, 1, "both cards belong to player 1")
+
+
+# ---------------------------------------------------------------------------
+# Looking at a hidden zone — the gate for `EffectPrimitives.look_at_hand()`.
+# RULES_SPEC.md 12, CARD_RULINGS.md R42 Part B.
+#
+# Written and passing BEFORE `Spiritual Water Art - Aoi` existed, the way the batch-7
+# movement gate and the batch-6 control gate were. These tests belong here rather than in
+# a new suite because "look at a hand" is an OPERATION over the hidden-information
+# subsystem this file already owns, not a subsystem of its own — the batch-11 attack ban
+# went into `AttackRestrictionTests` for the same reason.
+#
+# The four things that make it a distinct operation, each asserted below:
+#   1. it reveals to ONE player, not to both;
+#   2. it moves nothing;
+#   3. the knowledge SURVIVES, because §12.1 ends `revealed_to` only at a shuffle;
+#   4. it is not a REVEAL that the opponent's own log gets to see.
+# ---------------------------------------------------------------------------
+
+
+## A minimal EffectContext for calling a primitive directly, with `pid` as the controller.
+static func _ctx(engine: DuelEngine, pid: int, source: CardInstance) -> EffectContext:
+	var ctx := EffectContext.new(engine.state, source)
+	ctx.engine = engine
+	ctx.controller_id = pid
+	return ctx
+
+
+static func _test_looking_at_a_hand_reveals_it_to_one_player_only(t: TestCase) -> void:
+	t.start("look_at_hand(): every card in the target's hand becomes visible to the looker "
+		+ "and to NOBODY else")
+	var d := TestFixtures.new_duel(1011, 0)
+	var engine: DuelEngine = d["engine"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0,
+		TestFixtures.trap("Looking Trap"))
+	var theirs: Array = engine.state.player(1).hand.duplicate()
+	t.is_true(theirs.size() >= 5, "the opponent has an opening hand to look at")
+
+	# Before: the looker sees nothing of it.
+	for entry in theirs:
+		var card: CardInstance = entry
+		t.is_false(card.revealed_to.has(0), "hidden from the looker before the look")
+
+	var seen := EffectPrimitives.look_at_hand(_ctx(engine, 0, source), 1)
+	t.eq(seen.size(), theirs.size(), "every card in the hand was looked at")
+
+	for entry in theirs:
+		var card: CardInstance = entry
+		t.is_true(card.revealed_to.has(0), "the looker has now legally seen it")
+		t.is_false(card.revealed_to.has(1),
+			"and the reveal did not additionally reveal it to its own owner as a NEW fact")
+
+	# The looker's filtered view really names them; the owner's view of the LOOKER's hand
+	# is unchanged, so this is not a blanket unlock of both hands.
+	var view0 := engine.get_visible_state(0)
+	var named := 0
+	for entry in view0["players"][1]["hand"]:
+		if entry != null and entry.get("name") != null:
+			named += 1
+	t.eq(named, theirs.size(), "the looker's view names the whole opponent hand")
+
+	var view1 := engine.get_visible_state(1)
+	var leaked := 0
+	for entry in view1["players"][0]["hand"]:
+		if entry != null and entry.get("name") != null:
+			leaked += 1
+	t.eq(leaked, 0, "while the opponent still sees nothing of the LOOKER's hand")
+
+
+static func _test_looking_at_a_hand_moves_nothing(t: TestCase) -> void:
+	t.start("look_at_hand(): nothing leaves the hand, nothing is turned face-up, and no "
+		+ "card moves at all")
+	var d := TestFixtures.new_duel(1012, 0)
+	var engine: DuelEngine = d["engine"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0,
+		TestFixtures.trap("Looking Trap"))
+	var before_size: int = engine.state.player(1).hand.size()
+	var before_gy: int = engine.state.player(1).graveyard.size()
+	var sample: CardInstance = engine.state.player(1).hand[0]
+	var before_position := sample.position
+
+	EffectPrimitives.look_at_hand(_ctx(engine, 0, source), 1)
+
+	t.eq(engine.state.player(1).hand.size(), before_size, "the hand is the same size")
+	t.eq(engine.state.player(1).graveyard.size(), before_gy, "the Graveyard did not grow")
+	t.eq(sample.zone, Enums.Zone.HAND, "the card is still in the hand")
+	t.eq(sample.position, before_position, "and was not turned face-up")
+
+
+static func _test_looking_at_an_empty_hand_is_legal_and_sees_nothing(t: TestCase) -> void:
+	t.start("look_at_hand(): an EMPTY hand is a legal thing to look at — it returns nothing "
+		+ "rather than failing, and the caller decides what that means")
+	var d := TestFixtures.new_duel(1013, 0)
+	var engine: DuelEngine = d["engine"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0,
+		TestFixtures.trap("Looking Trap"))
+	engine.state.player(1).hand.clear()
+
+	var seen := EffectPrimitives.look_at_hand(_ctx(engine, 0, source), 1)
+	t.eq(seen.size(), 0, "nothing was seen")
+	t.eq(engine.state.player(1).hand.size(), 0, "and the hand is still empty")
+
+
+static func _test_the_knowledge_survives_the_look(t: TestCase) -> void:
+	t.start("§12.1: knowledge gained by looking is ended only by a SHUFFLE, and a hand is "
+		+ "never shuffled — so a card looked at and kept stays known")
+	var d := TestFixtures.new_duel(1014, 0)
+	var engine: DuelEngine = d["engine"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0,
+		TestFixtures.trap("Looking Trap"))
+	var kept: CardInstance = engine.state.player(1).hand[0]
+
+	EffectPrimitives.look_at_hand(_ctx(engine, 0, source), 1)
+	t.is_true(kept.revealed_to.has(0), "it was seen")
+
+	# Several turns' worth of unrelated engine work later, it is still known.
+	TestFixtures.end_turn(engine)
+	TestFixtures.end_turn(engine)
+	t.is_true(kept.revealed_to.has(0),
+		"and it is still known two turns later — there is no `forget`, deliberately")
+	t.eq(kept.zone, Enums.Zone.HAND, "with the card still in the hand")
+
+	# The one thing that DOES end it, asserted as the control: a shuffle of the zone the
+	# card is in. Moving it into the Deck and shuffling clears the record.
+	engine.state.move_card(kept, Enums.Zone.DECK, Enums.MoveReason.SHUFFLED_INTO_DECK,
+		{"to_player": 1})
+	t.is_false(kept.revealed_to.has(0),
+		"a shuffle into the Deck is what ends the knowledge, and it does")
+
+
+static func _test_a_look_does_not_leak_into_the_public_log(t: TestCase) -> void:
+	t.start("a look at one player's hand is PRIVATE: the reveal events it raises are kept "
+		+ "out of the public log and out of the looked-at player's own log")
+	var d := TestFixtures.new_duel(1015, 0)
+	var engine: DuelEngine = d["engine"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0,
+		TestFixtures.trap("Looking Trap"))
+	var mark: int = engine.state.events.size()
+
+	EffectPrimitives.look_at_hand(_ctx(engine, 0, source), 1)
+
+	var reveals := TestFixtures.events_of(engine, GameEvent.Kind.CARD_REVEALED, mark)
+	t.is_true(reveals.size() >= 5, "the look really raised reveal events")
+	var public_reveals := reveals.filter(func(e): return e.is_public())
+	t.eq(public_reveals.size(), 0,
+		"not one of them is public — a look is not a reveal to the table")
+
+	var public_log := engine.get_public_log()
+	var public_after := public_log.filter(
+		func(e): return e.kind == GameEvent.Kind.CARD_REVEALED)
+	t.eq(public_after.size(), 0, "and none reaches the public log")
+
+	var log0 := engine.state.get_log_for(0)
+	var mine := log0.filter(func(e): return e.kind == GameEvent.Kind.CARD_REVEALED)
+	t.is_true(mine.size() >= 5, "the LOOKER's own log carries what they were shown")
+
+
+static func _test_sending_from_a_hand_is_not_a_discard(t: TestCase) -> void:
+	t.start("send_from_hand_to_gy(): the opponent's card reaches the Graveyard as a SEND "
+		+ "BY EFFECT, never as a discard [S1 p.52-53]")
+	var d := TestFixtures.new_duel(1016, 0)
+	var engine: DuelEngine = d["engine"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0,
+		TestFixtures.trap("Sending Trap"))
+	var victim: CardInstance = engine.state.player(1).hand[0]
+	var gy_before: int = engine.state.player(1).graveyard.size()
+
+	t.is_true(EffectPrimitives.send_from_hand_to_gy(_ctx(engine, 0, source), victim),
+		"the card is sent")
+	t.eq(victim.zone, Enums.Zone.GRAVEYARD, "it is in the Graveyard")
+	t.eq(engine.state.player(1).graveyard.size(), gy_before + 1,
+		"and specifically in its OWNER's Graveyard")
+	t.eq(victim.last_move_reason, Enums.MoveReason.SENT_TO_GY_BY_EFFECT,
+		"with the SEND reason")
+	t.ne(victim.last_move_reason, Enums.MoveReason.DISCARDED,
+		"and emphatically not the DISCARD reason — the two are different things")
+
+	# A card that is no longer in a hand is refused rather than chased into its new zone.
+	t.is_false(EffectPrimitives.send_from_hand_to_gy(_ctx(engine, 0, source), victim),
+		"sending the same card again does nothing")
+	t.is_false(EffectPrimitives.send_from_hand_to_gy(_ctx(engine, 0, source), null),
+		"and null is refused rather than crashing")
+

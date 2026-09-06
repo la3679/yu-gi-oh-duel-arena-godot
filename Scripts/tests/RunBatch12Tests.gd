@@ -1,6 +1,11 @@
 extends SceneTree
 func _initialize() -> void:
-	var result := SpiritualFireArtKurenaiTests.run()
-	print(result.report())
-	print("RESULT: PASS" if result.failed == 0 and result.total() > 0 else "RESULT: FAIL")
-	quit(0 if result.failed == 0 else 1)
+	var suites := [SpiritualFireArtKurenaiTests.run(), HiddenInfoTests.run(), SpiritualWaterArtAoiTests.run()]
+	var failed := 0
+	var total := 0
+	for s in suites:
+		print(s.report())
+		failed += s.failed
+		total += s.total()
+	print("RESULT: PASS" if failed == 0 and total > 0 else "RESULT: FAIL")
+	quit(0 if failed == 0 else 1)
