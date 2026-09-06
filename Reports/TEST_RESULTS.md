@@ -1,8 +1,9 @@
 # TEST_RESULTS
 
-**Last run:** 2026-09-05 (Phase 5 **batch 10 COMPLETE**: the generic DECK-ACCESS gate, the three
-DRAW cards, the two GY-retrieval cards, and the two DECK-access cards — seven cards over one
-new subsystem, plus **R40** and one real engine defect found and fixed.)
+**Last run:** 2026-09-06 (Phase 5 **batch 11 COMPLETE**: the four destruction-with-a-condition
+cards, `Back-Up Rider` and `Vampiric Koala` — six cards over ONE new generic mechanism, the
+turn-scoped attack ban keyed by card NAME, plus **R41**, whose research changed the
+implementation of five of the six.)
 **Engine:** Godot 4.7.1.stable.official.a13da4feb (headless)
 
 Command:
@@ -34,27 +35,262 @@ The raw command still works and produces the same numbers:
 
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
-| Core rules tests | 23 | 2098 | **2098** | 0 |
-| Per-card tests | 53 | 4770 | **4770** | 0 |
+| Core rules tests | 23 | 2141 | **2141** | 0 |
+| Per-card tests | 59 | 5538 | **5538** | 0 |
 | Interaction tests | 1 | 46 | **46** | 0 |
 | Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **77** | **6914** | **6914** | **0** |
+| **TOTAL** | **83** | **7725** | **7725** | **0** |
 
-SmokeCheck: **PASS**. Matrix: **61 / 77 implemented, 61 / 77 tested, 16 remaining** (computed by
+SmokeCheck: **PASS**. Matrix: **67 / 77 implemented, 67 / 77 tested, 10 remaining** (computed by
 `python Tools/build_matrix.py`, not written by hand).
 
-**All 6284 assertions from the previous checkpoint pass unchanged.** None was weakened,
-retargeted or deleted, and **no pre-existing suite moved at all**: the whole delta is the eight
-new suites. 6914 − 6284 = 630 = `DeckAccessTests` (139) + `TradeInTests` (70) +
-`CardsOfConsonanceTests` (63) + `WhiteElephantsGiftTests` (64) + `HeraldOfCreationTests` (73) +
-`DivineDragonApocralyphTests` (65) + `DragonShrineTests` (78) + `TheWhiteStoneOfLegendTests`
-(78). The 5509 → 5973 → 6284 → 6914 chain is therefore unbroken.
+**All 6914 assertions from the previous checkpoint pass unchanged.** None was weakened,
+retargeted or deleted. **Exactly one pre-existing suite moved:** `AttackRestrictionTests`
+**grew** 229 → 272, because the new prevention channel's gate was added to it — which is where
+every generic unit since batch 7 has gone. Nothing in it was rewritten, and the arithmetic is
+checked rather than asserted: the 77 pre-existing suites sum to **exactly 6914** once that +43
+is removed.
+
+7725 − 6914 = 811 = 43 (the gate) + `StampingDestructionTests` (134) + `StraightFlushTests`
+(143) + `BurstStreamOfDestructionTests` (132) + `ChironTheMageTests` (113) + `BackUpRiderTests`
+(115) + `VampiricKoalaTests` (131). The 5509 → 5973 → 6284 → 6914 → 7725 chain is therefore
+unbroken.
 
 **No `SCRIPT ERROR` appeared in any run.** The two `ERROR:` lines on stderr are the two
 deliberate negative tests that assert the engine fails loudly
 (`ChainTests._test_unimplemented_effect_fails_loudly` and
 `ContinuousTests._test_restriction_flags_are_owned_by_this_system`); they are unchanged and
 expected.
+
+---
+
+## Batch 11 — COMPLETE. Nothing in it is partial or unverified.
+
+| Batch 11 unit | Status |
+|---|---|
+| Unit A — `Stamping Destruction` (`StampingDestructionTests`, 134) | **COMPLETE** |
+| Unit A — `Straight Flush` (`StraightFlushTests`, 143) | **COMPLETE** |
+| Unit B — the generic **name-keyed turn-scoped attack ban** (`AttackRestrictionTests` 229 → 272) | **COMPLETE** |
+| Unit B — `Burst Stream of Destruction` (`BurstStreamOfDestructionTests`, 128) | **COMPLETE** |
+| Unit B — `Chiron the Mage` (`ChironTheMageTests`, 113) | **COMPLETE** |
+| Unit C — `Back-Up Rider` (`BackUpRiderTests`, 115) | **COMPLETE** |
+| Unit D — `Vampiric Koala` (`VampiricKoalaTests`, 131) | **COMPLETE** |
+
+**All 6914 assertions from the batch-10 checkpoint pass unchanged** — none was weakened,
+retargeted or deleted. **Exactly one pre-existing suite moved:** `AttackRestrictionTests`
+**grew** 229 → 272, because the new prevention channel's gate was added to it, which is where
+every generic unit since batch 7 has gone. Nothing in it was rewritten.
+
+7725 − 6914 = **811** = 43 (the gate) + 134 + 143 + 128 + 113 + 115 + 131 + 4. The final 4 are
+assertions added while **strengthening** tests that mutation testing showed were carried by a
+single assertion; they are listed in the mutation table below.
+
+### The new generic subsystem — a THIRD attack-prevention channel
+
+`RULES_SPEC.md` **§6.5**. `PlayerState.ban_attacks_by_name()` / `attacks_banned_by_name()`, asked
+by `BattleRules.can_declare_attack()` alongside the two channels §6.4 already had, plus the single
+reader `EffectPrimitives.named_monster_attacked_this_turn()`.
+
+It exists because the engine **could not express the card**. §6.4's two channels are both
+continuous — wiped and rebuilt by `ContinuousEffects.recompute()` — so both lift the instant their
+source stops applying. `Burst Stream of Destruction` is a Normal Spell that is in the Graveyard
+before the first attack it forbids could be declared, and its ban has to reach a
+`Blue-Eyes White Dragon` Summoned **later in the same turn**. Neither existing channel can do
+both.
+
+| | per CARD (§6.4) | per PLAYER (§6.4) | **per NAME + TURN (new)** |
+|---|---|---|---|
+| Card | `Fiendish Chain` | `Swords of Revealing Light` | `Burst Stream of Destruction` |
+| Lifetime | while the source applies | while the source applies | **the rest of this turn** |
+| Survives the source leaving the field | no | no | **yes** |
+| Reaches a monster that arrives later | no | yes | **yes, if it has the name** |
+
+The stored value is the **turn number**, so the ban self-expires at the turn boundary exactly the
+way `named_effect_usage` does; nothing has to remember to clear it. The gate — 43 assertions in
+`AttackRestrictionTests` — was written and green **against synthetic drivers, before
+`Burst Stream of Destruction` existed**, and it asserts the three-way independence directly:
+lifting any one channel leaves the other two refusing.
+
+### The one place a card reads the event log, and why
+
+`EffectPrimitives.named_monster_attacked_this_turn()` answers "has a monster of this name already
+attacked this turn?" from `GameState.events`, and **deliberately not** from
+`CardInstance.has_attacked_this_turn`. `on_leave_field()` clears that flag, so a monster that
+attacked and was then destroyed, Tributed or bounced would silently stop counting — and the
+activation the gate exists to forbid would quietly become legal. This is `RULES_SPEC.md` §15's
+"facts that must outlive a card leaving the field", applied to an attack rather than to a card.
+It is asserted twice: generically in `AttackRestrictionTests`, and on the real card in
+`BurstStreamOfDestructionTests`.
+
+Similarly `EffectPrimitives.battle_damage_just_inflicted_on()` reads `BattleRules.last_damage`
+rather than `ctx.trigger_event`, because a `ChainLink` does not carry the event that made it
+eligible — `ctx.trigger_event` is null by the time a Trigger Effect resolves. The event is the
+right source in a `condition`, which runs while it is still available; the battle record is the
+right source at resolution.
+
+### R41 — and the FIVE places the research changed the implementation
+
+§8 predicted batch 11 needed no research. That was **wrong**, and honestly so. All six cards were
+looked up with `request_locale=ja`; five carry official notes that change what the code does, and
+four of those would otherwise have been silent bugs.
+
+| Card | cid | What the supplement changed |
+|---|---|---|
+| `Burst Stream of Destruction` | 5979 | an **activation restriction that is nowhere in the printed English**: not activatable on a turn a `Blue-Eyes White Dragon` already attacked. Plus: the ban covers every copy; it attaches at activation; activation negation lifts it |
+| `Vampiric Koala` | 8858 | it triggers when **ATTACKED** as well as when attacking — the subject is 自身, *this card itself battles* |
+| `Stamping Destruction` | 5345 | the activation condition is **NOT re-checked at resolution** — the opposite of this engine's usual habit |
+| `Straight Flush` | 6911 | an **Equip Card** fills one of the five zones; a **Trap Monster in a Monster Zone** does not, and the card then cannot be activated at all |
+| `Back-Up Rider` | 11848 | **either player's** monster; the gain is **not** original ATK; two copies **stack** to +3000 |
+| `Chiron the Mage` | 5810 | confirms the TCG reading against the OCG "select" print: it really **targets**, the discard is a real **cost**, it is an **Ignition** effect |
+
+Both `Stamping Destruction` and `Straight Flush` return
+「このカードに関連するＱ＆Ａはありません」 — *this card has no related Q&A* — which is what a genuine
+absence looks like under the `ja` locale, as distinct from the `en` boilerplate R40 warns about.
+
+**R41 Part G** is the one question the database does not answer: whether `Stamping Destruction`
+can target itself. Implemented as **NO**, at MEDIUM, from R28's precedent plus the
+`Mystical Space Typhoon` rulings, and recorded as reasoned-from-precedent, not as official.
+
+### A FALSE CLAIM caught by its own assertion
+
+The first draft of R41 Part B stated that "nothing in the V1 pool is a Field Spell" and asserted
+it as a **count** in `StampingDestructionTests`. The count **failed**: deck 2 holds
+`Hidden Springs of the Far East`, a Field Spell — itself one of the ten cards still
+unimplemented. The claim was written from memory and was false.
+
+The correction mattered, because the two cards really do differ on it:
+
+* `Stamping Destruction` targets "1 Spell/Trap **on the field**", which **includes** the Field
+  Zone;
+* `Straight Flush` names the "**Spell & Trap Zones**", which **excludes** it.
+
+Each now has its own test against a real Field Spell placed in a real Field Zone. Had the claim
+been left as prose, both branches would have shipped untested and one of them was wrong.
+
+### A REDUNDANCY found by mutation testing rather than by reading
+
+`Chiron the Mage`'s "your opponent controls" check was duplicated — once in the scope of the
+candidate loop and once inside the predicate — so a mutation that broke the predicate half
+**survived**. Redundancy is not harmless: it made half the clause untestable. The candidate list
+now scans the whole field and filters by the single predicate, so every word of the clause lives
+in one place and answers identically at activation and at resolution. Re-mutated: caught by two
+assertions.
+
+### Mutation checks — the new suites are not vacuous
+
+Every mutation below was applied to the SHIPPED code, the full suite was run, and the code was
+restored from a byte-exact backup.
+
+**All 44 were caught.** A mutation caught by only one assertion was treated as a weakness in the
+test, not as a pass: **five** were, every one of those suites was strengthened, and all five were
+re-run — that is where most of the difference between the first-draft suite sizes and the shipped
+ones comes from.
+
+| # | Mutation | Result |
+|---|---|---:|
+| S1 | `Stamping Destruction`: the damage is NOT conditional on the destruction | 1 → **2** after strengthening |
+| S2 | `Stamping Destruction`: it IS among its own targets | 2 failed |
+| S3 | `Stamping Destruction`: the Dragon IS re-checked at resolution | 3 failed |
+| S4 | `Stamping Destruction`: resolution asks only `is_on_field()`, not the zone | 5 failed |
+| S5 | `Stamping Destruction`: the damage always goes to the opponent | 2 failed |
+| S6 | `Stamping Destruction`: a face-DOWN Dragon satisfies the condition | 1 → **2** after strengthening |
+| S7 | `Stamping Destruction`: the Field Zone is not "on the field" | 5 failed |
+| F1 | `Straight Flush`: the condition counts controlled CARDS, not occupied zones | 4 failed |
+| F2 | `Straight Flush`: the condition needs only FOUR zones | 5 failed |
+| F3 | `Straight Flush`: the resolution reaches the Field Zone too | 3 failed |
+| F4 | `Straight Flush`: the resolution destroys the CONTROLLER's zones | 44 failed |
+| F5 | `Straight Flush`: the condition IS re-checked at resolution | 5 failed |
+| F6 | `Straight Flush`: it is legal in the Damage Step | 2 failed |
+| P1 | **`named_monster_attacked_this_turn()` reads the instance flag, not the event log** | 2 failed — one in the gate, one on the real card |
+| B1 | `Burst Stream`: no activation restriction from a prior attack | 3 failed |
+| B2 | `Burst Stream`: the ban is aimed at the opponent | 13 failed |
+| B3 | `Burst Stream`: the ban is per-INSTANCE, not per-name | 12 failed |
+| B4 | **`Burst Stream`: the ban is applied at RESOLUTION rather than at activation** | 2 failed |
+| B5 | `Burst Stream`: a face-DOWN Blue-Eyes satisfies the condition | 1 → **2** after strengthening |
+| B6 | `Burst Stream`: it wipes the CONTROLLER's monsters | 13 failed |
+| B7 | `Burst Stream`: the condition IS re-checked at resolution | 2 failed |
+| C1 | `Chiron the Mage`: the cost is any card, not a Spell | 14 failed |
+| C2 | `Chiron the Mage`: the discard is not paid at all | 11 failed |
+| C3 | **`Chiron the Mage`: targets are not restricted to the opponent** | **SURVIVED** → the CODE was fixed → 2 failed |
+| C4 | `Chiron the Mage`: resolution asks only `surviving_field_target()` | 4 failed |
+| C5 | `Chiron the Mage`: it is not once per turn | 4 failed |
+| C6 | `Chiron the Mage`: the Field Zone is not reachable | 3 failed |
+| C7 | `Chiron the Mage`: once-per-turn is per NAME, not per instance | 4 failed |
+| R1 | `Back-Up Rider`: the gain is PERMANENT, not until the end of the turn | 6 failed |
+| R2 | `Back-Up Rider`: the gain OVERRIDES the ATK instead of adding to it | 5 failed |
+| R3 | `Back-Up Rider`: the amount is 1000, not 1500 | 17 failed |
+| R4 | `Back-Up Rider`: only your OWN monsters are candidates | 5 failed |
+| R5 | `Back-Up Rider`: face-DOWN monsters are candidates too | 3 failed |
+| R6 | `Back-Up Rider`: the face-up re-check at resolution is dropped | 2 failed |
+| R7 | `Back-Up Rider`: it modifies DEF as well as ATK | 2 failed |
+| K1 | `Vampiric Koala`: it fires on ANY battle, not only its own | 5 failed |
+| K2 | `Vampiric Koala`: a DIRECT attack triggers it | 3 failed |
+| K3 | `Vampiric Koala`: damage to its OWN controller triggers it | 1 → **3** after strengthening |
+| K4 | `Vampiric Koala`: it LOSES LP instead of gaining | 7 failed |
+| K5 | `Vampiric Koala`: the OPPONENT gains the LP | 8 failed |
+| K6 | `Vampiric Koala`: the amount is the printed ATK, not the damage inflicted | 7 failed |
+| K7 | `Vampiric Koala`: it is OPTIONAL, not mandatory | 16 failed |
+| K8 | `Vampiric Koala`: it is not legal in the Damage Step | 15 failed |
+| K9 | `Vampiric Koala`: it triggers from the Graveyard too | 1 (shape only) → **2** after strengthening |
+
+**C3 is the one that mattered most, and it did not point at a weak test — it pointed at weak
+code.** `Chiron the Mage`'s "your opponent controls" check was written twice, once as the scope
+of the candidate loop and once inside the predicate, so breaking the predicate half changed
+nothing. The candidate list now scans the whole field and filters by the single predicate, which
+makes the clause live in exactly one place and answer identically at activation and at
+resolution. **Redundant code is untestable code**, and the only reason this was found is that a
+mutation was written for it.
+
+**K9 is the second lesson.** It was caught only by the `activation_locations` equality assertion —
+a SHAPE check — while the behavioural test that looked like it covered the same ground was
+refused for an unrelated reason. The location restriction's genuinely load-bearing case is a
+Koala that DID battle and has since left the field, which no card in the pool can produce, so it
+is now put to `ActivationRules.can_activate()` directly with exactly that state.
+
+**B4's first version was mis-written** and is recorded as such rather than quietly dropped: it
+*added* the ban at resolution while leaving `activation_confirmed` in place, so the ban was
+applied twice and the mutation was inert. Re-specified as a genuine relocation, it is caught by
+the effect-negation test — which is the assertion that proves the ban survives EFFECT negation.
+
+### ObjectDB at exit — batch 11
+
+**226705**, up from 204316. That is **22389 for 811 new assertions — about 27.6 each**, against
+the previous checkpoint's ~26.9, and the ~21.6 / ~34.9 / ~44.6 before that. The per-assertion
+figure has now risen once, fallen three times and risen again inside six checkpoints, which is
+**still not a trend and still has no measured explanation**. None is recorded here, because none
+has been measured; this session did not investigate it either, and must not have been expected
+to — it fails nothing, hangs nothing and makes no test unreliable. The characterisation task in
+`PROJECT_STATE.md` §7 is unchanged and still **must be done before Phase 7**.
+
+### Test-harness lessons this batch paid for
+
+1. **`get_legal_actions(pid)` returns nothing for a player who is not the turn player**, and the
+   failure is silent. Driving the OPPONENT's Quick Effect needs a real response window, which
+   means the turn player must activate something first — a bait Trap with a no-op
+   `card_activation()` effect is the cheapest way to open one. This is the same trap batch 10
+   recorded, hit from a third direction.
+2. **The engine does not pause when nobody holds a legal response.** It auto-passes and resolves
+   the whole Chain inside one `submit_action()`, so "the cost is already paid while the Chain is
+   still being built" cannot be observed unless some card could legally respond. Giving the
+   opponent a Spell Speed 2 bait is what makes that assertion real rather than vacuous.
+3. **`change_control()` accepts monsters only**, by design — no V1 card can move control of a
+   Spell/Trap. A "the target changed hands" test for a Spell/Trap-targeting clause is therefore
+   not constructible from the pool's mechanics, and the honest substitute is a Trap Monster that
+   Summons itself out of its Spell & Trap Zone: still on the field, still theirs, no longer a
+   Spell/Trap.
+4. **Nothing can chain-negate a Damage Step trigger.** A Chain formed in sub-step 4 admits only
+   `MANDATORY_TRIGGER` effects, and every negator fixture is `UNTIL_DAMAGE_CALC`, which
+   `ActivationRules.damage_step_ok()` refuses there. A negation test for such a trigger written
+   with a chained negator passes **vacuously** — the first draft of the `Vampiric Koala` negation
+   test did exactly that and was rewritten to use continuous effect negation, which is the real
+   route.
+5. **A mutation caught only by a SHAPE assertion is a warning, not a pass.** The
+   `Vampiric Koala` "it triggers from the Graveyard too" mutation was caught only by the
+   `activation_locations` equality check; the behavioural test that looked like it covered the
+   same ground was refused for an unrelated reason. The location restriction's genuinely
+   load-bearing case — a Koala that DID battle and has since left the field — cannot be reached
+   through the pool's cards, so it is now put to `ActivationRules.can_activate()` directly with
+   exactly that state.
 
 ---
 
@@ -665,23 +901,28 @@ removed.
 | `ChainTests` | 27 | `RULES_SPEC.md §4` |
 | `TimingTests` | 37 | `RULES_SPEC.md §3`, `§4.4` |
 | `TurnFlowTests` | 40 | `RULES_SPEC.md §1, §2, §13` |
-| `SummonTests` | 85 | `RULES_SPEC.md §5`, `§5.4` |
-| `ControlTests` | 93 | `RULES_SPEC.md §5.6` [S1 p.52] |
-| `SpellTrapTests` | 27 | `RULES_SPEC.md §4.2` |
+| `SummonTests` | 88 | `RULES_SPEC.md §5`, `§5.4`, `§5.9` |
+| `SpellTrapTests` | 49 | `RULES_SPEC.md §4.2` |
 | `BattleTests` | 72 | `RULES_SPEC.md §6` |
 | `DamageStepTests` | 86 | `RULES_SPEC.md §7` |
-| `ContinuousTests` | 52 | `RULES_SPEC.md §4.2/§8`, master prompt §25 |
-| `CounterTests` | 44 | `RULES_SPEC.md §14`, `CARD_RULINGS.md` |
+| `ContinuousTests` | 52 | `RULES_SPEC.md §4.2/§8` |
+| `CounterTests` | 44 | `RULES_SPEC.md §14` |
 | `HiddenInfoTests` | 76 | `RULES_SPEC.md §9, §12` |
 | `SpecialSummonTests` | 54 | `RULES_SPEC.md §5.5` |
-| `RulesQuestionTests` | 37 | `RULES_SPEC.md §8.1, §12.1`, `§6/§7`, `§2.3` |
+| `RulesQuestionTests` | 37 | `RULES_SPEC.md §8.1, §12.1, §6/§7, §2.3` |
 | `ReplayTests` | 33 | master prompt §8 / §70 |
-| `EquipTests` | 83 | `RULES_SPEC.md §16, §17` [S1 p.29, p.53, p.55] |
-| `MovementTests` | 210 | `RULES_SPEC.md §8, §8.2, §9, §10, §12.1` [S1 p.5, p.28, p.52–53] |
-| `BanishTests` | 158 | `RULES_SPEC.md §8, §8.3, §12, §15` [S1 p.52–53], `CARD_RULINGS.md R30` |
-| `LifePointCostTests` | 109 | `RULES_SPEC.md §10, §10.4, §4.3, §5.7`, `CARD_RULINGS.md R31` |
+| `EquipTests` | 83 | `RULES_SPEC.md §16, §17` |
+| `ControlTests` | 93 | `RULES_SPEC.md §5.6` |
+| `MovementTests` | 210 | `RULES_SPEC.md §8, §8.2, §9, §10, §12.1` |
+| `BanishTests` | 158 | `RULES_SPEC.md §8, §8.3, §12, §15`, R30 |
+| `LifePointCostTests` | 109 | `RULES_SPEC.md §10, §10.4, §4.3, §5.7`, R31 |
+| `TrapMonsterTests` | 192 | `RULES_SPEC.md §5.8, §15, §17` |
+| `BattlePhaseRestrictionTests` | 53 | `RULES_SPEC.md §2.4, §6`, R32 |
+| `AttackRestrictionTests` | 272 | `RULES_SPEC.md §6.1, §6.3, §6.4, §6.5, §4.4, §11`, R41 |
+| `ChoiceConstraintTests` | 137 | `RULES_SPEC.md §5.9`, R39 |
+| `DeckAccessTests` | 139 | `RULES_SPEC.md §8.4`, R40 |
 | `ShiningAngelTests` | 43 | per-card |
-| `NormalMonsterTests` | 76 | per-card (9 cards) |
+| `NormalMonsterTests` | 76 | per-card |
 | `MonsterRebornTests` | 48 | per-card |
 | `SilversCryTests` | 47 | per-card |
 | `KaibamanTests` | 47 | per-card |
@@ -717,10 +958,32 @@ removed.
 | `ChainHealingTests` | 147 | per-card |
 | `CrystalSeerTests` | 151 | per-card |
 | `InterdimensionalMatterTransporterTests` | 175 | per-card |
-| `JudgeOfTheIceBarrierTests` | 154 | per-card (`CARD_RULINGS.md R2`, `R31`) |
+| `JudgeOfTheIceBarrierTests` | 154 | per-card |
 | `JunkBladerTests` | 73 | per-card |
+| `ThePhantomKnightsOfShadowVeilTests` | 125 | per-card |
+| `RunickFlashingFireTests` | 123 | per-card |
+| `MirageDragonTests` | 121 | per-card |
+| `SwordsOfRevealingLightTests` | 122 | per-card |
+| `MaidenWithEyesOfBlueTests` | 139 | per-card |
+| `KaiserSeaHorseTests` | 57 | per-card |
+| `SoulExchangeTests` | 174 | per-card |
 | `SpecialSummonInteractionTests` | 46 | interaction |
+| `DragonShrineTests` | 78 | per-card |
+| `TheWhiteStoneOfLegendTests` | 78 | per-card |
+| `HeraldOfCreationTests` | 73 | per-card |
+| `DivineDragonApocralyphTests` | 65 | per-card |
+| `TradeInTests` | 70 | per-card |
+| `CardsOfConsonanceTests` | 63 | per-card |
+| `WhiteElephantsGiftTests` | 64 | per-card |
+| `StampingDestructionTests` | 134 | per-card |
+| `StraightFlushTests` | 143 | per-card |
+| `BurstStreamOfDestructionTests` | 132 | per-card |
+| `ChironTheMageTests` | 113 | per-card |
+| `BackUpRiderTests` | 115 | per-card |
+| `VampiricKoalaTests` | 131 | per-card |
+| **TOTAL** | **7725** | 83 suites |
 
+<!-- summary: core 23 suites / 2141 ; per-card 59 / 5538 ; interaction 1 / 46 ; total 83 / 7725 -->
 ### BanishTests — 158/158
 
 `Tests/rules/BanishTests.gd`. Rules: `RULES_SPEC.md §8, §8.3, §12, §15` [S1 p.52–53],

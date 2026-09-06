@@ -101,6 +101,8 @@ func _initialize() -> void:
 	suites.append(StraightFlushTests.run())
 	suites.append(BurstStreamOfDestructionTests.run())
 	suites.append(ChironTheMageTests.run())
+	suites.append(BackUpRiderTests.run())
+	suites.append(VampiricKoalaTests.run())
 
 	var total_passed := 0
 	var total_failed := 0

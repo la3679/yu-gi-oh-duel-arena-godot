@@ -985,6 +985,31 @@ static func battle_opponent_of(state: GameState, card: CardInstance) -> CardInst
 	return null
 
 
+## How much battle damage the damage calculation just now inflicted on `pid`, or 0.
+## (`Vampiric Koala`: "Gain LP equal to the battle damage inflicted".)
+##
+## Read from `BattleRules.last_damage`, the authoritative record written by
+## `step_damage_calculation()` and cleared by `clear_battle()` — so it is live for exactly
+## the window in which a Damage Step trigger resolves (sub-step 4), and answers 0 outside it.
+##
+## Deliberately **not** recomputed from ATK/DEF values at resolution. A modifier applied
+## inside the Damage Step, or a monster destroyed by an earlier link of the same Chain, would
+## make a recomputation disagree with the damage that was actually dealt — and the card says
+## "the battle damage inflicted", which is a fact about what happened, not a sum to redo.
+##
+## Deliberately **not** read from `ctx.trigger_event` either: a Chain Link does not carry the
+## event that made it eligible, so `ctx.trigger_event` is null by the time a Trigger Effect
+## resolves. The event is the right source in a `condition`, which runs while it is still
+## available; this is the right source at resolution.
+static func battle_damage_just_inflicted_on(ctx: EffectContext, pid: int) -> int:
+	if ctx.engine == null or ctx.engine.battle == null:
+		return 0
+	var result: Dictionary = ctx.engine.battle.last_damage
+	if int(result.get("damage_to", -1)) != pid:
+		return 0
+	return maxi(0, int(result.get("damage", 0)))
+
+
 ## Did `event` report `card_id` LEAVING the field? "Leaves the field" is about the zones
 ## the card moved between, not about why, so this deliberately ignores the MoveReason:
 ## destroyed, banished, returned to the hand and Tributed all leave the field.
