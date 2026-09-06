@@ -416,26 +416,50 @@ static func turn_counting_card(card_name: String, limit: int = 3,
 ## Every part of the type line is a parameter because the gate has to prove the runtime
 ## identity is really carried rather than hard-coded — a fixture that could only ever be
 ## Warrior/DARK/Level 4 would pass against an implementation that ignored its arguments.
+## `from_zone` is a parameter because a Trap Monster's Summon can start from either of two
+## places, and the difference is observable from OUTSIDE the card. The pool's real Trap
+## Monster (`The Phantom Knights of Shadow Veil`) Summons itself out of the **Graveyard**,
+## which is the default and stays an IGNITION effect activated there.
+##
+## A Trap Monster that Summons itself out of its own **Spell & Trap Zone** —
+## `Embodiment of Apophis` is the printed example, and it is the card `Straight Flush`'s
+## official supplement names — **vacates a Spell & Trap Zone** by doing so. That is exactly
+## what `Straight Flush`'s "a card in EACH of their Spell & Trap Zones" condition and
+## `Stamping Destruction`'s "1 Spell/Trap ON THE FIELD" resolution re-check both hinge on, and
+## neither could be tested against a Graveyard-only fixture. CARD_RULINGS.md R41 Parts B and G.
+##
+## That variant is a **face-up CONTINUOUS Trap with a QUICK effect**, and both halves are
+## forced rather than chosen. Continuous, because `_cleanup_resolved_spell_traps()` sweeps a
+## resolved NORMAL Trap to the Graveyard wherever on the field it now sits, which would undo
+## the Summon. Quick, because the scenarios that need it have to Summon **in response**, inside
+## the Chain of the card being tested — a Spell Speed 1 Ignition could never do that.
 static func trap_monster(card_name: String, race: String = "Warrior",
 		attribute: String = "DARK", level: int = 4, atk: int = 0, def_: int = 300,
 		is_normal: bool = true, treated_as_original_type: bool = false,
 		position: Enums.Position = Enums.Position.FACE_UP_DEFENSE,
-		banish_when_leaving: bool = false) -> CardDef:
-	var d := trap(card_name)
+		banish_when_leaving: bool = false,
+		from_zone: Enums.Zone = Enums.Zone.GRAVEYARD) -> CardDef:
+	var from_spell_trap_zone := from_zone != Enums.Zone.GRAVEYARD
+	var d := trap(card_name, Enums.STKind.CONTINUOUS_TRAP if from_spell_trap_zone
+		else Enums.STKind.NORMAL_TRAP)
 	var e := EffectDef.new("summon_self_as_trap_monster",
 		"Test: Special Summon this card as a monster (%s/%s/Level %d/ATK %d/DEF %d)."
 		% [race, attribute, level, atk, def_])
-	e.of_type(Enums.EffectType.IGNITION)
-	e.from_locations([Enums.ActivationLocation.GRAVEYARD])
+	if from_spell_trap_zone:
+		e.of_type(Enums.EffectType.QUICK)
+		e.from_locations([Enums.ActivationLocation.FIELD_FACE_UP])
+	else:
+		e.of_type(Enums.EffectType.IGNITION)
+		e.from_locations([Enums.ActivationLocation.GRAVEYARD])
 
 	e.condition = func(ctx: EffectContext) -> bool:
-		return ctx.source.zone == Enums.Zone.GRAVEYARD and ctx.me().has_free_monster_zone()
+		return ctx.source.zone == from_zone and ctx.me().has_free_monster_zone()
 
 	e.resolve = func(ctx: EffectContext) -> void:
 		var identity := EffectPrimitives.trap_monster_identity(race, attribute, level,
 			atk, def_, is_normal, "summon_self_as_trap_monster", treated_as_original_type)
 		if not EffectPrimitives.special_summon_self_as_trap_monster(ctx,
-				Enums.Zone.GRAVEYARD, identity, position):
+				from_zone, identity, position):
 			return
 		if banish_when_leaving:
 			EffectPrimitives.banish_when_it_leaves_the_field(ctx, ctx.source)

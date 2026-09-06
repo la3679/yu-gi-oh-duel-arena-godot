@@ -1180,6 +1180,207 @@ run.
 **R40 is CLOSED.** `RULES_SPEC.md` §8.4 is the normative statement of the mechanism; the gate is
 `Tests/rules/DeckAccessTests.gd`, written and green before any batch-10 card existed.
 
+### R41 — the six batch-11 cards: destruction with a condition, an ATK boost, and a battle-damage trigger
+
+Opened and closed by Phase 5 batch 11, **before** any batch-11 card was written. Batch 11 was
+chosen precisely because §8 predicted it needed **no** new ruling; that prediction was wrong in
+one direction and right in another, and both halves are recorded here honestly.
+
+* It was **right** that none of the seven carried-over open rulings (R5, R11, R12, R13, R14, R15,
+  R20) touches any of these six. None of them was reopened and none was consulted.
+* It was **wrong** that no research was needed at all. Five of the six carry official supplemental
+  information that **changes the implementation** from what the printed English text plus the
+  general rules alone would have produced. Four of those five changes would otherwise have been
+  silent bugs. They are Parts A–E below.
+
+**Sources.** All PRIMARY (official Konami supplemental information), fetched 2026-09-06 with
+`request_locale=ja` per R40's methodology note. Every response was verified card-specific by
+diffing two of them against each other before any of it was relied on.
+
+| Source | What it gives | Date on the page |
+|---|---|---|
+| `faq_search.action?ope=4&cid=5345&request_locale=ja` — `Stamping Destruction` | the damage is conditional on the destruction succeeding; the two are simultaneous; the Dragon is **not** re-checked at resolution | 2015-02-12 |
+| `faq_search.action?ope=4&cid=6911&request_locale=ja` — `Straight Flush` | does not target; illegal in the Damage Step; an Equip Card **occupies** a Spell & Trap Zone; a **Trap Monster in a Monster Zone does not** | 2015-02-05 |
+| `faq_search.action?ope=4&cid=5979&request_locale=ja` — `Burst Stream of Destruction` | cannot be activated if a `Blue-Eyes White Dragon` **already attacked** this turn; the ban covers **every** copy, including one Summoned later; it attaches at **activation** and is lifted **only** by activation negation; the `Blue-Eyes White Dragon` must be **face-up** | 2024-09-07 |
+| `faq_search.action?ope=4&cid=5810&request_locale=ja` — `Chiron the Mage` | an **Ignition** effect on the field; it **does** target despite the "select" wording; the discard is a **cost** | 2020-04-01 |
+| `faq_search.action?ope=4&cid=11848&request_locale=ja` — `Back-Up Rider` | targets a face-up monster in a **Monster Zone**, **either** player's; the gain is **not** original ATK; two copies on one monster **stack** to +3000 | 2015-04-25 |
+| `faq_search.action?ope=4&cid=8858&request_locale=ja` — `Vampiric Koala` | a **Trigger** Effect; does not target; **mandatory**; fires **after damage calculation** of a battle **this card itself** fought against a monster | 2017-01-12 |
+
+Both `Stamping Destruction` and `Straight Flush` return "このカードに関連するＱ＆Ａはありません"
+— *this card has no related Q&A* — under the `ja` locale, which is the response shape R40 says a
+genuine absence looks like, as distinct from the `en` boilerplate that is not evidence of anything.
+
+#### Part A — `Stamping Destruction`: the damage is a CONSEQUENCE, the Dragon is not re-checked. Confidence: HIGH.
+
+cid 5345 states three things, each of which the implementation encodes:
+
+1. At resolution, "destroy that card" is performed, and **only if the destruction succeeded** is
+   "inflict 500 damage to its controller" performed. This is the PSCT "and if you do" and it is
+   the load-bearing branch: a target protected by `Gagagashield`'s counted prevention, or removed
+   from the field in response, produces **no damage at all**.
+2. The destruction and the damage are **treated as simultaneous**. Nothing in the V1 pool can
+   observe the difference — there is no card that reacts between the two — so this is recorded
+   rather than modelled, and asserted as "one resolution, no window".
+3. **"If you control a Dragon monster" is NOT re-checked at resolution.** The supplement says so
+   in as many words: 効果処理時に自分フィールドにドラゴン族モンスターが存在しなくなっている場合でも、
+   効果処理は通常通り適用されます. This is RULES_SPEC.md §10's before-the-colon mapping confirmed
+   on a real card, and it is the opposite of what §16's "re-check everything that made it legal"
+   habit would have produced. Tributing the Dragon in response does **not** stop the card.
+
+"its controller" is read **before** the destruction, not after: once the card is in the Graveyard
+it is no longer controlled by anyone, and the text names the controller of the card that was
+destroyed.
+
+#### Part B — `Straight Flush`: which cards occupy a Spell & Trap Zone. Confidence: HIGH.
+
+The activation condition counts **zone occupancy**, not cards, and cid 6911 settles the two cases
+this pool can actually reach:
+
+* an **Equip Card** equipped to a monster is still a card in a Spell & Trap Zone, so it fills one
+  of the five and is destroyed by the resolution. `Gagagashield`, `Kunai with Chain` and
+  `Castle of Dragon Souls` are all in the pool, so this is live, not theoretical;
+* a **Trap Monster** that is in a **Monster Zone** by its own effect is **not** a card in a Spell
+  & Trap Zone, and the supplement adds explicitly that `Straight Flush` then **cannot be
+  activated at all**. `The Phantom Knights of Shadow Veil` is exactly that card, and this is the
+  one place in the pool where §5.8's "one Monster Zone, no Spell & Trap Zone" rule is observable
+  from another card.
+
+It does **not** target, and it is **illegal in the Damage Step** — which is the engine default
+(`DamageStepPermission.NONE`), so that half is asserted rather than implemented.
+
+The Field Zone is **not** a Spell & Trap Zone, in either half of the card — it is neither counted
+by the activation condition nor destroyed by the resolution.
+
+**That distinction is LIVE, and the first draft of this note said it was not.** The claim
+"nothing in the V1 pool is a Field Spell" was written from memory and was **false**: deck 2 holds
+`Hidden Springs of the Far East`, a **Field Spell**, which is itself one of the ten cards still
+unimplemented (it carries **R14**). The error was caught immediately, by the assertion written to
+record it — `StampingDestructionTests` counts the pool's Field Spells rather than asserting the
+claim in prose — which is the whole reason such assertions are written. Both cards therefore
+branch on the Field Zone for real:
+
+* `Stamping Destruction` targets "1 Spell/Trap **on the field**", which **includes** the Field
+  Zone — a Field Spell is a Spell Card on the field, exactly as R28 reads it for
+  `A Wingbeat of Giant Dragon`;
+* `Straight Flush` names the "**Spell & Trap Zones**" specifically, which **excludes** the Field
+  Zone from both its condition and its destruction.
+
+The two cards printing different words and behaving differently is the point, and each is
+asserted against a real Field Spell in the Field Zone rather than assumed.
+
+#### Part C — `Burst Stream of Destruction`: the attack ban attaches at ACTIVATION. Confidence: HIGH.
+
+cid 5979 (2024-09-07) is the reason this card needed the one piece of new engine surface batch 11
+added, and every clause of the note matters:
+
+* **It is also an activation restriction, backwards in time.** 既に「青眼の白龍」が１体でも攻撃を
+  行っているターンには、このカードを発動できません — you cannot activate it on a turn in which a
+  `Blue-Eyes White Dragon` has **already** attacked. Nothing in the printed English text says this;
+  it is derived from the lingering sentence and would have been missed.
+* **The ban covers every copy**, not the one you controlled at activation — 全ての「青眼の白龍」は
+  攻撃を行うことができません — so a `Blue-Eyes White Dragon` Summoned **later that same turn** by
+  `Kaibaman` or `Silver's Cry` is also banned. That is what forces a **name-keyed, player-scoped,
+  turn-scoped** ban rather than a flag on the monsters present at resolution.
+* **It attaches at activation, not at resolution**: このカードを発動した時点で、（実際に処理が行われ
+  たかどうかにかかわらず、）— "regardless of whether the effect was actually carried out". So
+  **effect** negation does not lift it.
+* **Activation negation does lift it**: ただし、この効果の発動が無効になった場合、「青眼の白龍」が
+  攻撃できる状態に戻ります.
+
+Those last two together are *exactly* the semantics of the existing
+`ActivationRules.ACTIVATION_CONDITION_EFFECT_ID` + `EffectDef.activation_confirmed` channel built
+for R39, which fires only when `not link.activation_negated` and survives effect negation. No new
+channel was needed — only somewhere for a **name-keyed turn-scoped attack ban** to live, because
+the engine's two existing attack-prevention channels are both continuous (§6.1) and this one has
+to outlive its source, which is a Normal Spell in the Graveyard by then.
+
+Finally, the effect's own condition requires a **face-up** `Blue-Eyes White Dragon`
+(自分フィールドに表側表示の「青眼の白龍」が存在する場合). The supplement adds that a face-up
+`Blue-Eyes White Dragon` in your **Spell & Trap Zone** would also satisfy it; nothing in the V1
+pool can put a monster in a Spell & Trap Zone face-up, so that branch is **never live** and is
+asserted as unreachable rather than implemented — the R21 / R23 treatment.
+
+#### Part D — `Chiron the Mage` DOES target. Confidence: HIGH.
+
+The current official text reads "then target 1 Spell/Trap your opponent controls", and cid 5810
+confirms it against the older "select" wording: 相手フィールドの魔法・罠カード１枚を対象に取る効果
+です — an effect that targets — and 発動時にコストとして、手札の魔法カード１枚を捨てます — the
+discard is a **cost** paid at activation. It is an **Ignition** effect activated on the field.
+Nothing here contradicts the English text; it is recorded because "select" in the OCG print and
+"target" in the TCG print are the kind of divergence that is worth having checked rather than
+assumed.
+
+#### Part E — `Back-Up Rider` stacks, and is not original ATK. Confidence: HIGH.
+
+cid 11848 gives three facts and the implementation asserts all three:
+
+* the target is a monster **face-up in a Monster Zone**, and **either** player's — the English
+  "on the field" is not narrowed to your own side;
+* the increase is **not** treated as the original ATK, so `Kaiser Sea Horse`-style clauses and
+  `CardInstance.original_atk()` must not see it. The engine already separates these
+  (`base_atk()` / `original_atk()` versus `current_atk()`), so this is an assertion, not a change;
+* **two copies targeting the same monster in the same turn stack to +3000.** Deck 1 holds one
+  copy, so this is asserted against a second synthetic copy rather than against the real deck —
+  but it is the fact that proves the modifier is per-application and not a set-to-value.
+
+#### Part F — `Vampiric Koala` triggers when it is ATTACKED too. Confidence: HIGH.
+
+cid 8858: 「吸血コアラ」自身がモンスターと戦闘を行い、その戦闘で相手に戦闘ダメージを与えたダメージ
+計算後に必ず発動する効果です — a **mandatory** Trigger Effect that fires **after damage
+calculation** of a battle in which **this card itself** fought **a monster** and the **opponent**
+took battle damage.
+
+The subject of the sentence is 自身 — the card itself battling — and **not** "when this card
+attacks". So the effect fires in **both** directions, and the defending direction is the half the
+English text makes easy to miss:
+
+| Situation | Triggers? |
+|---|---|
+| Koala attacks a weaker Attack Position monster | **yes** |
+| Koala, in Attack Position, is attacked by a weaker monster | **yes** — the attacker's controller takes the damage |
+| Koala, in Defense Position, is attacked by a monster with less ATK than Koala's DEF | **yes** |
+| Koala attacks directly | **no** — 「モンスターとの戦闘」, a battle *with a monster* |
+| Koala attacks a Defense Position monster and no damage is inflicted | **no** |
+| Koala battles and **its own** controller takes the damage | **no** |
+
+It does **not** target, and the amount gained is exactly the battle damage inflicted in that
+battle — read from the `BATTLE_DAMAGE_INFLICTED` event, never recomputed from ATK values, because
+a modifier applied inside the Damage Step would make the two disagree.
+
+"After damage calculation" is Damage Step sub-step 4, so the clause carries
+`DamageStepPermission.MANDATORY_TRIGGER` (RULES_SPEC.md §7.2) — without it a mandatory effect the
+rules require to happen inside the Damage Step would never be collected.
+
+#### Part G — can `Stamping Destruction` target ITSELF? Implemented as NO. Confidence: MEDIUM.
+
+The one question in batch 11 that the official database does **not** answer: cid 5345 has no
+related Q&A. A Normal Spell activated from the hand occupies a Spell & Trap Zone from the moment
+it is activated, so at the instant targets are chosen `Stamping Destruction` is itself "1
+Spell/Trap on the field".
+
+Implemented as **NO**, for the same two reasons R28 gives for `A Wingbeat of Giant Dragon`, and
+recorded at the same confidence and with the same honesty: this is **reasoned from precedent, not
+an official ruling**.
+
+* R28 already decided the non-targeting form of exactly this question for this project, from the
+  published `Heavy Storm` rulings. A targeting form that answered differently would make the two
+  cards disagree about whether an activating Spell is a legal object of its own effect.
+* The published rulings for `Mystical Space Typhoon`, worded "Target 1 Spell/Trap on the field;
+  destroy it" — the same clause, differing only in the Dragon condition and the burn — state that
+  it cannot target itself.
+
+The difference is observable (a self-target would destroy the card with `DESTROYED_BY_EFFECT`
+instead of the ordinary `RESOLVED_TO_GY`, emit `CARD_DESTROYED`, and inflict 500 damage on its own
+controller), so it is **asserted** rather than assumed:
+`StampingDestructionTests :: it is not among its own legal targets`.
+
+*Source:* community transcriptions of the `Mystical Space Typhoon` rulings plus this project's own
+R28, **not** an S1–S4 official source and **not** the Konami database. Consulted 2026-09-06.
+
+**R41 is CLOSED.** It opens nothing and blocks nothing. The seven rulings carried into batch 11 —
+R5, R11, R12, R13, R14, R15, R20 — are all still **OPEN**, all still belong to the ten cards that
+remain, and none of them was touched.
+
 ## 5. Banlist note (master prompt §51)
 
 These are fixed casual decks built from an owned physical collection. Current Forbidden/Limited

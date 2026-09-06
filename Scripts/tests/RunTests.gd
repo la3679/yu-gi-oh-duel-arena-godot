@@ -96,6 +96,10 @@ func _initialize() -> void:
 	suites.append(CardsOfConsonanceTests.run())
 	suites.append(WhiteElephantsGiftTests.run())
 
+	# --- Batch 11 ---
+	suites.append(StampingDestructionTests.run())
+	suites.append(StraightFlushTests.run())
+
 	var total_passed := 0
 	var total_failed := 0
 	var empty_suites: Array[String] = []

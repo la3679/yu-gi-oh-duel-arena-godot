@@ -360,6 +360,52 @@ rather than silently doing nothing, so a card asking at the wrong moment fails v
 The battle pipeline is otherwise unchanged: no replay semantics were modified to support
 negation.
 
+### 6.5 Attack prevention, THIRD channel: a turn-scoped ban by card NAME (Phase 5 batch 11)
+
+Added for `Burst Stream of Destruction` — *"'Blue-Eyes White Dragon' you control cannot attack
+the turn you activate this card."* `CARD_RULINGS.md` **R41 Part C**.
+
+§6.4's two prevention channels are both **continuous**: they are wiped and rebuilt by
+`ContinuousEffects.recompute()`, so both lift the instant their source stops applying. This
+restriction is neither. It is acquired at one moment, it belongs to **the rest of that turn**, and
+its source is a **Normal Spell that is in the Graveyard** before the first attack it forbids could
+ever be declared. Expressing it as either existing channel would lift it immediately.
+
+It is also **not** per-monster. The official supplement says every copy of the named card is
+banned, including one Summoned **after** the activation — which `Kaibaman` and `Silver's Cry` can
+both do in this pool — so flagging the monsters present at resolution would answer correctly for
+the board as it stands and wrongly for the next one. This is §6.4's per-CARD-versus-per-PLAYER
+argument a second time, and it lands on neither: the ban names **a player, a card NAME and a
+turn**.
+
+| | per CARD (§6.4) | per PLAYER (§6.4) | **per NAME + TURN (this)** |
+|---|---|---|---|
+| Card | `Fiendish Chain` | `Swords of Revealing Light` | `Burst Stream of Destruction` |
+| Lifetime | while the source applies | while the source applies | **the rest of this turn** |
+| Survives the source leaving the field | no | no | **yes** |
+| Reaches a monster that arrives later | no | yes | **yes, if it has the name** |
+| Storage | `CardInstance.flags["cannot_attack"]` | `ContinuousEffects.ATTACK_LOCK_KEY` | `PlayerState.attack_bans_by_name` |
+
+`PlayerState.ban_attacks_by_name()` / `attacks_banned_by_name()` are the only writer and reader,
+and the value stored is the **turn number**, exactly as `named_effect_usage` stores it (§11): the
+ban therefore **self-expires** at the turn boundary and no cleanup hook has to remember it.
+`BattleRules.can_declare_attack()` asks all three channels, none expressed in terms of another.
+
+**The ban attaches at ACTIVATION, not at resolution**, and survives **effect** negation while
+being lifted by **activation** negation. That is precisely the existing
+`ActivationRules.ACTIVATION_CONDITION_EFFECT_ID` + `EffectDef.activation_confirmed` channel from
+§5.9 / R39, which runs only when `not link.activation_negated`; nothing new was needed for the
+timing. Firing it as the Chain Link is processed rather than at the literal instant of activation
+is unobservable, because no attack can be declared while a Chain is unresolved.
+
+The **matching activation restriction** — "you cannot activate this card on a turn in which a
+monster with that name already attacked" — reads the authoritative **event log**
+(`ATTACK_DECLARED` entries of the current turn) through the single primitive
+`EffectPrimitives.named_monster_attacked_this_turn()`, and deliberately **not**
+`CardInstance.has_attacked_this_turn`: `on_leave_field()` clears that flag, so a monster that
+attacked and was then destroyed, Tributed or bounced would silently stop counting. This is §15's
+"facts that must outlive a card leaving the field" applied to an attack rather than to a card.
+
 ---
 
 ## 7. Damage Step [S1 p.41; S3]

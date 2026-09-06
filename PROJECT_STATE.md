@@ -1743,7 +1743,66 @@ Decisions in these two units that must not be reversed:
   reports "no legal choice", with a real-pool assertion — the R21/R23/R2 treatment, now used five
   times.
 
-### The NEXT step — plan batch 11 from the matrix. Nothing is half-finished.
+### Batch 11 — DECIDED and IN PROGRESS. The six cards below, in this order.
+
+**Verified from disk on 2026-09-06 before anything was written**, exactly as the resumption
+instructions require: `HEAD` was `f45b2f3` on `main`, tree clean, local `HEAD` == `origin/main`,
+the full suite measured **6914 / 6914 across 77 suites** with `RESULT: PASS`, `SmokeCheck: PASS`,
+**no `SCRIPT ERROR`** (the two `ERROR:` lines on stderr are the two deliberate fail-loudly negative
+tests, unchanged), ObjectDB **204316** at exit, and
+`Reports/CARD_IMPLEMENTATION_MATRIX.csv` reporting **61 / 77 implemented, 61 / 77 tested,
+16 remaining**. Every number in §0 reproduced.
+
+**The recommendation below was re-derived from the matrix and still holds.** All six recommended
+cards are still `NOT_IMPLEMENTED / NOT_TESTED` in the matrix, all six carry
+`Special Ruling Needed = NO`, and none of them touches any of the seven carried-over open rulings.
+Batch 11 is therefore **exactly** the recommended six:
+
+| Unit | Card | Why it is here |
+|---|---|---|
+| A | `Stamping Destruction` | destruction of a TARGET, with a consequence conditional on it |
+| A | `Straight Flush` | non-targeting destruction of a whole ZONE, on a board condition |
+| B | `Burst Stream of Destruction` | non-targeting mass destruction + a lingering attack ban |
+| B | `Chiron the Mage` | a qualified discard COST + targeted destruction, once per turn |
+| C | `Back-Up Rider` | ATK modification until the end of the turn |
+| D | `Vampiric Koala` | a trigger on battle damage |
+
+**The four destruction cards are NOT four instances of one mechanic**, and the plan does not treat
+them as one. They differ in every axis that matters, which is why they were read individually
+before any of them was written:
+
+| | `Stamping Destruction` | `Straight Flush` | `Burst Stream` | `Chiron the Mage` |
+|---|---|---|---|---|
+| Targets? | **yes**, 1 | no | no | **yes**, 1 |
+| What is destroyed | the target only | every card in the opponent's five Spell & Trap Zones | every monster the opponent controls | the target only |
+| Activation condition | you control a Dragon | all five of the opponent's Spell & Trap Zones are occupied | you control a face-up `Blue-Eyes White Dragon` **and** no `Blue-Eyes White Dragon` has attacked this turn | none (a once-per-turn Ignition) |
+| Re-checked at resolution? | **NO** — R41 Part A says so outright | not re-checked; it destroys what is there | not re-checked | the target is, as every targeting clause is |
+| Cost | none | none | none | **a qualified discard** (1 Spell), batch 10's `qualified_hand_cards()` |
+| Consequence after the destruction | 500 damage, **only if the destruction succeeded** | none | a turn-scoped attack ban acquired at **activation** | none |
+
+**ONE new piece of generic engine surface, and only because the engine could not express the
+card**: a **turn-scoped attack ban keyed by card NAME** (`RULES_SPEC.md` §6.5,
+`PlayerState.ban_attacks_by_name()`), plus the single primitive
+`EffectPrimitives.named_monster_attacked_this_turn()`. §6.4's two existing prevention channels are
+both continuous and both lift when their source stops applying; `Burst Stream of Destruction` is a
+Normal Spell that is in the Graveyard before the first attack it forbids. Nothing else was added,
+nothing was refactored, and no working architecture was reshaped — every other clause of all six
+cards is built from primitives that already existed.
+
+**R41 was opened and CLOSED before any card was written**, against PRIMARY Konami supplemental
+information fetched with `request_locale=ja` per R40's methodology note. §8's prediction that
+batch 11 needed no research was **wrong**, and honestly so: five of the six cards carry official
+notes that change the implementation, four of which would otherwise have been silent bugs — most
+sharply `Burst Stream of Destruction`, which turns out to carry an activation restriction that
+appears nowhere in its printed English text, and `Vampiric Koala`, which triggers when it is
+**attacked** as well as when it attacks. R41 Part G is the one question the database does not
+answer and is recorded as reasoned-from-precedent at MEDIUM, not as an official ruling.
+
+**R5, R11, R12, R13, R14, R15 and R20 remain OPEN**, all belong to cards batch 11 does not touch,
+and none was consulted. **R35 / `Mirage Dragon` was NOT re-checked** — that cleanup item is still
+outstanding and is not claimed.
+
+### The plan batch 11 was chosen from — kept for the record
 
 **Batch 10 is CLOSED. Do not reopen any of it, and do not rewrite any gate.** Ten gates plus
 four generic units are green and must stay so: `EquipTests`, `ControlTests`, `MovementTests`,
