@@ -168,7 +168,7 @@ in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`. **No effect may be approximated.**
 | R17 | `Nefarious Archfiend Eater of Nefariousness` | GY effect during the **opponent's** End Phase; destroys your own face-up monster as part of the effect ("destroy it, and if you do, Special Summon this card"). |
 | R18 | `Inari Fire` | Revives itself "during your next Standby Phase after this face-up card on the field was destroyed by card effect and sent to the GY" — a delayed trigger with a specific destruction reason. |
 | R19 | `Castle of Dragon Souls` | ATK boost persists "even if this card leaves the field"; second effect triggers when the face-up card **is sent to the GY** (any reason). |
-| R20 | `Honest` | Quick Effect explicitly legal **during the Damage Step** ("During the Damage Step, when a LIGHT monster you control battles"). Confirms the need for the `UNTIL_DAMAGE_CALC` permission class in `RULES_SPEC.md §7.2` — it directly changes ATK. |
+| R20 | `Honest` | **RESOLVED — see "R20 — `Honest`" below.** The original note (a Quick Effect legal during the Damage Step, needing `UNTIL_DAMAGE_CALC`) was right but incomplete: cid 7574 also forbids activation against a **0 ATK** monster, and states the effect is activated **in the hand**. |
 
 Resolution status for R1–R20 is tracked in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`
 (`Special Ruling Needed` / `Ruling Verified` columns). Any question that cannot be settled from
@@ -1640,6 +1640,153 @@ defect against already-shipped code (Part D), which batch 13 unit A **fixed, ver
 live official source, and closed** — see "Part D is CLOSED" above. The seven rulings carried into batch 12 — R5, R11, R12, R13, R14, R15, R20 — are
 all still **OPEN**, all still belong to the seven cards that remain after batch 12, and none of
 them was touched.
+
+### R20 — `Honest` — RESOLVED and CLOSED in Phase 5 batch 13 unit B
+
+**R20 was carried OPEN across ten checkpoints.** It was opened in §4 with one line — "Quick
+Effect explicitly legal during the Damage Step … confirms the need for the `UNTIL_DAMAGE_CALC`
+permission class" — and that line turns out to have been **right but far from complete**. The
+card carries an activation restriction the printed English text does not contain, and finding it
+was the point of doing the research before writing the card. §8's standing warning — *look for an
+activation restriction the printed English text does not carry* — has now been correct **three
+batches in a row** (`Burst Stream of Destruction`, `Damage Condenser`, and now `Honest`).
+
+**Sources.** All PRIMARY (official Konami), fetched **2026-09-08** with `request_locale=ja` per
+R40's methodology note. None is the `en` boilerplate R40 warns about.
+
+| Source | What it gives |
+|---|---|
+| `faq_search.action?ope=4&cid=7574&request_locale=ja` — card text + 補足情報, page dated **2024-04-01** | clause ① is an **Ignition** effect in the Monster Zone; clause ② is a **Quick Effect activated in the hand**; **cannot be activated against a 0 ATK monster**; legal whether your monster **attacks or is attacked** |
+| `faq_search.action?ope=5&fid=19235` (2017-03-24) | the boosted monster's ATK is **recalculated** (再計算) — Honest's amount goes in as an **addition to the base**, and a continuous multiplier then applies on top |
+| `faq_search.action?ope=5&fid=12970` (2017-03-24) | Honest is **not an effect the opponent's monster receives**, so a monster "unaffected by other cards' effects" can still be battled and Honest still applies |
+| `faq_search.action?ope=5&fid=13385` (2017-03-24) | an activation-negating answer stops it in the ordinary way — no special interaction |
+| `faq_search.action?ope=5&fid=14540` (2025-12-13) | lists `Honest` among the effects whose send to the GY is **a COST** |
+
+Unlike the four cards in R42, cid 7574 **does** have a real Q&A section — **9 entries** — so the
+「このカードに関連するＱ＆Ａはありません」 absence shape does not apply here.
+
+**Official Japanese text.**
+
+> ①：自分メインフェイズに発動できる。フィールドの表側表示のこのカードを手札に戻す。
+> ②：自分の光属性モンスターが戦闘を行うダメージステップ開始時からダメージ計算前までに、このカードを手札から墓地へ送って発動できる。そのモンスターの攻撃力はターン終了時まで、戦闘を行う相手モンスターの攻撃力分アップする。
+
+**Official supplement (補足情報), 2024-04-01.**
+
+> 【①の効果について】■モンスターゾーンで発動できる起動効果です。
+> 【②の効果について】■手札で発動できる誘発即時効果です。■**攻撃力０のモンスターと戦闘を行う際には発動できません。**■自分の光属性モンスターが攻撃する戦闘の際でも、自分の光属性モンスターが攻撃される戦闘の際でも発動できます。
+
+#### Part A — the fact the English text does not carry: 0 ATK forbids the ACTIVATION. Confidence: HIGH.
+
+> ■攻撃力０のモンスターと戦闘を行う際には発動できません。
+> *It cannot be activated when battling a monster with 0 ATK.*
+
+The printed English gives no minimum and would suggest a legal activation that adds +0. It is not
+legal. This is an **activation restriction**, so it is consumed in `condition` and the effect is
+never offered — the same shape as `Damage Condenser`'s Deck requirement (R42 Part C) and the
+opposite of a resolution that legitimately finds nothing. Asserted in **both** directions: 0 ATK
+is never offered, and 1 ATK is offered and adds exactly 1.
+
+#### Part B — the SHAPE of each clause, stated officially rather than inferred. Confidence: HIGH.
+
+* **Clause ① is 起動効果 — an IGNITION effect — activated モンスターゾーンで, in the Monster Zone.**
+  Spell Speed 1, Main Phase only, from the field face-up. It is explicitly **not** a Quick Effect,
+  which matters: it cannot be used to dodge anything mid-chain.
+* **Clause ② is 誘発即時効果 — a QUICK EFFECT — activated 手札で, IN THE HAND.** Spell Speed 2 and
+  `ActivationLocation.HAND`. This is the **pool's first monster effect activated from the hand**,
+  and it required **no new engine surface**: `ActivationRules.location_ok()` already answered for
+  `HAND`, and `DuelEngine._activation_actions()` already walks every instance in every zone and
+  defers to that gate. §8's prediction that this card's only new surface would be a *location*
+  was correct, and the location turned out to already exist.
+* **The window is ダメージステップ開始時からダメージ計算前まで** — from the start of the Damage Step
+  until before damage calculation, i.e. sub-steps **1 and 2**. That is exactly
+  `DamageStepPermission.UNTIL_DAMAGE_CALC`, which §7.2 already documents as "an effect that
+  directly changes ATK/DEF". No new permission value was added, and the suite asserts it is
+  **never** offered in sub-step 4 or 5.
+* **Both directions of the battle.** 攻撃する戦闘の際でも…攻撃される戦闘の際でも — attacking and
+  being attacked. `EffectPrimitives.battle_opponent_of()` is symmetric and answers both from one
+  reader, so this needed no branch. Both are asserted.
+
+#### Part C — "During the Damage Step" is part of the TEXT, not only of the permission. Confidence: HIGH.
+
+**A defect the tests caught before the card shipped, recorded because the mistake is easy to
+repeat.** `ActivationRules.damage_step_ok()` returns `true` whenever the duel is *not* in the
+Damage Step — it exists to restrict what may happen **inside** one. A first implementation that
+relied on `UNTIL_DAMAGE_CALC` alone was therefore offered in the **attack-declaration window**,
+which is the Battle Step, because `current_attacker` is already set there. The condition must
+also require `state.battle_step == DAMAGE`. Asserted directly against `ActivationRules.can_activate()`
+with the battle step put back where the declaration window has it, and as an invariant over the
+whole battle: every window that offered Honest was in the Damage Step and no other.
+
+#### Part D — cost, and what the cost does NOT change. Confidence: HIGH.
+
+* **The send is a COST.** 「このカードを手札から墓地へ送って発動できる」, and fid 14540 lists Honest
+  among the effects that send a card to the GY *as a cost*. Paid in `pay_cost`, **never refunded**
+  when the activation or the effect is negated (RULES_SPEC.md §10). Asserted with a negator.
+* **It is a SEND, not a discard** — `MoveReason.SENT_AS_COST`, the distinction `One for One`
+  already draws [S1 p.52-53]. Asserted on the event's reason, not on the destination.
+* **Honest is in the GRAVEYARD when its own effect resolves**, because its cost put it there.
+  Nothing in the resolution reads its zone. This is the ordinary consequence of a cost.
+
+#### Part E — what "that monster" is, and what the amount is. Confidence: HIGH for the addition; MEDIUM-HIGH for the read-at-resolution.
+
+* **It does NOT target.** Neither text carries 対象 / "target". "That monster" is fixed by the
+  battle **at activation**, and is recorded in `ctx.cost_payload` — the channel `Kurenai` already
+  uses — rather than re-derived at resolution. Re-deriving would silently re-ask "is it LIGHT?",
+  and that was an **activation** condition: a monster that stopped being LIGHT after a legal
+  activation is still "that monster".
+* **The amount is an ADDITION, not a set-to-value, and it goes in before any multiplier.**
+  fid 19235: Palladium Oracle Mahad (2500 ATK, doubled to 5000 by its own continuous effect at the
+  start of the Damage Step) battling F.G.D. (5000 ATK). With Honest, Mahad's ATK
+  「再計算される」 — recalculated — as (2500 + 5000) × 2 = **15000**. `add_atk_modifier` plus
+  `current_atk()` is exactly that shape, so the ordering is the engine's and not the card's.
+  **Not reachable in the V1 pool**, which contains no ATK multiplier, so it is recorded as the
+  reason the implementation is an additive modifier rather than tested directly.
+* **The opponent's ATK is read at RESOLUTION.** The supplement does not say so; the general rule
+  that a resolving effect reads the state at resolution does, and 再計算 is consistent with it.
+  Confidence **MEDIUM-HIGH**, recorded as reasoned rather than as an official statement. The
+  observable consequence is narrow: the value could only differ if something changed the opposing
+  monster's ATK between activation and resolution, and the V1 pool has no card that can do that in
+  the Damage Step.
+* **"Until the end of this turn"**, not "until the end of the Damage Step". Asserted after the
+  Damage Step has closed and again after the turn ends.
+
+#### Part F — the opponent's monster is READ, never AFFECTED. Confidence: HIGH.
+
+fid 12970: 「オネスト」の効果は、相手モンスターが受ける効果ではありません — *Honest's effect is not
+an effect the opponent's monster receives*. A monster that is "unaffected by the effects of cards
+other than this card" can still be battled and Honest still applies normally. So the **only** card
+Honest affects is your own LIGHT monster, and the implementation consults no protection the
+opposing monster carries. This is also a fact **R12** (`The Monarchs Awaken`, "unaffected by the
+effects of cards other than this card") will need when that subsystem is built: being *read* for a
+value is not being *affected*.
+
+#### Part G — a face-down opposing monster. Confidence: MEDIUM. Reasoned, not officially stated.
+
+Part A's restriction cannot be evaluated against a monster whose ATK is not legally knowable.
+Answering it from an opposing **face-down** monster's real ATK would either leak hidden information
+(RULES_SPEC.md §12.1) or make the restriction unenforceable; R39 already established that a typed
+predicate may not inspect an opposing face-down monster's hidden identity. The condition therefore
+requires the opposing battling monster to be **face-up**.
+
+**No legal play is lost**, and that is what makes this safe rather than merely convenient: the
+rules flip an attacked face-down monster face-up in **sub-step 2**, which is inside Honest's own
+printed window, so the activation is offered one sub-step later instead of not at all. Asserted in
+both directions — not offered in sub-step 1 against a Set monster, offered in sub-step 2, and the
+boost uses the flipped monster's **ATK** and not its DEF. Recorded at MEDIUM confidence because it
+is reasoned from the hidden-information model rather than stated by cid 7574.
+
+#### Part H — no once-per-turn, and what that lets happen. Confidence: HIGH.
+
+Neither text carries any per-turn wording, so none is declared. Two copies sent in the **same
+battle** both apply and the gains **stack**, because each is a separate additive modifier. Deck 2
+holds one copy, so this is exercised against a second instance and asserted.
+
+**R20 is CLOSED.** It opened one fact the printed English text does not carry (Part A) and one
+implementation defect the tests caught before the card shipped (Part C). It needed **no new engine
+surface**: no new Damage Step permission, no new activation location, no new stat channel, and
+emphatically no card-specific damage calculation. The six rulings that remain — **R5, R11, R12,
+R13, R14, R15** — are all still **OPEN**, all still belong to the six cards that remain after
+batch 13, and none of them was touched.
 
 ## 5. Banlist note (master prompt §51)
 

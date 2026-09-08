@@ -109,6 +109,7 @@ func _initialize() -> void:
 	suites.append(SpiritualFireArtKurenaiTests.run())
 	suites.append(SpiritualWaterArtAoiTests.run())
 	suites.append(DamageCondenserTests.run())
+	suites.append(HonestTests.run())
 
 	var total_passed := 0
 	var total_failed := 0

@@ -469,6 +469,40 @@ the engine is attached. The two readers are deliberate and neither can answer fo
 An effect with `NONE` is never surfaced during the Damage Step. There is no generic
 "allow everything" path (master prompt §33).
 
+**`UNTIL_DAMAGE_CALC` is a PERMISSION, not a schedule (added in Phase 5 batch 13,
+`CARD_RULINGS.md` R20 Part C).** `ActivationRules.damage_step_ok()` answers `true` whenever
+the duel is **not** in the Damage Step — its whole job is to restrict what may happen inside
+one. So a card whose printed text says "**During the Damage Step**" must carry that in its
+own `condition` as well: the permission alone leaves it activatable in the Battle Step, and
+the attack-declaration window is the Battle Step with `current_attacker` already set.
+`Honest`'s first implementation was offered there and its suite caught it. Any future card
+whose window is a *named* part of the Battle Phase must state that named part itself.
+
+### 7.5 A Quick Effect activated FROM THE HAND
+
+Added in Phase 5 batch 13 for `Honest` (cid 7574). `CARD_RULINGS.md` **R20 Part B**.
+
+「手札で発動できる誘発即時効果です」 — *a Quick Effect that can be activated in the hand*. This
+is the pool's first **monster** effect activated from a zone other than the field, and it
+needed **no new engine surface**. It is recorded here because the absence of new machinery is
+the fact worth keeping, not because anything changed:
+
+* `EffectDef.activation_locations` already carries `ActivationLocation.HAND`, and
+  `ActivationRules.location_ok()` already answers for it. The value was never restricted to
+  Spells and Traps — nothing in the gate reads the card's category.
+* `DuelEngine._activation_actions()` already iterates `state.all_instances()` regardless of
+  zone and defers every zone question to that gate, so a monster in the hand was always
+  reachable; no card had asked before.
+* Spell Speed comes from `EffectType.QUICK` via `Enums.spell_speed_for_effect()`, and
+  `ActivationRules.is_fast_effect()` is `starts_chain and spell_speed >= SS2` — it reads the
+  effect, never the card type. A monster's Quick Effect is therefore a legal response
+  wherever a Spell Speed 2 window is open.
+
+The consequence a card must not forget: a Quick Effect in the **hand** has no `is_on_field()`
+to protect it, so anything its resolution needs about its own source must be read from the
+**cost payload** rather than from `ctx.source`'s zone — which for `Honest` is the Graveyard
+by the time the effect resolves, because its own cost put it there.
+
 ### 7.3 Flip during battle [S1 p.41]
 Attacking a face-down Defense Position monster flips it face-up in sub-step 2, DEF becomes
 visible, then damage is calculated. Its Flip effect resolves in sub-step 4, and **may not

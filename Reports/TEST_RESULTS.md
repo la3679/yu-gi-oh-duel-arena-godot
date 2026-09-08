@@ -1,10 +1,10 @@
 # TEST_RESULTS
 
-**Last run:** 2026-09-06 (Phase 5 **batch 12 COMPLETE**: `Spiritual Fire Art - Kurenai`,
-`Spiritual Water Art - Aoi` and `Damage Condenser` — three cards over TWO new generic units,
-the look-at-a-hidden-zone operation and the sub-step 4 Damage Step permission, plus **R42**,
-whose research added an activation restriction the printed text does not carry and corrected
-two claims PROJECT_STATE §8 had made about the repository itself.)
+**Last run:** 2026-09-08 (Phase 5 **batch 13 COMPLETE**: unit A is the **authoritative
+correction** to `One for One` — the one place in this project where a shipped assertion was
+deliberately **inverted**, with its official source re-fetched first — and unit B is `Honest`,
+the pool's first monster effect activated **from the hand** and its first Quick Effect inside
+the **Damage Step**. R42 Part D and **R20** are both now CLOSED.)
 **Engine:** Godot 4.7.1.stable.official.a13da4feb (headless)
 
 Command:
@@ -36,35 +36,103 @@ The raw command still works and produces the same numbers:
 
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
-| Core rules tests | 23 | 2193 | **2193** | 0 |
-| Per-card tests | 62 | 6033 | **6033** | 0 |
+| Core rules tests | 24 | 2249 | **2249** | 0 |
+| Per-card tests | 63 | 6188 | **6188** | 0 |
 | Interaction tests | 1 | 46 | **46** | 0 |
 | Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **86** | **8272** | **8272** | **0** |
+| **TOTAL** | **88** | **8483** | **8483** | **0** |
 
-SmokeCheck: **PASS**. Matrix: **70 / 77 implemented, 70 / 77 tested, 7 remaining** (computed by
-`python Tools/build_matrix.py`, not written by hand). ObjectDB at exit: **242314**.
+SmokeCheck: **PASS**. Matrix: **71 / 77 implemented, 71 / 77 tested, 6 remaining** (computed by
+`python Tools/build_matrix.py`, not written by hand). ObjectDB at exit: **249757**.
 
-**All 7725 assertions from the previous checkpoint pass unchanged.** None was weakened,
-retargeted or deleted. **Exactly two pre-existing suites moved, and both GREW**, because this
-batch built two generic units and each went into the suite that already owns its subsystem —
-which is where every generic unit since batch 7 has gone:
+### The one place this project has ever inverted an assertion — read this before the arithmetic
 
-* `HiddenInfoTests` **76 → 116** (+40), the look-at-a-hidden-zone gate;
-* `DamageStepTests` **86 → 98** (+12), the `AFTER_DAMAGE_CALC` sub-step 4 gate.
+**8271 of the previous checkpoint's 8272 assertions pass unchanged.** The exception is
+deliberate, is the whole point of batch 13 unit A, and is stated here rather than buried:
+**`OneForOneTests._test_paying_away_the_last_level_1_monster` was RETIRED and four of its
+assertions INVERTED**, because official Konami supplemental information (cid 8197, 2020-03-20,
+`request_locale=ja` — **re-fetched from the live database on 2026-09-08 before anything was
+changed**) says the opposite of what this repository shipped.
 
-Nothing in either was rewritten. The arithmetic is checked rather than asserted:
+| Retired assertion | Was | Now |
+|---|---|---|
+| the cost monster's zone | `GRAVEYARD` — it was spent | it is **not a legal cost** and is not spent |
+| monsters on the field after resolution | 0 | **1** |
+| `SPECIAL_SUMMON_SUCCEEDED` events | 0 | **1** |
+| the scripted cost choice | valid | **rejected by the engine** |
+| *the activation is legal* | — | **kept, unchanged; it was always right** |
+| *the Spell resolves and reaches the GY* | — | **kept, unchanged** |
 
-8272 − 7725 = 547 = 40 (the hidden-info gate) + 12 (the Damage Step gate)
-+ `SpiritualFireArtKurenaiTests` (160) + `SpiritualWaterArtAoiTests` (179)
-+ `DamageCondenserTests` (156). The 5509 → 5973 → 6284 → 6914 → 7725 → 8272 chain is
-therefore unbroken.
+Nothing else anywhere was weakened, retargeted or deleted, and no other suite lost an
+assertion. Full record in `CARD_RULINGS.md` **R42 Part D** and `RULES_SPEC.md` **§10.5**.
 
-**No `SCRIPT ERROR` appeared in any run.** The two `ERROR:` lines on stderr are the two
-deliberate negative tests that assert the engine fails loudly
-(`ChainTests._test_unimplemented_effect_fails_loudly` and
-`ContinuousTests._test_restriction_flags_are_owned_by_this_system`); they are unchanged and
-expected.
+### What grew, and why
+
+* **`CostLegalityTests` — NEW, 56.** The engine-level gate for the corrected rule, built from
+  **synthetic** cards so what it proves is that the engine is right rather than that one
+  printed card happens to work. It carries **both** shapes: the one the rule bites
+  (cost leaves a zone the effect reads, for a zone it does not) and the one it must **not**
+  (`Fairy Tail - Rella`'s, where the cost lands inside the effect's own pool). Over-applying
+  the rule would silently forbid legal plays, which is why that is a test and not a comment.
+* **`OneForOneTests` 40 → 70 (+30).** One test retired, four replacing it: the last enabler is
+  not offered as a cost; no payable cost blocks the activation entirely (and it is
+  `can_pay_cost`, not the condition, that refuses); a Deck copy makes the hand copy spendable
+  again; two Level 1 monsters in hand are each spendable.
+* **`HonestTests` — NEW, 125.** Both clauses, the 0-ATK activation restriction the printed
+  English text does not carry, both directions of the battle, the sub-step boundaries, the
+  cost's non-refund, the stacking of two copies, and the face-down deferral.
+
+No pre-existing suite other than `OneForOneTests` changed at all.
+
+The arithmetic is checked rather than asserted:
+
+8483 − 8272 = 211 = 56 (`CostLegalityTests`) + 30 (`OneForOneTests` 40 → 70)
++ 125 (`HonestTests`). The 5509 → 5973 → 6284 → 6914 → 7725 → 8272 → 8483 chain is therefore
+unbroken, with the single documented inversion above accounted for inside the +30.
+
+**No `SCRIPT ERROR` appeared in the final run.** One DID appear during development —
+`Invalid access to property or key 'is_effect' on a base object of type CardDef` in
+`HonestTests._test_printed_stats` — and it is recorded because it is exactly why the runner
+checks for `SCRIPT ERROR` lines and not for `RESULT: PASS` alone: the suite reported
+110/114 passed and the run would otherwise have looked merely incomplete. The field is
+`is_effect_monster`; fixed.
+
+Stderr carries **five** deliberate `push_error` lines, up from two. The two pre-existing ones
+are unchanged (`ChainTests._test_unimplemented_effect_fails_loudly`,
+`ContinuousTests._test_restriction_flags_are_owned_by_this_system`). The three new ones are
+one assertion each in
+`CostLegalityTests._test_a_multi_card_payment_is_refused_rather_than_approximated`, which
+proves the cost filter **refuses** a payment size its per-card check cannot answer instead of
+approximating it. They are expected, and the guard is load-bearing: silently approximating
+would be a real defect.
+
+### Mutation testing — what was deliberately broken, and how loudly it failed
+
+Every load-bearing condition added this batch was inverted or deleted and the suite re-run.
+A mutation caught by only one assertion was **strengthened**, not accepted.
+
+| Mutation | Assertions that failed | Tests that failed |
+|---|---:|---:|
+| `One for One` bypasses the cost filter entirely (the pre-correction behaviour) | 4 | 2 |
+| the cost primitive ignores its predicate and keeps every candidate | 12 | 5 |
+| the primitive's multi-card guard removed, so it approximates | 1 → **strengthened to 4** | 1 |
+| `Honest` drops the 0-ATK activation restriction | 1 → **strengthened to 3** | 1 |
+| `Honest` drops the LIGHT check | 2 | 1 |
+| `Honest` boosts "until the end of the Damage Step" instead of the turn | 7 | 5 |
+| `Honest` allows a face-down opposing monster | 2 | 1 |
+
+Two of the seven were caught by a single assertion on the first pass and both were
+strengthened before the mutation was reverted: the multi-card guard now asserts counts 0, 2
+and 3 **and** that the predicate is never consulted for any of them, and the 0-ATK test now
+activates at the first window that offers it rather than only watching, so a regression fails
+on the outcome as well as on the offer.
+
+**One real defect was found by the tests before the card shipped**, and it is recorded in
+`CARD_RULINGS.md` R20 Part C rather than quietly fixed: `Honest`'s first implementation relied
+on `DamageStepPermission.UNTIL_DAMAGE_CALC` alone, and `ActivationRules.damage_step_ok()`
+answers `true` **outside** the Damage Step by design — so the effect was offered in the
+attack-declaration window, which is the Battle Step. "During the Damage Step" had to be in the
+card's own `condition` as well. `RULES_SPEC.md` §7.2 now says so for the next card.
 
 ---
 
