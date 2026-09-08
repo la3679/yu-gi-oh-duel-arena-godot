@@ -24,8 +24,8 @@ Gate B (the generic rules engine) is MET; nothing in Phase 4 needs revisiting.
 **Measured at this checkpoint: 8483 passed / 0 failed across 88 suites; SmokeCheck PASS;
 71 / 77 implemented, 71 / 77 tested, 6 remaining** (counts computed by
 `python Tools/build_matrix.py`, never written by hand). ObjectDB at exit: **249757**.
-**Previous clean HEAD:** `1cb3a9c`. **Batch-13 commits:** `26ef751` (unit A) and the unit B +
-checkpoint commit recorded at the end of §8.
+**Previous clean HEAD:** `1cb3a9c`. **Batch-13 commits:** `26ef751` (unit A — the authoritative
+`One for One` correction) and `00d3b97` (unit B, `Honest`, and this checkpoint).
 
 ### The number is 71 / 77, not 72 / 77, and that is correct
 
@@ -2017,7 +2017,7 @@ carried as an open defect against shipped, green code across two checkpoints.
 | A | the generic cost-legality rule + `RULES_SPEC.md` §10.5 + `CostLegalityTests` (56, NEW) | **COMPLETE** |
 | A | the `One for One` correction (`OneForOneTests` 40 → 70) | **COMPLETE** — commit `26ef751` |
 | B | **R20** research: cid 7574 supplement + Q&A fids 19235, 12970, 13385, 14540 | **COMPLETE** |
-| B | `Honest` (`HonestTests`, 125) | **COMPLETE** |
+| B | `Honest` (`HonestTests`, 125) | **COMPLETE** — commit `00d3b97` |
 
 **What batch 13 proved about §8's own predictions, kept because the pattern is now three deep:**
 
