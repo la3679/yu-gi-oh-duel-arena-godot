@@ -704,6 +704,61 @@ static func exclude_required_tributes(ctx: EffectContext, targets: Array) -> Arr
 	var required := ctx.state.required_choice_ids(ctx.controller_id, SummonRules.TRIBUTE_CHOICE_SCOPE)
 	return targets.filter(func(c): return not required.has(c.id))
 
+
+## "You must pay the cost in a way that lets the effect be carried out."
+##
+## A GENERAL rule of cost payment, not a property of any one card. Official Konami
+## supplemental information for `One for One` (cid 8197, 2020-03-20, `request_locale=ja`)
+## states it as the reason a particular monster is not a legal cost:
+##
+##   ■処理を行えるようにコストのモンスターを墓地へ送る必要があります。レベル１のモンスターが
+##   自分のデッキに存在せず、自分の手札に１体のみ存在する状況では、そのモンスターをコストにできません。
+##
+##   *You must send the cost monster to the Graveyard in such a way that the effect can be
+##   carried out. Where no Level 1 monster is in your Deck and only one is in your hand, that
+##   monster cannot be used as the cost.*
+##
+## CARD_RULINGS.md **R42 Part D**, RULES_SPEC.md **10.5**.
+##
+## It bites only where the cost's material pool and the effect's candidate pool OVERLAP in
+## the DISABLING direction — the cost takes a card OUT of a zone the effect draws from and
+## puts it somewhere the effect does not draw from. It is therefore NOT the same question as
+## the activation condition, which is evaluated over the pool as it stands BEFORE any payment
+## and which this never widens or narrows: an activation that is legal stays legal, and what
+## changes is only WHICH materials may be spent. `One for One` (hand -> GY, summons from hand
+## or Deck) is the V1 pool's one instance. `Fairy Tail - Rella` overlaps too and is NOT
+## affected, because its discard lands in the Graveyard and the Graveyard is one of the three
+## zones its effect equips from — the cost cannot remove its own last candidate.
+##
+## `still_performable` is func(ctx: EffectContext, spent: Array) -> bool: "if exactly these
+## cards were spent as the cost, could the effect still be carried out?" It is deliberately
+## the caller's, because only the card knows what "carried out" means for its own clause; a
+## card should express it as the SAME predicate its `condition` uses, so the two cannot drift.
+##
+## `count` is the size of the payment. For a ONE-card cost, testing each candidate alone is
+## exact. For a larger payment it is not — a pair may be illegal though neither card is
+## illegal alone — so a count above 1 is refused loudly rather than answered approximately.
+## No card in the V1 pool has a multi-card cost that overlaps its own effect's pool.
+static func cost_candidates_keeping_effect_performable(ctx: EffectContext,
+		candidates: Array, count: int, still_performable: Callable) -> Array:
+	if not still_performable.is_valid():
+		push_error("EffectPrimitives.cost_candidates_keeping_effect_performable: "
+			+ "no predicate supplied for %s" % ctx.source.card_name())
+		return candidates
+	if count != 1:
+		push_error("EffectPrimitives.cost_candidates_keeping_effect_performable: "
+			+ "a payment of %d cards needs a set-level check, not a per-card one (%s)"
+			% [count, ctx.source.card_name()])
+		return []
+	var kept: Array = []
+	for entry in candidates:
+		var card: CardInstance = entry
+		if card == null:
+			continue
+		if bool(still_performable.call(ctx, [card])):
+			kept.append(card)
+	return kept
+
 static func pay_tribute_cost(ctx: EffectContext, candidates: Array, count: int,
 		prompt: String) -> Array:
 	if not can_pay_tribute_cost(ctx, candidates, count):

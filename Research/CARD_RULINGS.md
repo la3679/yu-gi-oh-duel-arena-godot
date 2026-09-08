@@ -1564,6 +1564,62 @@ in PROJECT_STATE §7 as an open defect and is carried into the batch-13 recommen
 unit. **Nothing in batch 12 depends on it**, and no batch-12 card copies the behaviour it
 corrects.
 
+##### Part D is CLOSED — applied in Phase 5 batch 13 unit A
+
+**The source was re-fetched and re-verified before anything was changed.** `faq_search.action`
+`?ope=4&cid=8197&request_locale=ja` was requested again on 2026-09-08; the page still carries the
+2020-03-20 supplement and the sentence above is character-for-character what it returns. The
+correction therefore rests on the live official source, not on batch 12's transcription of it.
+
+**Old behaviour (wrong).** `OneForOne.gd` detail 7 said a player "who sends their only Level 1
+monster as the cost, holding none in the Deck, legitimately resolves the card for nothing", and
+`OneForOneTests._test_paying_away_the_last_level_1_monster` asserted exactly that outcome.
+
+**Corrected behaviour (authoritative).** That monster is **not a legal cost**. The restriction is
+on the **cost candidate list** only:
+
+* the activation stays legal whenever a Level 1 monster is in the hand or Deck — **unchanged**;
+* the monster whose loss would leave nothing to Summon is removed from the candidates;
+* when that empties the candidate list — the last enabler is also the only monster in hand —
+  there is **no payable cost**, so the card is not offered at all, and it is `can_pay_cost` that
+  refuses rather than the condition;
+* a copy of a Level 1 monster in the **Deck**, or a **second** one in the hand, makes the hand
+  copy spendable again. The rule must not over-apply.
+
+**Which assertions changed, and why.** One test was retired and four of its assertions inverted;
+every other assertion in the suite is untouched. Recorded exactly:
+
+| Retired assertion (`_test_paying_away_the_last_level_1_monster`) | Now |
+|---|---|
+| `only_level_1.zone == GRAVEYARD` — it was spent as the cost | it is **not** a legal cost and is not spent |
+| `monster_count() == 0` — nothing was Summoned | a monster **is** Summoned |
+| `SPECIAL_SUMMON_SUCCEEDED == 0` | exactly **one** Special Summon occurs |
+| the scripted cost choice was a valid answer | that choice is now **rejected** by the engine |
+| *the activation is legal* | **kept, unchanged** — this was always right |
+| *the Spell resolves and reaches the Graveyard* | **kept, unchanged** |
+
+**Card-local or generic?** The **rule is generic** — the supplement states it as a requirement of
+payment, not as a property of `One for One` — but the **defect it exposed is currently reachable
+through exactly one card**. Every cost-paying card in the V1 pool was audited: the rule bites only
+where the cost's material pool and the effect's candidate pool overlap in the **disabling**
+direction, i.e. the cost removes a card from a zone the effect draws from and puts it somewhere
+the effect does not. `One for One` (hand → GY; Summons from hand **or Deck**) is the only such
+card. `Fairy Tail - Rella` overlaps too and is **not** affected, because its discard lands in the
+Graveyard and the Graveyard is one of the three zones its effect equips from. Every other cost in
+the pool draws from a zone the effect never reads.
+
+It was therefore implemented at the **generic level**:
+`EffectPrimitives.cost_candidates_keeping_effect_performable()`, next to
+`exclude_required_tributes()`, with `RULES_SPEC.md` **§10.5** as its written contract and
+`Tests/rules/CostLegalityTests.gd` as an engine-level gate built from **synthetic** cards — the
+disabling shape and the harmless one, so the rule is proved not to over-apply. `OneForOneTests`
+is then the card-level evidence that the printed card consumes it.
+
+**Honest limit, recorded rather than hidden.** The filter tests each candidate alone. That is
+exact for a payment of ONE card and not exact for a larger payment, where a pair may be illegal
+though neither card is illegal by itself. A count other than 1 is refused loudly rather than
+approximated, and this is asserted. No V1 card has a multi-card cost overlapping its own pool.
+
 #### Part E — what batch 12 does NOT need, having looked. Confidence: HIGH.
 
 Two subsystems §8 expected to be built are not needed, and each is recorded so the next session
@@ -1579,9 +1635,9 @@ does not build them speculatively:
   The new `EffectPrimitives.look_at_hand()` is a loop over it, and the choice it feeds goes
   through the existing `choose_one()` so the duel stays replayable.
 
-**R42 is CLOSED.** It opens nothing that blocks a batch-12 card. It **opens one defect** against
-already-shipped code (Part D), which is carried in PROJECT_STATE §7 and in the batch-13
-recommendation. The seven rulings carried into batch 12 — R5, R11, R12, R13, R14, R15, R20 — are
+**R42 is CLOSED, Part D included.** It opened nothing that blocked a batch-12 card. It opened one
+defect against already-shipped code (Part D), which batch 13 unit A **fixed, verified against the
+live official source, and closed** — see "Part D is CLOSED" above. The seven rulings carried into batch 12 — R5, R11, R12, R13, R14, R15, R20 — are
 all still **OPEN**, all still belong to the seven cards that remain after batch 12, and none of
 them was touched.
 

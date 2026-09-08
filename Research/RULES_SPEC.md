@@ -845,6 +845,55 @@ obligation. **Only the destination changes; the reason does not** — a redirect
 still a destruction and still fires `CARD_DESTROYED`, so a clause worded "when this card is
 destroyed" still sees it. The obligation is consumed the moment it fires.
 
+### 10.5 A cost must be paid in a way that leaves the effect PERFORMABLE
+
+Added in Phase 5 batch 13 unit A, as an **authoritative correction to shipped, green code**.
+`CARD_RULINGS.md` **R42 Part D**. Official Konami supplemental information for `One for One`
+(cid 8197, dated 2020-03-20 on the page, `request_locale=ja`, re-fetched and re-verified
+against the live source in batch 13 before anything was changed):
+
+> ■処理を行えるようにコストのモンスターを墓地へ送る必要があります。レベル１のモンスターが自分のデッキに存在せず、自分の手札に１体のみ存在する状況では、そのモンスターをコストにできません。
+
+> *You must send the cost monster to the Graveyard in such a way that the effect can be carried
+> out. Where no Level 1 monster is in your Deck and only one is in your hand, that monster
+> cannot be used as the cost.*
+
+The supplement states this as a **requirement of payment**, not as a quirk of one card, so it is
+recorded here as a general rule of §10 rather than in that card's file.
+
+**What it restricts.** The **cost candidate list**, and nothing else. §10's ordering is unchanged:
+the activation condition is still evaluated over the pool as it stands **before** any payment,
+and this rule never widens or narrows it. An activation that is legal stays legal; what shrinks
+is the set of materials that may be **spent**. Only when that set shrinks to **empty** does the
+card stop being offered — and then it is `can_pay_cost` refusing, not the condition. The two
+checks can therefore legitimately disagree, and `Tests/rules/CostLegalityTests.gd` asserts a
+state in which they do.
+
+**When it bites.** Only where the cost's material pool and the effect's candidate pool overlap in
+the **disabling** direction: the cost takes a card **out of** a zone the effect draws from and
+puts it somewhere the effect does **not** draw from.
+
+| Card | Cost pool → destination | Effect pool | Bites? |
+|---|---|---|---|
+| `One for One` | hand → GY | hand **or Deck** | **YES** — the GY is outside the effect's pool |
+| `Fairy Tail - Rella` | hand → GY | hand, Deck **or GY** | no — the destination is inside the pool |
+| every other cost in the V1 pool | — | — | no — the pools do not intersect |
+
+Every cost-paying card in the pool was audited against that table when the rule was written.
+`One for One` is the **only** card it currently changes. Over-applying it would silently forbid
+legal plays, so the non-biting shape is a test (`harmless_overlap_spell()`) and not a comment.
+
+**Where it lives.** `EffectPrimitives.cost_candidates_keeping_effect_performable()`, alongside
+`exclude_required_tributes()` — the file already owns generic filters over cost material. The
+card supplies the predicate, because only the card knows what "carried out" means for its own
+clause, and a card must feed the **same** predicate its `condition` uses so the two cannot drift.
+
+**Honest limit.** The filter tests each candidate **alone**, which is exact for a payment of one
+card and **not** exact for a larger one — a pair can be an illegal payment though neither card is
+illegal by itself. A count other than 1 is therefore **refused loudly** rather than answered
+approximately, and the predicate is not even consulted. No card in the V1 pool has a multi-card
+cost that overlaps its own effect's pool; the day one does, the set-level check is the work.
+
 ---
 
 ## 11. Once-per-turn tracking (master prompt §47)

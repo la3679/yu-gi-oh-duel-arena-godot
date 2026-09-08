@@ -1249,26 +1249,38 @@ Legend: **DONE+TESTED** = implemented and covered by passing assertions ·
 
 None that stop work.
 
-### OPEN — `One for One`'s cost candidate list contradicts official guidance (found in batch 12)
+### CLOSED in batch 13 unit A — `One for One`'s cost candidate list (found in batch 12)
 
-**This is a defect in SHIPPED, GREEN code, and it is open.** It is recorded in full, with its
-source and date, in `CARD_RULINGS.md` **R42 Part D**.
+**Fixed, verified against the live official source, and closed.** Full record in
+`CARD_RULINGS.md` **R42 Part D** ("Part D is CLOSED") and `RULES_SPEC.md` **§10.5**.
 
-cid 8197 (2020-03-20, `request_locale=ja`) says you must send the cost monster in such a way
-that the effect can still be carried out: with **no** Level 1 monster in your Deck and exactly
-**one** in your hand, that monster **cannot be used as the cost**.
-`Scripts/cards/registry/OneForOne.gd` detail 7 currently states the opposite in prose, and
-`OneForOneTests` asserts it. The activation being legal is correct and is not in question; what
-is wrong is the **cost candidate list**.
+The source was **re-fetched before anything was changed** — `faq_search.action?ope=4&cid=8197`
+`&request_locale=ja`, requested again on 2026-09-08 — and the 2020-03-20 supplement returns
+batch 12's quoted sentence character-for-character. The correction rests on the live official
+page, not on a transcription of it.
 
-The observable difference is narrow but real: with exactly one Level 1 monster in hand, none in
-the Deck, and at least one non-Level-1 monster also in hand, the engine offers that Level 1
-monster as a legal cost and Konami does not.
+* **Old (wrong):** sending your only Level 1 monster as the cost was legal and "legitimately
+  resolved for nothing".
+* **Corrected (authoritative):** that monster is **not a legal cost**. The restriction is on the
+  **cost candidate list** only — the activation stays legal, and only when the candidate list
+  empties does `can_pay_cost` (never the condition) refuse the activation.
+* **Assertions changed:** one test retired, **four** assertions inverted, **two** kept unchanged
+  because they were always right (the activation is legal; the Spell still resolves to the GY).
+  The exact before/after table is in R42 Part D. Nothing else in the suite was touched.
+* **Card-local or generic?** The **rule is generic**; the **defect was reachable through exactly
+  one card**. Every cost-paying card in the pool was audited — the rule bites only where the cost
+  removes a card from a zone the effect draws from and puts it somewhere the effect does not.
+  `One for One` is the only one. `Fairy Tail - Rella` overlaps and is **not** affected, because
+  its discard lands in the GY and the GY is one of its effect's source zones.
+* **Implemented at the generic level:**
+  `EffectPrimitives.cost_candidates_keeping_effect_performable()`, next to
+  `exclude_required_tributes()`, with a synthetic-card engine gate in
+  `Tests/rules/CostLegalityTests.gd` (both the biting shape and the harmless one, so the rule is
+  proved not to over-apply) and `OneForOneTests` as the card-level evidence.
+* **Honest limit:** the per-candidate filter is exact for a payment of ONE card only. A larger
+  count is refused loudly rather than approximated, and that refusal is asserted.
 
-It was **not** fixed in batch 12 on purpose. `One for One` is not a batch-12 card, the fix
-inverts an existing shipped assertion, and this project does not fold a correction to one card
-into another card's unit. It is the recommended **first unit of batch 13**. Nothing in batch 12
-depends on it, and no batch-12 card copies the behaviour it corrects.
+**There is no known-incorrect card left in the library.**
 
 ### NOT A DEFECT, but recorded so it is not rediscovered — `Miyabi` reads the printed Attribute
 

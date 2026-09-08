@@ -37,6 +37,7 @@ func _initialize() -> void:
 	suites.append(AttackRestrictionTests.run())
 	suites.append(ChoiceConstraintTests.run())
 	suites.append(DeckAccessTests.run())
+	suites.append(CostLegalityTests.run())
 
 	# --- Per-card suites (Phase 5). One per implemented card. ---
 	suites.append(ShiningAngelTests.run())
