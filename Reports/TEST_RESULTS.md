@@ -45,7 +45,7 @@ authority for every number below.
 | Scripted duel tests | 0 | 0 | 0 | 0 |
 | **TOTAL** | **90** | **9032** | **9032** | **0** |
 
-Previous clean commit: **`6a98eae`**. SmokeCheck: **PASS**. `SCRIPT ERROR` occurrences in the
+Commit: **`3302994`**. Previous clean commit: **`6a98eae`**. SmokeCheck: **PASS**. `SCRIPT ERROR` occurrences in the
 full run: **0**. Matrix: **73 / 77 implemented, 73 / 77 tested, 4 remaining** (computed by
 `python Tools/build_matrix.py`, not written by hand). ObjectDB at exit: **308910** — and that
 number is **finally characterised**; see the batch-15 ObjectDB note below.

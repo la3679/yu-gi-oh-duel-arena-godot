@@ -24,6 +24,8 @@ Gate B (the generic rules engine) is MET; nothing in Phase 4 needs revisiting.
 `SCRIPT ERROR`; 73 / 77 implemented, 73 / 77 tested, 4 remaining** (counts computed by
 `python Tools/build_matrix.py`, never written by hand). ObjectDB at exit: **308910** — and that
 number is now **CHARACTERISED**, see below. **Previous clean HEAD:** `6a98eae`.
+**Batch-15 commit:** `3302994` (R15, the gate, the card, its suite and this checkpoint — one
+commit, because batch 15 was one unit).
 
 ### Every one of the previous checkpoint's 8795 assertions passes UNCHANGED
 
