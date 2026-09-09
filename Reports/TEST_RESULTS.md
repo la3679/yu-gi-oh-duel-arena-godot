@@ -46,7 +46,7 @@ authority for every number below.
 | Scripted duel tests | 0 | 0 | 0 | 0 |
 | **TOTAL** | **92** | **9459** | **9459** | **0** |
 
-Commit: **`__COMMIT__`**. Previous clean commit: **`2a97206`**. SmokeCheck: **PASS**. `SCRIPT ERROR`
+Commit: **`440390e`**. Previous clean commit: **`2a97206`**. SmokeCheck: **PASS**. `SCRIPT ERROR`
 occurrences in the full run: **0**. Matrix: **74 / 77 implemented, 74 / 77 tested, 3 remaining**
 (computed by `python Tools/build_matrix.py`, not written by hand). ObjectDB at exit: **322751** —
 +13841 over batch 15, which is ~187 per duel built against the 188 batch 15 measured, i.e. the

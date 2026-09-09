@@ -25,7 +25,7 @@ Gate B (the generic rules engine) is MET; nothing in Phase 4 needs revisiting.
 `python Tools/build_matrix.py`, never written by hand). ObjectDB at exit: **322751** — +13841 over
 batch 15, which is ~187 per duel built against the **188 per duel** batch 15 measured, i.e. the
 known linear behaviour and **not** a regression. **Previous clean HEAD:** `2a97206`.
-**Batch-16 commit:** `__COMMIT__` (R12, the gate, the correction, the card, its suite and this
+**Batch-16 commit:** `440390e` (R12, the gate, the correction, the card, its suite and this
 checkpoint — one commit, because batch 16 was one unit).
 
 ### Every one of the previous checkpoint's 9032 assertions passes UNCHANGED
