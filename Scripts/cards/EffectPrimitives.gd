@@ -2503,3 +2503,108 @@ static func send_from_hand_to_gy(ctx: EffectContext, card: CardInstance) -> bool
 		return false
 	return ctx.state.move_card(card, Enums.Zone.GRAVEYARD,
 		Enums.MoveReason.SENT_TO_GY_BY_EFFECT, {"source_id": ctx.source.id})
+
+
+# ---------------------------------------------------------------------------
+# A RANDOM choice made by the other player, out of a hidden hand.
+# RULES_SPEC.md 12.3, CARD_RULINGS.md R15 Parts C, D and H.
+# ---------------------------------------------------------------------------
+#
+# "Your opponent chooses 1 random card from your hand." (`A Hero Emerges`)
+#
+# Like `look_at_hand()` above, this is an OPERATION over two subsystems that already
+# exist — the seeded `Rng` and `CardInstance.revealed_to` — and not a subsystem of its
+# own. What makes it a named primitive rather than two inline lines is that both halves
+# are easy to get wrong in a way nothing else would notice:
+#
+#   * the pick MUST come from `GameState.rng`. A duel is reproducible from
+#     (Decks, seed, decisions) and from nothing else, so a pick taken from Godot's global
+#     RNG — which `Array.pick_random()` and `Array.shuffle()` both use — would silently
+#     destroy replay while every other test still passed.
+#   * the pick must NOT be a decision. "Your opponent chooses" is agency without
+#     information: routing it through `ctx.ask()` would hand the chooser the list of cards
+#     in a hidden hand, which is exactly the leak §12 exists to prevent. The chooser is
+#     asked nothing at all, and `Rng` decides.
+#
+# The chooser is still named explicitly, because the reveal and the resolution note have
+# to say who did it — and because a later card whose chooser is NOT the hand's opponent
+# must not have to reshape this. R15 Part D records honestly that in a two-player Duel the
+# chooser's identity has no other observable consequence: the distribution is uniform
+# whoever is named.
+
+
+## "`chooser_pid` chooses 1 random card from `owner_pid`'s hand", and REVEALS it.
+##
+## Returns the chosen card, or null when that hand is empty — a legal outcome, and the
+## caller's business, exactly as `look_at_hand()` leaves an empty hand to its caller.
+##
+## The reveal is to BOTH players and is part of the operation rather than something the
+## caller may forget. R15 Part H: every branch that follows a real choice puts the chosen
+## card into a public zone (a face-up Monster Zone, or a Graveyard [S1 p.50]), so it
+## becomes public anyway — revealing it here gives away nothing the outcome does not, and
+## it makes the branch the effect takes verifiable by the opponent at the moment it is
+## taken rather than one step later.
+##
+## **Nothing about the cards that were NOT chosen is revealed to anybody.** That is the
+## whole difference between this and `look_at_hand()`, and it is asserted from both sides.
+static func random_hand_card_chosen_by(ctx: EffectContext, chooser_pid: int,
+		owner_pid: int) -> CardInstance:
+	var hand: Array = ctx.state.player(owner_pid).hand
+	if hand.is_empty():
+		return null
+	# The seeded generator, and nothing else. `Rng.pick()` counts the draw, so a replay
+	# that diverges is visible in the call count rather than only in the outcome.
+	var chosen = ctx.state.rng.pick(hand)
+	if chosen == null:
+		return null
+	var card: CardInstance = chosen
+	# Revealed to the table: both players, so the event is public rather than `private_to`.
+	ctx.state.reveal(card, [owner_pid, chooser_pid], ctx.source.id)
+	return card
+
+
+## "a monster that can be Special Summoned" — asked of ONE card, for a Special Summon this
+## effect would perform to `ctx.controller_id`'s field, right now.
+##
+## CARD_RULINGS.md **R15 Part B**. The official answer is not "is it a monster card": Q&A
+## fid 12566 requires a monster **this effect could actually Special Summon at this
+## moment**, so a lingering restriction that would make the placement illegal makes the
+## card fail this test — and, for `A Hero Emerges`, makes the whole activation illegal.
+##
+## Deliberately mirrors what `SummonRules.begin_special_summon()` itself refuses, so the
+## question and the act cannot disagree:
+##
+##   * it must be a monster, and one no rule forbids Special Summoning — the named
+##     predicate `revivable_monster()`, which RULES_SPEC §5.5 keeps as the ONE place the
+##     Nomi / Spirit / Ritual dimension is expressed for this pool;
+##   * there must be a free Monster Zone;
+##   * "You can only control 1 …" must be satisfied — `SummonRules.control_limit_satisfied()`.
+##
+## It deliberately does NOT ask where the card currently is. The caller knows that: `A Hero
+## Emerges` asks it of cards in a hand, and a clause that revived from the Graveyard would
+## ask the same question about the same card.
+static func can_be_special_summoned_now(ctx: EffectContext, card: CardInstance) -> bool:
+	if card == null or not card.is_monster():
+		return false
+	if not revivable_monster().call(card):
+		return false
+	if not ctx.me().has_free_monster_zone():
+		return false
+	return SummonRules.control_limit_satisfied(ctx.state, card, ctx.controller_id)
+
+
+## Every card in `pid`'s hand that `can_be_special_summoned_now()` accepts, in hand order.
+##
+## The activation requirement `A Hero Emerges` carries (R15 Parts A and B) is exactly
+## "this list is not empty", and the same list is re-checked at RESOLUTION because R15
+## Part C makes the whole effect conditional on it. One function, two callers, so the two
+## checks can never drift apart — which is the failure that would make the resolution-time
+## gate untested while the activation gate stayed green.
+static func hand_monsters_that_could_be_special_summoned(ctx: EffectContext,
+		pid: int) -> Array:
+	var out: Array = []
+	for entry in ctx.state.player(pid).hand:
+		var card: CardInstance = entry
+		if can_be_special_summoned_now(ctx, card):
+			out.append(card)
+	return out

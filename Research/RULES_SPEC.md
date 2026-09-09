@@ -807,6 +807,10 @@ independent:
 | the **target** has left the field / changed control | **still happens** | does not |
 | the **Special Summon** fails (no free Monster Zone; the card is no longer in the hand) | does not | **does not** — "and if you do" |
 
+**This is NOT the same question as §10.8**, which was added a batch later and which does gate a
+whole resolution: there the thing that failed is the card's own **activation requirement**, not a
+target. Read the two together; neither generalises over the other.
+
 **Consequence for anyone writing a card.** Do not begin a `resolve` with a target re-check that
 returns early unless the card's text really makes every sentence depend on the target. Re-check
 the target immediately before the sentence that USES it. A card whose whole resolution is one
@@ -841,6 +845,44 @@ being enforced. A card whose printed text forbids the Damage Step must (a) decla
 really happens inside a Damage Step, or the assertion is passing on the window-event gate alone.
 `WitchcrafterGolemAruruTests` drives both, and mutation-testing the permission proved the second
 is what makes the first meaningful.
+
+### 10.8 An ACTIVATION REQUIREMENT that fails by resolution kills the WHOLE effect — **DECIDED** (Phase 5 batch 15)
+
+Decided in `CARD_RULINGS.md` **R15 Part C**, from official Q&A fid 8193 for `A Hero Emerges`.
+Read it **next to §10.6**, which it looks opposed to and is not.
+
+**Rule: when a card's own ACTIVATION requirement has stopped being satisfied by the time the
+Chain Link resolves, the effect is not applied at all — including the sentences that come
+*before* the part which became impossible.**
+
+The official case: `A Hero Emerges` may only be activated while your hand holds a monster this
+effect could Special Summon. `Vanity's Emptiness` chained above it makes every Special Summon
+impossible, and Konami's answer is
+「ヒーロー見参」の効果処理は適用されません。（『自分の手札１枚を相手がランダムに選ぶ』事も行いません。）
+— the effect is not applied, **and the random choice is not even performed**, although the random
+choice is the card's *first* sentence and nothing about it needs a Special Summon.
+
+**How this differs from §10.6, in one line each:**
+
+| | §10.6 | §10.8 |
+|---|---|---|
+| what failed | a **target** the clause chose at activation | the card's own **activation requirement** |
+| what it costs | only the sentences that name that target | the **entire** resolution, first sentence included |
+| why | each sentence is performed on its own terms | the requirement is the condition under which the card may do anything at all |
+
+Both are real, both are official, and neither generalises over the other. A clause has a §10.8
+gate only when its **activation** is restricted by something the resolution could invalidate —
+which is why `Damage Condenser` (R42 Part C) and `A Hero Emerges` (R15 Part A) have one and
+`Spiritual Water Art - Aoi` (R42 Part B), whose supplement is deliberately silent, does not.
+
+*Engine:* the requirement is written **once**, as a named `EffectPrimitives` query, and called
+from both `EffectDef.condition` and the first line of `EffectDef.resolve`. Two separately written
+checks would drift, and the resolution-time one would be the copy nothing ever reached.
+*Tests:* `AHeroEmergesTests` drives it by both routes the V1 pool supplies — the last summonable
+monster leaves the hand while the Chain is still building, and the Monster Zone fills up above it
+— and asserts in each case that **nothing** was chosen, nothing was revealed and nothing moved,
+with the identical un-interfered board as the control. Mutating the ordering so the pick happens
+before the gate is caught.
 
 ### 10.4 Paying LIFE POINTS as a cost, and identifying that it happened
 
@@ -1117,6 +1159,51 @@ discard-trigger from seeing it. R40 already made that separation load-bearing.
 *Engine:* `EffectPrimitives.look_at_hand()` and `send_from_hand_to_gy()`, over the existing
 `GameState.reveal()` and `GameState.move_card()`. Nothing in `GameState` was reshaped.
 *Tests:* `HiddenInfoTests` — the gate, written and green before `Aoi` existed.
+
+---
+
+### 12.3 A RANDOM choice out of a hidden zone — **DECIDED** (Phase 5 batch 15)
+
+Decided in `CARD_RULINGS.md` **R15 Parts D and H**, for `A Hero Emerges`' "your opponent chooses
+1 random card from your hand". Like §12.2 this is an **operation** over subsystems that already
+exist — §12.1's `revealed_to`, and the seeded `Rng` §8 of the master prompt requires — and not a
+new subsystem.
+
+**Rule: a card chosen "at random" from a hidden zone is chosen by the SEEDED generator, is never
+put to a player as a decision, and reveals exactly the card that was chosen — to both players,
+and nothing else.**
+
+Three things, each of which would be a silent defect on its own:
+
+* **the seeded generator, and nothing else.** A duel is reproducible from (Decks, RNG seed,
+  player decisions) and from nothing else (§ master prompt 8 / 70). `Rng.pick()` counts every
+  draw, so a divergent replay shows up in the call count rather than only in the outcome. Godot's
+  `Array.pick_random()` and `Array.shuffle()` use the **global** generator and must never appear
+  in engine or card code.
+* **it is not a decision.** "Your opponent chooses" names an *agent*, not an informed choice:
+  routing it through `ctx.ask()` would hand that player the list of cards in a hidden hand, which
+  is precisely the leak §12 exists to prevent. The chooser's `PlayerController` is asked nothing
+  at all, and the replay payload records no decision for them. In a two-player Duel the chooser's
+  identity has no other mechanical consequence — the distribution is uniform whoever is named —
+  and that is recorded honestly rather than dressed up as behaviour.
+* **the reveal is part of the operation, not of the caller.** The chosen card is revealed to
+  **both** players, so the `CARD_REVEALED` event is public — the exact opposite of §12.2's look,
+  which is `private_to` one player. That is right because every branch that follows a real choice
+  puts the chosen card into a public zone anyway (a face-up Monster Zone, or a Graveyard
+  [S1 p.50]); revealing it at the moment of the choice gives away nothing the outcome does not,
+  and it makes the branch the effect takes verifiable when it is taken. **The cards that were not
+  chosen are revealed to nobody**, which is the whole difference between this and a look.
+
+When the effect does not resolve — §10.8's gate, an activation negation, or an effect negation —
+**no pick is made and nothing is revealed at all.**
+
+*Engine:* `EffectPrimitives.random_hand_card_chosen_by()`, over `GameState.rng` and
+`GameState.reveal()`. Nothing in `GameState`, `Rng` or `DecisionRequest` was reshaped.
+*Tests:* `HiddenInfoTests` — the gate, written and green before `A Hero Emerges` existed. It
+proves the same seed picks the same card, that a sweep of seeds reaches every card in the hand
+(so "deterministic" is not "always index 0"), that exactly one value is drawn from the duel's own
+generator, that neither controller is asked anything, that exactly one card is revealed and the
+rest stay hidden in the filtered view, and that nothing moves.
 
 ---
 

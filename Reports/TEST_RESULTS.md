@@ -1,8 +1,9 @@
 # TEST_RESULTS
 
-**Last run:** 2026-09-08 (Phase 5 **batch 14 COMPLETE**: `Witchcrafter Golem Aruru`, the pool's
-first effect that answers **being targeted** from the hand and its first clause whose resolution
-proves that a **dead target does not fizzle the whole effect**. **R13** is now CLOSED.)
+**Last run:** 2026-09-09 (Phase 5 **batch 15 COMPLETE**: `A Hero Emerges`, the pool's first
+effect whose choice is made **at random by the opponent out of a hidden hand**, and its first
+clause whose own activation requirement, re-checked at resolution, **suppresses the whole
+effect including its first sentence**. **R15** is now CLOSED.)
 **Engine:** Godot 4.7.1.stable.official.a13da4feb (headless)
 
 Command:
@@ -29,7 +30,7 @@ The raw command still works and produces the same numbers:
 ```
 
 `Tools/run_tests.sh` is the POSIX twin and takes an entry-script name, so a single unit can be
-driven without the full run: `./Tools/run_tests.sh RunBatch14Tests`. The full suite remains the
+driven without the full run: `./Tools/run_tests.sh RunBatch15Tests`. The full suite remains the
 authority for every number below.
 
 ---
@@ -38,14 +39,239 @@ authority for every number below.
 
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
-| Core rules tests | 24 | 2249 | **2249** | 0 |
-| Per-card tests | 64 | 6500 | **6500** | 0 |
+| Core rules tests | 24 | 2289 | **2289** | 0 |
+| Per-card tests | 65 | 6697 | **6697** | 0 |
 | Interaction tests | 1 | 46 | **46** | 0 |
 | Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **89** | **8795** | **8795** | **0** |
+| **TOTAL** | **90** | **9032** | **9032** | **0** |
 
-Commit: **`edd7226`**. SmokeCheck: **PASS**. Matrix: **72 / 77 implemented, 72 / 77 tested, 5 remaining** (computed by
-`python Tools/build_matrix.py`, not written by hand). ObjectDB at exit: **261302**.
+Previous clean commit: **`6a98eae`**. SmokeCheck: **PASS**. `SCRIPT ERROR` occurrences in the
+full run: **0**. Matrix: **73 / 77 implemented, 73 / 77 tested, 4 remaining** (computed by
+`python Tools/build_matrix.py`, not written by hand). ObjectDB at exit: **308910** — and that
+number is **finally characterised**; see the batch-15 ObjectDB note below.
+
+## Batch 15 — COMPLETE. Nothing in it is partial or unverified.
+
+One card, one unit, three new `EffectPrimitives` functions and **no new engine surface at all**.
+**Every one of the previous checkpoint's 8795 assertions passes unchanged** — no existing
+assertion was retired, weakened or retargeted. The one pre-existing suite that grew,
+`HiddenInfoTests`, grew only by **addition**: its 116 batch-14 assertions are byte-for-byte the
+same and 40 new ones were appended, which is exactly what batch 12 did to the same file when it
+added the `look_at_hand` gate.
+
+The arithmetic is checked rather than asserted:
+
+9032 − 8795 = **237** = 197 (`AHeroEmergesTests`, new) + 40 (`HiddenInfoTests`, 116 → 156). The
+5509 → 5973 → 6284 → 6914 → 7725 → 8272 → 8483 → 8795 → **9032** chain is unbroken.
+
+| Unit | What it was | Result |
+|---|---|---|
+| A | **R15** research: cid 5915 supplement (2015-03-26) + **both** Q&A entries (fid 12566 「御前試合」, fid 8193 「虚無空間」, both 2017-03-24), `request_locale=ja`, plus a live re-fetch and character-for-character diff of the **English** text against `Data/cards/cards.json` | **COMPLETE** — R15 CLOSED |
+| A | the random-choice gate (`HiddenInfoTests`, 116 → **156**) + `RULES_SPEC.md` **§10.8** and **§12.3** | **COMPLETE** — written and green BEFORE the card |
+| A | `A Hero Emerges` (`AHeroEmergesTests`, **197**) | **COMPLETE** |
+
+### The three facts the printed English text does not carry
+
+All three would have been silent bugs, and none is reachable by reading the English text.
+
+1. **The hand gates the ACTIVATION** (R15 Part A).
+   「自分の手札が0枚の場合や、自分の手札にモンスターカードがない場合、「ヒーロー見参」を発動する事自体ができません。」
+   An empty hand — or a hand with no monster in it — makes the card unactivatable. The printed
+   English text carries no hand requirement at all. **This is the fifth batch in a row in which
+   §8's standing warning about a missing activation restriction was right**
+   (`Burst Stream of Destruction`, `Damage Condenser`, `Honest`, `Witchcrafter Golem Aruru`, now
+   this).
+2. **The requirement is narrower than "a monster card"** (R15 Part B). Q&A fid 12566 asks for a
+   monster **this effect could actually Special Summon right now**, so a lingering restriction
+   that would make the placement illegal removes the card from the count. In this pool that means
+   a **full Monster Zone** and the **"You can only control 1 …"** limit both forbid the
+   activation, with a hand full of monsters.
+3. **The whole effect is re-gated at RESOLUTION, and the random choice is suppressed with it**
+   (R15 Part C). Q&A fid 8193, verbatim:
+   「ヒーロー見参」の効果処理は適用されません。（『自分の手札１枚を相手がランダムに選ぶ』事も行いません。）
+   The pick is *not even made*. The obvious implementation — pick, then branch — is observably
+   wrong: it would send a Spell out of the hand in a situation whose official answer is that
+   nothing happens. This is now `RULES_SPEC.md` **§10.8**, and it is deliberately written next to
+   §10.6 because the two look opposed and are not.
+
+### Mutation testing: twenty-one mutations, twenty-one caught, ZERO survivors
+
+Run against `RunBatch15Tests` (the new suite plus `HiddenInfoTests`, `ReplayTests`,
+`SpecialSummonTests` and the three neighbouring cards), each mutation applied on its own and
+reverted afterwards.
+
+| # | Mutation | Result |
+|---|---|---|
+| M1 | drop the OPPONENT narrowing on the attacker | caught |
+| M2 | drop the activation restriction entirely (Part A) | caught |
+| M3 | weaken the activation restriction to "any monster card" (Part B) | caught |
+| M4 | drop the resolution-time gate (Part C) | caught |
+| M5 | branch on "is a monster" instead of "can be Special Summoned" (Part E) | caught |
+| M6 | Special Summon in a FIXED Attack Position (Part F) | caught |
+| M7 | make the CONTROLLER the chooser instead of the opponent (Parts D/H) | caught |
+| M8 | open the Damage Step (Part G) | caught |
+| M9 | drop the `trigger_events` declaration | caught |
+| M10 | pick with Godot's GLOBAL RNG instead of the seeded one (Part D) | caught |
+| M11 | always pick the first card in the hand | caught |
+| M12 | reveal the chosen card to nobody (Part H) | caught |
+| M13 | reveal the WHOLE hand to the chooser (Part H) | caught |
+| M14 | drop the free-Monster-Zone half of the summonable question (Part B) | caught |
+| M15 | drop the control-limit half of the summonable question (Part B) | caught |
+| M16 | make the summonable-hand list ignore its `pid` argument | caught |
+| M17 | pick FIRST and gate afterwards — the exact order Part C forbids | caught |
+| M18 | make the "Otherwise" send a DISCARD (Part E) | caught |
+| M19 | reveal the chosen card to the chooser only, so the event is private (Part H) | caught |
+| M20 | never re-test the chosen card — always Special Summon it | caught |
+| M21 | let "a monster that can be Special Summoned" accept non-monsters | caught |
+
+**Nothing survived the first pass**, which is a first for this project — batch 14 had two
+survivors on its first pass and batch 12 two. Three things are worth recording about *why*,
+because they are what the previous batches' survivors taught:
+
+* **Every negative test asserts on the OFFER, not on the outcome.** Batch 14's first survivor was
+  a negative test that asserted on an optional effect's outcome, which is true whether or not the
+  effect was ever offered. Every activation-legality test here asserts `_response(...) == null`
+  and pairs it with a **separate board** on which the same query returns an action.
+* **Every "not offered" assertion has a live control built on the same seed.** A response window
+  that neither player can answer is auto-passed and closed by the engine, so a control added to a
+  board *after* the refusal proves nothing — the first draft of five of these tests did exactly
+  that and failed loudly. They are now separate boards, and the comment in each says why.
+* **The randomness is swept, not sampled.** Two tests run a fixed range of seeds and assert that
+  **both** branches occurred and that every card in the hand is reachable. Without that, "the
+  chosen card was a monster" would pass equally well against an implementation that always picks
+  index 0 — which is mutation M11, and it is the sweep that catches it.
+
+### What batch 15 proved about §8's own predictions, kept because the pattern is now five deep
+
+* §8 predicted the subsystem would be "a random choice made by the OPPONENT from your hand,
+  through the seeded `Rng` so replay survives". **Correct, and complete as far as it went.**
+* §8 predicted "one generic primitive with its own gate". **Nearly correct — it was three**, and
+  the two it did not predict are the ones that carry the ruling: "can this be Special Summoned
+  right now?" and the hand list built from it.
+* §8 predicted an activation restriction the printed English text does not carry. **Correct for
+  the fifth batch running.**
+* §8 asked five open questions and every one was answered from an official source. **It did not
+  predict the fact that mattered most** — that a resolution-time failure suppresses the random
+  choice itself. Nothing in the English text hints at it, and it is the only one of the three new
+  facts that changes the order of operations rather than a condition.
+* §8 was **right** that no new subsystem was needed: no new event kind, no new activation
+  location, no new Damage Step permission, no new zone, no new Summon route, no new decision kind.
+
+### `AHeroEmergesTests` — 197/197
+
+`Tests/cards/AHeroEmergesTests.gd`. Rules: `RULES_SPEC.md §5.5, §7.2, §10, §10.7, §10.8, §12,
+§12.3`, `CARD_RULINGS.md R15`.
+
+| Test | Asserts | What it proves |
+|---|---:|---|
+| clause shape | 14 | one printed clause, one EffectDef; Normal Trap, Spell Speed 2, Set-only, `ATTACK_DECLARED`, no once-per-turn, official text verbatim |
+| it does not target | 7 | 対象を取る効果ではありません — no `targets`, no `legal_targets`, no `targets_valid`, and the offered action carries no candidates |
+| the Damage Step is closed | 8 | `DamageStepPermission.NONE` asserted **directly** against `ActivationRules.damage_step_ok()` in all five sub-steps, with a permitted clause as the control (R15 Part G, RULES_SPEC §10.7) |
+| offered only in the attack-declaration window | 4 | not before the declaration, offered after it, gone again in an open game state |
+| not offered when YOU are the attacker | 3 | with an identical copy in the identical window on the opponent's side as the live control |
+| a direct attack opens it too | 5 | `direct` is true on the event and the Trap is still offered |
+| not the turn it was Set | 3 | with an earlier-Set copy on the same board as the control |
+| an EMPTY hand forbids the activation | 5 | R15 Part A, with a one-monster board as the control |
+| a hand with no monster forbids the activation | 5 | R15 Part A, three Spells/Traps vs the same three plus one monster |
+| a full Monster Zone forbids the activation | 7 | R15 Part B, five occupied zones vs four |
+| only an unsummonable monster forbids the activation | 6 | R15 Part B, the Gozen Match shape, driven by "You can only control 1" |
+| one summonable monster is enough | 6 | and the candidate list really is the one card |
+| a chosen monster is Special Summoned | 11 | to the controller's own field, face-up, properly Special Summoned, nothing sent |
+| a chosen Spell/Trap is sent to the GY | 8 | R15 Part E, swept until the pick lands on the Spell |
+| both branches are reached across seeds | 3 | 60 seeds, both outcomes present, every run took exactly one branch |
+| a chosen monster that CANNOT be Summoned is sent to the GY | 6 | R15 Part E's hidden half, with the ordinary monster in the same hand as its control |
+| the send is not a discard | 3 | `SENT_TO_GY_BY_EFFECT`, never `DISCARDED` [S1 p.52-53] |
+| the position is the summoning player's choice | 9 | R15 Part F — a scripted Defense Position is honoured and the default lands in Attack Position |
+| ownership and control stay with the Trap's controller | 8 | 自分フィールドに特殊召喚; the Summon is announced as theirs and attributed to the Trap |
+| losing the last summonable monster suppresses everything | 10 | **R15 Part C** — nothing chosen, nothing revealed, the Spell still in the hand, with the un-interfered board as the control |
+| filling the Monster Zone suppresses everything | 8 | R15 Part C by the other live route |
+| only the chosen card becomes public | 13 | one public reveal; three hand cards still hidden; the filtered `get_visible_state()` view names nothing else |
+| the chooser is asked nothing | 6 | no selection request, no replay decision for that player — and the controller IS asked a position, so the run really reached the Summon |
+| the Special Summon is announced and can be responded to | 8 | `SPECIAL_SUMMON_SUCCEEDED` once, a mandatory Trigger Effect watching for it fires, one declaration for the right player |
+| activation negated | 9 | nothing chosen, nothing revealed, hand untouched, the Trap destroyed |
+| effect negated | 9 | the activation DID happen and is announced; nothing the effect would do happens |
+| an attack negated above it does not undo it | 6 | R15 Part G — the attack is negated first and the card still resolves |
+| the same seed replays to the same card | 8 | same card, same zone, same RNG call count, identical event stream; 40 seeds reach all four hand cards |
+
+### `HiddenInfoTests` — 116 → 156 (+40): the random-choice gate
+
+`Tests/rules/HiddenInfoTests.gd`. Rules: `RULES_SPEC.md §9, §12, §12.2, §12.3`, R15 Parts B, D
+and H. Written and passing **before** `A Hero Emerges` existed, the way the batch-12
+`look_at_hand` gate in the same file, the batch-7 movement gate and the batch-6 control gate
+were. It lives here rather than in a new suite for the reason batch 12 recorded: a random pick
+out of a hidden hand is an **operation** over the hidden-information subsystem this file already
+owns, plus the seeded `Rng` that `ReplayTests` already owns — neither is a new subsystem, and
+splitting one primitive's gate across two suites would leave both halves incomplete.
+
+| Test | Asserts | What it proves |
+|---|---:|---|
+| a random pick is seeded and repeatable | 6 | three runs on one seed choose the same card; across 64 seeds all five hand cards are reachable, so "deterministic" is not "always index 0" |
+| a random pick consumes the duel RNG | 3 | exactly one counted draw from `GameState.rng`; an empty hand consumes none, so a no-op cannot desynchronise a replay |
+| the chooser is asked nothing | 3 | neither controller sees a `DecisionRequest` — a SELECT here would have listed a hidden hand |
+| only the chosen card is revealed | 11 | one PUBLIC reveal; the other four cards hidden from the chooser; the filtered view names the chosen card and nothing else |
+| a random pick moves nothing | 5 | choosing is not moving; the caller's own text decides where the card goes |
+| `can_be_special_summoned_now()` | 6 | monster vs Spell vs Trap vs null, and the same monster flipping to "no" when the Monster Zone fills |
+| the control limit is part of the question | 3 | a copy on the field makes the hand copy unsummonable, and it is summonable again once that copy leaves |
+| the summonable-hand list | 6 | empty hand, Spells-and-Traps-only hand, one monster; and it reads the hand of the player it is asked about |
+
+### Nothing else changed
+
+`ReplayTests` (33), `SpecialSummonTests` (54), `KunaiWithChainTests` (117),
+`MaidenWithEyesOfBlueTests` (139) and `DamageCondenserTests` (156) — the suites nearest to this
+card's window, its Summon route and its randomness — are all byte-for-byte green at their
+batch-14 counts, and were run together with the new suite as `RunBatch15Tests` before every
+mutation as well as after.
+
+### ObjectDB — the characterisation task is DONE, and the per-assertion ratio was measuring the wrong thing
+
+**261302 → 308910**, a rise of 47608 against 237 new assertions — **~200.9 per new assertion**,
+four times the highest figure ever recorded and far outside the ~21.6 … ~44.6 band eight previous
+checkpoints sat in. That anomaly is what finally made the number cheap to characterise, and
+**batch 15 characterised it** with a throwaway probe (`Scripts/tests/ObjDbProbe.gd`, deliberately
+**not** committed) that does nothing but construct objects and exit.
+
+| Probe | Duels built | Leaked at exit |
+|---|---:|---:|
+| `duels 0` | 0 | **no warning at all** |
+| `duels 50` | 50 | 9417 |
+| `duels 100` | 100 | 18817 |
+| `duels 200` | 200 | 37617 |
+| `played 50` | 50, each advanced a phase and ended a turn | 9717 |
+| `played 100` | 100, same | 19417 |
+| `library 1` / `library 10` / `library 20` | 0 (only `CardRegistry.load_library()`, 1/10/20 times) | **no warning at all** |
+
+The measurement is exact and linear:
+
+* **188 objects per duel CONSTRUCTED**, with an intercept of 17.
+  (18817 − 9417) / 50 = 188.0; (37617 − 18817) / 100 = 188.0; 9417 = 50 × 188 + 17.
+* **~6 more per turn PLAYED** — 9717/50 = 194.3, (19417 − 9717)/50 = 194.0. Playing a duel is
+  almost free; **building** one is the whole cost.
+* **Zero for the card registry.** Twenty full `load_library()` calls leak nothing, so the 77-card
+  library, its `EffectDef`s and its `Callable`s are not the source. That was worth ruling out
+  explicitly, because it was the other obvious candidate.
+
+**Conclusion, now measured rather than inferred: the figure counts DUELS BUILT, not assertions
+run.** 188 is very close to the size of one duel's whole object graph — 80 `CardDef`s + 80
+`CardInstance`s for two 40-card filler decks, plus the engine, the `GameState`, two
+`PlayerState`s, the rules objects, the `DuelLog`, the two controllers and the setup
+`GameEvent`s — so what is retained at exit is the entire graph of every duel a run ever created,
+held by a reference cycle at the `DuelEngine` / `GameState` root. Every object involved is
+`RefCounted`, which is why Godot reports them as leaked rather than freeing them.
+
+**This retires the "per new assertion" ratio.** It was never a meaningful quantity: a batch whose
+tests build many small duels raises the number and a batch whose tests build few large ones does
+not, which is exactly why eight checkpoints produced four falls and four rises with no trend.
+Batch 15's own spike is fully explained by its seed sweeps — the branch-coverage and replay tests
+deliberately build several hundred one-shot duels in order to prove that a random effect reaches
+every branch, and at 188 apiece that is essentially all of the 47608.
+
+**It still fails nothing** — no hang, no memory pressure, no unreliability, and it is a
+process-exit artefact of a headless test run rather than anything a played duel accumulates. What
+remains is a **fix**, not a characterisation: find the cycle at the `DuelEngine` / `GameState`
+root and break it. That is a self-contained non-card unit, it is now the second-cheapest one in
+the repository after the `build_matrix.py` column, and it is **still required before Phase 7**.
+
+---
 
 ## Batch 14 — COMPLETE. Nothing in it is partial or unverified.
 
@@ -168,7 +394,7 @@ using it — which is the same class of test bug the runner's `SCRIPT ERROR` che
 Stderr still carries exactly the **five** deliberate `push_error` lines batch 13 recorded. This
 batch added none.
 
-### ObjectDB
+### ObjectDB — batch 14
 
 **249757 → 261302**, a rise of 11545 against 312 new assertions: **~37.0 per new assertion**, up
 from batch 13's ~35.2 and inside the ~21.6 / ~26.9 / ~28.4 / ~34.9 / ~44.6 range seen before. That
@@ -1205,7 +1431,7 @@ removed.
 | `DamageStepTests` | 98 | `RULES_SPEC.md §7`, R42 |
 | `ContinuousTests` | 52 | `RULES_SPEC.md §4.2/§8` |
 | `CounterTests` | 44 | `RULES_SPEC.md §14` |
-| `HiddenInfoTests` | 116 | `RULES_SPEC.md §9, §12, §12.2`, R42 |
+| `HiddenInfoTests` | 156 | `RULES_SPEC.md §9, §12, §12.2, §12.3`, R15, R42 |
 | `SpecialSummonTests` | 54 | `RULES_SPEC.md §5.5` |
 | `RulesQuestionTests` | 37 | `RULES_SPEC.md §8.1, §12.1, §6/§7, §2.3` |
 | `ReplayTests` | 33 | master prompt §8 / §70 |
@@ -1285,9 +1511,10 @@ removed.
 | `DamageCondenserTests` | 156 | per-card |
 | `HonestTests` | 125 | per-card |
 | `WitchcrafterGolemAruruTests` | 312 | per-card |
-| **TOTAL** | **8795** | 89 suites |
+| `AHeroEmergesTests` | 197 | per-card |
+| **TOTAL** | **9032** | 90 suites |
 
-<!-- summary: core 24 suites / 2249 ; per-card 64 / 6500 ; interaction 1 / 46 ; total 89 / 8795 -->
+<!-- summary: core 24 suites / 2289 ; per-card 65 / 6697 ; interaction 1 / 46 ; total 90 / 9032 -->
 ### BanishTests — 158/158
 
 `Tests/rules/BanishTests.gd`. Rules: `RULES_SPEC.md §8, §8.3, §12, §15` [S1 p.52–53],
@@ -2070,7 +2297,20 @@ No test expectation was weakened to make the implementation pass.
 
 ## Known issues in the harness (not rules defects)
 
-* **Latest measurement: `154223 ObjectDB instances were leaked at exit`** (2026-08-14, at
+* **The ObjectDB figure is CHARACTERISED as of batch 15 (2026-09-09), and the "per assertion"
+  ratio every entry below quotes is now known to have been measuring the wrong quantity.** A
+  direct probe measured **188 leaked objects per duel CONSTRUCTED** (exactly linear over 0 / 50 /
+  100 / 200 duels, intercept 17), **~6 more per turn played**, and **zero** for any number of
+  `CardRegistry.load_library()` calls. The count tracks how many duels a run builds — roughly one
+  duel's entire object graph, retained by a reference cycle at the `DuelEngine` / `GameState`
+  root — and has no relationship to assertion counts, which is why eight checkpoints produced
+  four falls and four rises with no trend. The full table and reasoning are in the batch-15
+  ObjectDB note above. **The entries below are kept verbatim for the record; their
+  per-assertion arithmetic is correct but meaningless, and their repeated "no explanation has
+  been measured" is now superseded.** What remains is a FIX — break the cycle — and it is still
+  required before Phase 7.
+
+* **Superseded by the characterisation above: `154223 ObjectDB instances were leaked at exit`** (2026-08-14, at
   **5280** assertions across 62 suites), up from 135266. That is **18957 more for 493 more
   assertions, ~38.5 per assertion**, against the previous checkpoint's ~36.2. This is the
   **fourth consecutive rising checkpoint** and again the highest per-assertion figure recorded.

@@ -3,122 +3,140 @@
 > Persistent resume file. A new Claude Code session should read **this file first**,
 > then read only the targeted files named in §8. Do **not** recursively reread the repository.
 
-**Last updated:** 2026-09-08 (batch 14 complete)
+**Last updated:** 2026-09-09 (batch 15 complete)
 **Current phase:** **Phase 5 — the card effect library.** Phases 0–4 are complete and
 Gate B (the generic rules engine) is MET; nothing in Phase 4 needs revisiting.
 
 ---
 
-## 0. READ THIS FIRST — batch 14 is COMPLETE; batch 15 is RECOMMENDED but NOT started
+## 0. READ THIS FIRST — batch 15 is COMPLETE; batch 16 is RECOMMENDED but NOT started
 
-**Batches 1–14 are complete. Nothing in batch 14 is partial or unverified.**
+**Batches 1–15 are complete. Nothing in batch 15 is partial or unverified.**
 
-| Batch 14 unit | Status |
+| Batch 15 unit | Status |
 |---|---|
-| **R13** research — cid 14483 supplement (2020-07-04) + Q&A fid 22558 (2022-12-30), `request_locale=ja`, plus a live re-fetch and diff of the **English** text | **COMPLETE** |
-| `Witchcrafter Golem Aruru` (`WitchcrafterGolemAruruTests`, 312) | **COMPLETE** — it was the whole batch |
-| `EffectPrimitives.is_targeted_by_a_live_opponent_activation()` — the batch's ONE new primitive | **COMPLETE** |
-| `RULES_SPEC.md` §10.6 (a dead target does not kill the whole effect) and §10.7 (two independent window gates) | **COMPLETE** |
+| **R15** research — cid 5915 supplement (2015-03-26) + **both** Q&A entries (fid 12566 「御前試合」 and fid 8193 「虚無空間」, both 2017-03-24), `request_locale=ja`, plus a live re-fetch and diff of the **English** text | **COMPLETE** — R15 CLOSED |
+| the random-choice gate (`HiddenInfoTests` 116 → **156**) + `RULES_SPEC.md` **§10.8** and **§12.3** | **COMPLETE** — written and green BEFORE the card |
+| `A Hero Emerges` (`AHeroEmergesTests`, **197**) | **COMPLETE** — it was the whole batch |
+| three new `EffectPrimitives` functions, **no new engine surface** | **COMPLETE** |
 
-**Measured at this checkpoint: 8795 passed / 0 failed across 89 suites; SmokeCheck PASS; 0
-`SCRIPT ERROR`; 72 / 77 implemented, 72 / 77 tested, 5 remaining** (counts computed by
-`python Tools/build_matrix.py`, never written by hand). ObjectDB at exit: **261302**.
-**Previous clean HEAD:** `95d5e64`. **Batch-14 commit:** `edd7226` (R13, the card, its suite and
-this checkpoint — one commit, because batch 14 was one unit).
+**Measured at this checkpoint: 9032 passed / 0 failed across 90 suites; SmokeCheck PASS; 0
+`SCRIPT ERROR`; 73 / 77 implemented, 73 / 77 tested, 4 remaining** (counts computed by
+`python Tools/build_matrix.py`, never written by hand). ObjectDB at exit: **308910** — and that
+number is now **CHARACTERISED**, see below. **Previous clean HEAD:** `6a98eae`.
 
-### Every one of the previous checkpoint's 8483 assertions passes UNCHANGED
+### Every one of the previous checkpoint's 8795 assertions passes UNCHANGED
 
-8795 − 8483 = **312**, which is the whole of the one new suite. **No pre-existing suite was
-touched at all** — nothing retired, nothing weakened, nothing retargeted. In particular the
-**batch-13 `One for One` authoritative correction stands exactly as it was left**, with
-`OneForOneTests` at 70 and `CostLegalityTests` at 56, and `RULES_SPEC.md` §10.5 unmodified.
+9032 − 8795 = **237** = 197 (`AHeroEmergesTests`, new) + 40 (`HiddenInfoTests`, 116 → 156).
+`HiddenInfoTests` grew only by **addition** — its 116 batch-14 assertions are byte-for-byte the
+same — which is exactly what batch 12 did to the same file when it added the `look_at_hand` gate.
+Nothing was retired, weakened or retargeted anywhere.
 
-### §8's standing warning has now been right FOUR batches in a row
+### §8's standing warning has now been right FIVE batches in a row
 
-**`Witchcrafter Golem Aruru` cannot be activated during the Damage Step, and its printed English
-text says nothing about the Damage Step at all.** cid 14483's supplement (2020-07-04):
-「ダメージステップ中には発動できません。」 Same shape as `Honest` (R20), `Damage Condenser`
-(R42 Part C) and `Burst Stream of Destruction` (R41 Part C) before it. **Assume §8 is wrong about
-"no research needed" again.**
+**`A Hero Emerges` cannot be activated with an empty hand, or with a hand that holds no monster,
+and its printed English text says nothing about the hand as a requirement.** cid 5915's
+supplement (2015-03-26):
+「自分の手札が0枚の場合や、自分の手札にモンスターカードがない場合、「ヒーロー見参」を発動する事自体ができません。」
+Same shape as `Honest` (R20), `Damage Condenser` (R42 Part C), `Burst Stream of Destruction`
+(R41 Part C) and `Witchcrafter Golem Aruru` (R13) before it. **Assume §8 is wrong about "no
+research needed" again.**
 
-R13 bought three more facts the English text does not carry, all recorded in `CARD_RULINGS.md`
-R13 with their sources and confidence:
+R15 bought three facts the English text does not carry, all recorded in `CARD_RULINGS.md` R15
+with their sources and confidence:
 
-* the Spellcaster must be **face-up in your MONSTER ZONE** — 「自分のモンスターゾーンの表側表示の
-  魔法使い族モンスター」 — not merely "a Spellcaster monster you control";
-* the targeting trigger is the **OPPONENT's** activation only — 「相手が効果を発動した時」 — which
-  `Maiden with Eyes of Blue`'s shipped primitive does not ask, and which needed the batch's one
-  new primitive;
-* **a target that has left the field costs the BOUNCE and not the SPECIAL SUMMON** —
-  「対象のカードがフィールドに存在しない場合、このカードを特殊召喚する処理のみを行います」.
+* the **hand gates the ACTIVATION** — an empty or monsterless hand forbids it outright (Part A);
+* the requirement is **narrower than "a monster card"** — Q&A fid 12566 asks for a monster **this
+  effect could actually Special Summon right now**, so a full Monster Zone and the "You can only
+  control 1 …" limit both forbid the activation with a hand full of monsters (Part B);
+* **if that stops being true by resolution the effect does NOTHING — the random choice is not even
+  made** — Q&A fid 8193:
+  「ヒーロー見参」の効果処理は適用されません。（『自分の手札１枚を相手がランダムに選ぶ』事も行いません。）
+  (Part C).
 
-### The one fact worth carrying forward: a dead target does NOT fizzle every effect
+### The one fact worth carrying forward: an ACTIVATION REQUIREMENT gates the WHOLE resolution
 
-This is the most valuable thing R13 bought and it is now a general rule in `RULES_SPEC.md`
-**§10.6**. Up to batch 13 every targeting card in the library happened to be one where a dead
-target killed the whole resolution, so "re-check the target, return early" had become the house
-shape. It is **not a rule**. Each sentence of a resolution is performed on its own terms: a
-sentence that does not name the target is not conditional on it. What links two sentences is the
-PSCT connective — "and if you do" makes the second conditional on the **first succeeding**, which
-is a different question. Aruru carries both in one clause: a dead target costs only the bounce; a
-failed Special Summon costs the bounce **and** is the reason there is none.
+R15 Part C is now a general rule in `RULES_SPEC.md` **§10.8**, and it is deliberately written next
+to §10.6, which it looks opposed to and is not:
 
-An English-only implementation would have returned early, and **no test written from the English
-text would ever have caught it.**
+* **§10.6** — a dead **TARGET** costs only the sentences that name it; each sentence is performed
+  on its own terms.
+* **§10.8** — a failed **ACTIVATION REQUIREMENT** costs the **entire** resolution, including
+  sentences that come *before* the part which became impossible and do not depend on it.
 
-### `Aruru` needed NO new engine surface either — one primitive, and it is a SIBLING
+For `A Hero Emerges` that is observable and sharp: with a Spell and a monster in hand, the Spell
+is **sent** to the Graveyard when the effect resolves and **left alone** when the gate fires. The
+obvious implementation — pick a card, then branch — is wrong, and no test written from the English
+text would ever have caught it.
+
+### `A Hero Emerges` needed NO new engine surface
 
 No new event kind, no new activation location, no new Damage Step permission, no new zone, no new
-summon route, no new targeting machinery. The batch added exactly one thing:
-`EffectPrimitives.is_targeted_by_a_live_opponent_activation()`, ten lines, written **next to**
-the shipped `is_targeted_by_a_live_activation()` rather than by changing it — the relation
-`surviving_opponent_field_target()` already has to `surviving_field_target()`. `Maiden with Eyes
-of Blue`'s behaviour could not move, and its suite is byte-for-byte green at 139.
+Summon route, no new decision kind. Three additions to `EffectPrimitives`, all of them operations
+over subsystems that already existed:
 
-Everything else is reuse: `Honest`'s hand activation (RULES_SPEC §7.5), `Maiden`'s chain read,
-`Nefarious Archfiend`'s opponent-phase trigger shape, `Compulsory Evacuation Device`'s bounce,
-and `special_summon_self()`.
+* `random_hand_card_chosen_by()` — the seeded `Rng` plus `GameState.reveal()`;
+* `can_be_special_summoned_now()` — mirrors exactly what `SummonRules.begin_special_summon()`
+  itself refuses;
+* `hand_monsters_that_could_be_special_summoned()` — written **once** and called from both
+  `condition` and the first line of `resolve`, so the activation gate and §10.8's resolution gate
+  cannot drift apart.
 
-**`GameEvent.Kind.ATTACK_TARGET_SELECTED` had one emitter and ZERO readers** before this card —
-the dead-vocabulary shape batch 5 found in `cannot_be_targeted` and batch 6 in `CONTROL_CHANGED`.
-It is now consumed, and it turned out to already be correct: it is emitted only for a non-direct
-attack, which is exactly 「攻撃対象に選択された時」.
+Everything else is reuse: `Damage Condenser`'s Normal-Trap-on-a-battle-event shape,
+`Kunai with Chain`'s `current_attacker` read, `Spiritual Water Art - Aoi`'s hidden-hand
+neighbourhood, `special_summon_one_any_position()` and `send_from_hand_to_gy()`.
 
-### Mutation testing: sixteen mutations, all caught — but TWO SURVIVED the first pass
+### Mutation testing: twenty-one mutations, ZERO survivors — a first for this project
 
-Both survivors were gaps in the **tests**, not in the card, and both are written up in
-`Reports/TEST_RESULTS.md` rather than quietly fixed:
+Batch 14 had two survivors on its first pass and batch 12 two. The full table is in
+`Reports/TEST_RESULTS.md`. Three things made the difference, all of them lessons the previous
+batches' survivors taught:
 
-1. **Dropping the opponent-only narrowing survived** because the negative test asserted on the
-   OUTCOME (Aruru still in hand), which is true either way for an optional effect the test never
-   activates. It now asserts on the **offer**, inside a window it proves the player is really
-   given.
-2. **Dropping clause ②'s resolution-time re-check survived** because nothing had ever destroyed
-   Aruru while its own mandatory Standby Phase trigger was waiting. There is now a test that
-   chains a destruction above it.
+1. **every negative test asserts on the OFFER, not on the outcome** — batch 14's first survivor
+   was a negative test that asserted on an optional effect's outcome, which is true whether or not
+   the effect was ever offered;
+2. **every "not offered" assertion has a live control built on the same seed, as a SEPARATE
+   board** — a response window neither player can answer is auto-passed and closed by the engine,
+   so a control added to a board *after* the refusal proves nothing. Five of these tests were
+   written that way in the first draft and failed loudly; the comment in each now says why;
+3. **the randomness is swept, not sampled** — two tests run a fixed range of seeds and assert that
+   **both** branches occurred and that every card in the hand is reachable. Without that, "the
+   chosen card was a monster" would pass equally well against an implementation that always picks
+   index 0.
 
-**A third mutation was caught by only its declaration assertion, and the reason is structural**
-(`RULES_SPEC.md` §10.7): an effect that declares `trigger_events` is offered only in a window
-whose events match, so an ordinary Damage Step sub-step window would never carry it **whatever**
-its permission said. The Damage Step restriction is observable only where the opponent's own
-**targeting** activation happens inside the Damage Step. That case is now driven, with the same
-card and target outside the Damage Step as its control. **"Never offered in the Damage Step" is
-not, on its own, evidence that the permission is enforced.**
+### The ObjectDB characterisation task is DONE — and the metric everyone was watching was wrong
+
+Carried as a scheduled non-optional item since batch 7. **Measured in batch 15** with a throwaway
+probe (not committed):
+
+* **188 leaked objects per duel CONSTRUCTED**, exactly linear over 0 / 50 / 100 / 200 duels
+  (intercept 17);
+* **~6 more per turn PLAYED** — building a duel is the whole cost, playing it is nearly free;
+* **zero** for any number of `CardRegistry.load_library()` calls, which rules out the card library.
+
+188 is close to one duel's entire object graph (80 `CardDef`s + 80 `CardInstance`s for two
+40-card filler decks, plus engine, state, players, rules objects, log, controllers and setup
+events), so what is retained is every duel a run ever built, held by a reference cycle at the
+`DuelEngine` / `GameState` root. **The count tracks DUELS BUILT and has no relationship to
+assertions** — which is why eight checkpoints produced four falls and four rises with no trend,
+and why batch 15's own spike to ~200.9 "per assertion" is simply its several hundred one-shot
+seed-sweep duels. The per-assertion ratio is retired. What remains is a **fix**, not a
+characterisation, and it is still required before Phase 7.
 
 ### Rulings
 
-**R13 is CLOSED.** **R42 Part D and R20 remain CLOSED** and were not reopened.
+**R15 is CLOSED.** **R13, R20 and R42 Part D remain CLOSED** and were not reopened.
 
-**R1, R2, R5, R11, R12, R14 and R15 remain OPEN.** R1 and R2 belong to cards that are already
-implemented and are carried as recorded questions. **The other five belong to the five cards that
+**R1, R2, R5, R11, R12 and R14 remain OPEN.** R1 and R2 belong to cards that are already
+implemented and are carried as recorded questions. **The other four belong to the four cards that
 remain, one each, and no two of them share a subsystem.** Do not treat any as closed.
 
 **There is no known-incorrect card left in the library.**
 
 **R35 / `Mirage Dragon` was NOT re-checked against the `ja` locale.** It has now been carried
-across **five** checkpoints unclaimed. Batch 14 did not have the room and does not claim it.
+across **six** checkpoints unclaimed. Batch 15 did not have the room and does not claim it.
 
-**Batch 15 is RECOMMENDED in §8 and NOT started.**
+**Batch 16 is RECOMMENDED in §8 and NOT started.**
 
 ---
 
@@ -431,8 +449,8 @@ Key research outputs:
 
 ## 4. Build/verification status
 
-> **The current measured numbers are in §0 above: 8795 / 8795 across 89 suites, SmokeCheck PASS,
-> 0 `SCRIPT ERROR`, 72 / 77.** The batch-4 run reproduced below is kept only as a historical record of the format;
+> **The current measured numbers are in §0 above: 9032 / 9032 across 90 suites, SmokeCheck PASS,
+> 0 `SCRIPT ERROR`, 73 / 77.** The batch-4 run reproduced below is kept only as a historical record of the format;
 > `Reports/TEST_RESULTS.md` is the authoritative per-suite breakdown.
 
 Historical run (2026-08-13, at commit `565ae0c` plus the Phase 5 batch-4 work):
@@ -679,7 +697,7 @@ the pool that needs the behaviour. Full write-up in `Reports/TEST_RESULTS.md`.
 | 2 | Per-card official text + rulings research (77 cards) | **COMPLETE** |
 | 3 | Architecture / scaffolding + Graphify index | **COMPLETE** |
 | 4 | Core rules engine | **COMPLETE** — 4b-1/4b-2/4b-3/4c done+tested |
-| 5 | Card effect library (77 cards) | **IN PROGRESS** — **72 / 77** implemented and tested (batches 1-14 all complete; **batch 15 recommended in §8, NOT started**) |
+| 5 | Card effect library (77 cards) | **IN PROGRESS** — **73 / 77** implemented and tested (batches 1-15 all complete; **batch 16 recommended in §8, NOT started**) |
 | 6 | Automated tests | NOT STARTED |
 | 7 | Basic playable UI | NOT STARTED |
 | 8 | Arena / presentation | NOT STARTED |
@@ -701,9 +719,9 @@ the pool that needs the behaviour. Full write-up in `Reports/TEST_RESULTS.md`.
 ## 6. Files that exist
 
 > **This tree is a SNAPSHOT and it LAGS.** It was last grown wholesale around batch 9/10 and
-> batches 11, 12 and 13 did not extend it card by card; the per-suite assertion counts in it are
+> batches 11 to 15 did not extend it card by card; the per-suite assertion counts in it are
 > likewise frozen at that point (`DamageStepTests` reads 86 and is now 98, `HiddenInfoTests`
-> reads 76 and is now 116, `OneForOneTests` reads 40 and is now 70). **Do not use it as the
+> reads 76 and is now 156, `OneForOneTests` reads 40 and is now 70). **Do not use it as the
 > authority for what exists or for how large a suite is.** The authorities are the filesystem,
 > `Scripts/tests/RunTests.gd` (which registers every suite explicitly, so a missing suite is a
 > hard error), `Reports/CARD_IMPLEMENTATION_MATRIX.csv` for the card library, and
@@ -715,9 +733,14 @@ the pool that needs the behaviour. Full write-up in `Reports/TEST_RESULTS.md`.
 > `BurstStreamOfDestruction.gd`, `StraightFlush.gd`, `StampingDestruction.gd`,
 > `SpiritualFireArtKurenai.gd`, `SpiritualWaterArtAoi.gd`, `DamageCondenser.gd`, and — batch 13
 > — **`Honest.gd`** (the pool's first monster effect activated FROM THE HAND, and its first Quick
-> Effect inside the Damage Step). `Tests/rules/` gained **`CostLegalityTests.gd`** (batch 13, the
-> synthetic-card gate for `RULES_SPEC.md` §10.5) alongside `DeckAccessTests.gd`, and `Tests/cards/`
-> gained the matching per-card suites including **`HonestTests.gd`** (125).
+> Effect inside the Damage Step), batch 14's **`WitchcrafterGolemAruru.gd`**, and batch 15's
+> **`AHeroEmerges.gd`** (the pool's only effect whose choice is made at RANDOM by the opponent out
+> of a hidden hand). `Tests/rules/` gained **`CostLegalityTests.gd`** (batch 13, the synthetic-card
+> gate for `RULES_SPEC.md` §10.5) alongside `DeckAccessTests.gd`; batch 15's random-choice gate was
+> **added to `HiddenInfoTests.gd`** rather than to a new file, for the reason batch 12 recorded.
+> `Tests/cards/` gained the matching per-card suites including **`HonestTests.gd`** (125),
+> **`WitchcrafterGolemAruruTests.gd`** (312) and **`AHeroEmergesTests.gd`** (197). `Scripts/tests/`
+> holds the targeted runners `RunBatch12Tests.gd`, `RunBatch14Tests.gd` and **`RunBatch15Tests.gd`**.
 
 ```
 DuelArenaGame/
@@ -727,7 +750,7 @@ DuelArenaGame/
 ├── Research/
 │   ├── RULES_SOURCES.md               source register (S1-S4) + hashes
 │   ├── RULES_SPEC.md                  implementable rules contract (§1-§17)
-│   ├── CARD_RULINGS.md                card research, discrepancies, R1-R20
+│   ├── CARD_RULINGS.md                card research, discrepancies, R1-R42
 │   └── sources/
 │       ├── SD_RuleBook_EN_10.pdf                  official Rulebook v10
 │       └── FastEffectTiming_Flowchart_EN-US.jpg   official chart
@@ -1412,7 +1435,19 @@ Everything previously listed here is now done and tested; see §6a and
 * **`Kunai with Chain` and `Fairy Tail - Rella` still exercise Equip mechanics** and are not
   implemented yet. The generic subsystem they need now exists and is tested; they still need
   their own per-card work.
-* **204316 leaked ObjectDB instances at exit** (measured at the **batch 10** checkpoint, up
+* **The ObjectDB figure is CHARACTERISED as of batch 15 (2026-09-09).** A direct probe measured
+  **188 leaked objects per duel CONSTRUCTED** (exactly linear over 0 / 50 / 100 / 200 duels,
+  intercept 17), **~6 more per turn PLAYED**, and **zero** for any number of
+  `CardRegistry.load_library()` calls. 188 is close to one duel's entire object graph, so what is
+  retained at exit is every duel a run ever built, held by a reference cycle at the `DuelEngine` /
+  `GameState` root. **The count tracks DUELS BUILT and has no relationship to assertion counts**,
+  which is why eight checkpoints produced four falls and four rises with no trend — the
+  per-assertion series was measuring the wrong quantity and is retired. It causes no test failure,
+  hang, memory pressure or unreliable result. What remains is a **FIX** — break the cycle — and it
+  is still required **before Phase 7**, when the UI keeps one duel alive for a long session. The
+  bullet below is kept verbatim for the record; its "no explanation has been measured" is
+  superseded.
+* **Superseded, kept for the record: 204316 leaked ObjectDB instances at exit** (measured at the **batch 10** checkpoint, up
   from 187347 at batch 9, 180615 at batch 9 unit A, 164444 earlier in batch 9, 154223 at batch
   8 and 113897 at batch 7) — RefCounted cycles between `GameState`, the `DuelLog` signal and
   test closures. It grows in proportion to the number of duels the suite builds. Batch 10 added
@@ -1424,11 +1459,11 @@ Everything previously listed here is now done and tested; see §6a and
   must be characterised or cleaned up **before Phase 7**, when the UI keeps one duel alive for a
   long session. This is a harness / object-lifetime issue and is **not** a rules correctness
   failure.
-* **Eight per-card rulings are OPEN**, six of them blocking a card among the six that remain:
+* **Six per-card rulings are OPEN**, four of them blocking a card among the four that remain:
   **R5** (`Fairy Tail - Sleeper`), **R11** (`Fairy Tail - Luna`), **R12**
-  (`The Monarchs Awaken`), **R13** (`Witchcrafter Golem Aruru`), **R14**
-  (`Hidden Springs of the Far East`) and **R15** (`A Hero Emerges`). **R20** (`Honest`) was
-  CLOSED in batch 13 and **R42 Part D** was applied and closed in the same batch.
+  (`The Monarchs Awaken`) and **R14** (`Hidden Springs of the Far East`). **R15**
+  (`A Hero Emerges`) was CLOSED in batch 15, **R13** (`Witchcrafter Golem Aruru`) in batch 14,
+  and **R20** (`Honest`) plus **R42 Part D** in batch 13.
   **R1** and **R2** belong to cards that are already implemented and are carried as recorded
   questions, not as gaps. Settle each one BEFORE writing its card, and use `request_locale=ja`
   on the Konami database — see the methodology note in **R40**.
@@ -1468,14 +1503,15 @@ re-run research, or re-derive rules.
 
 > **Start here instead of reading this section top to bottom.** Everything below the "How to
 > resume" paragraph is historical. The current state is §0; the next thing to do is
-> **"Batch 15 — RECOMMENDED, NOT STARTED"** further down this section.
+> **"Batch 16 — RECOMMENDED, NOT STARTED"** further down this section.
 >
-> **Measured now: 8795 / 8795 across 89 suites, SmokeCheck PASS, 0 `SCRIPT ERROR`, 72 / 77
-> implemented and tested, five remaining, ObjectDB 261302.** Batch 14 closed **R13**
-> (`Witchcrafter Golem Aruru`) and produced `RULES_SPEC.md` **§10.6** — *a dead target does not
-> automatically kill the whole effect* — which is a general rule the library had been getting
-> right only by accident. Batch 13 closed **R42 Part D** (the authoritative `One for One`
-> correction — the only assertion inversion this project has made) and **R20** (`Honest`).
+> **Measured now: 9032 / 9032 across 90 suites, SmokeCheck PASS, 0 `SCRIPT ERROR`, 73 / 77
+> implemented and tested, four remaining, ObjectDB 308910 (now CHARACTERISED — see §0).** Batch
+> 15 closed **R15** (`A Hero Emerges`) and produced `RULES_SPEC.md` **§10.8** — *an activation
+> requirement that fails by resolution kills the WHOLE effect, first sentence included* — and
+> **§12.3**, the random pick out of a hidden zone. Batch 14 closed **R13** and produced §10.6 —
+> *a dead target does not automatically kill the whole effect* — which §10.8 must be read next
+> to. Batch 13 closed **R42 Part D** (the authoritative `One for One` correction) and **R20**.
 
 **Where that paragraph now ends: batches 7, 8 and 9 are all COMPLETE.** Batch 9 added the
 generic attack-restriction / attack-negation gate (`AttackRestrictionTests`, 229), then
@@ -1915,71 +1951,99 @@ outstanding and is not claimed.
   predicate half SURVIVED. Mutation testing found it; reading it had not. The clause now lives in
   exactly one place and answers identically at activation and at resolution.
 
-### Batch 15 — RECOMMENDED, NOT STARTED
+### Batch 16 — RECOMMENDED, NOT STARTED
 
-**Five cards remain**, and `Reports/CARD_IMPLEMENTATION_MATRIX.csv` is the authoritative list.
-All five are in deck 2 (`Fairy-Tail Tribute Guard`). **Every one is blocked on an OPEN ruling, and
-no two of them share a subsystem.** Batch 14 took the sixth (`Witchcrafter Golem Aruru`, R13).
+**Four cards remain**, and `Reports/CARD_IMPLEMENTATION_MATRIX.csv` is the authoritative list.
+All four are in deck 2 (`Fairy-Tail Tribute Guard`). **Every one is blocked on an OPEN ruling, and
+no two of them share a subsystem.** Batch 15 took the fifth (`A Hero Emerges`, R15).
 
 | Card | Category | Ruling | The subsystem it needs |
 |---|---|---|---|
-| `A Hero Emerges` | Normal Trap | **R15** | a **RANDOM choice made by the OPPONENT** from your hand, through the seeded `Rng` so replay survives |
-| `The Monarchs Awaken` | Normal Trap | **R12** | "unaffected by the effects of cards other than this card" — `CardInstance.unaffected_by_effects` exists as a field with no subsystem behind it |
-| `Fairy Tail - Luna` | Effect Monster | **R11** | an effect the **OPPONENT may pay to negate**, decided during resolution |
+| `The Monarchs Awaken` | Normal Trap | **R12** | "unaffected by the effects of cards other than this card" — `CardInstance.unaffected_by_effects` **exists as a field with zero readers and zero writers** |
+| `Fairy Tail - Luna` | Effect Monster | **R11** | an effect the **OPPONENT may pay to negate**, decided during resolution — every `ctx.ask()` in the engine today goes to the LINK's controller |
 | `Fairy Tail - Sleeper` | Effect Monster | **R5** | an effect that **REPLACES another effect's text** on the Chain |
-| `Hidden Springs of the Far East` | Field Spell | **R14** | Summons and activations that **cannot be negated**, plus targeting/destruction protection for Set cards. The pool's **only Field Spell**, and its effect is activated by the **turn player**, i.e. by either side |
+| `Hidden Springs of the Far East` | Field Spell | **R14** | the pool's only **Field Spell**, activated by the **turn player** (either side), in **Main Phase 2 only**, granting three separate lingering rules at once |
 
-**Recommended shape for batch 15: ONE ruling-blocked card, settled BEFORE it is written.**
-The recommendation is **`A Hero Emerges` (R15)**, for three reasons:
+**Recommended shape for batch 16: ONE ruling-blocked card, settled BEFORE it is written.**
+The recommendation is **`The Monarchs Awaken` (R12)**, for three reasons:
 
-* **its subsystem is the smallest remaining one and the ground under it is already built.**
-  Official English text (verified, `Data/cards/cards.json`, cid **5915**): *"When an opponent's
-  monster declares an attack: Your opponent chooses 1 random card from your hand, then if it is a
-  monster that can be Special Summoned, Special Summon it. Otherwise, send it to the GY."*
-  `Rng.pick()` already exists and is already guarded by `ReplayTests`; `RULES_SPEC.md` §12.2 and
-  `Spiritual Water Art - Aoi` (batch 12) already built "one player operates on the other's hidden
-  hand" without leaking it. What is genuinely new is that the choice is **random rather than
-  chosen**, and that the randomness must go through the **seeded** `Rng` and nowhere else, or the
-  duel stops being replayable. That is one generic primitive with its own gate;
-* **it is a Normal Trap on a trigger this engine already runs.** `ATTACK_DECLARED` is the event
-  `Maiden with Eyes of Blue` and `Damage Condenser`'s neighbourhood already use, and a Normal Trap
-  needs no new card class. Contrast `Hidden Springs of the Far East`, which is the pool's only
-  Field Spell **and** needs un-negatable Summons **and** needs Set-card protection;
-* **the other four each need a genuinely new rules concept** — an immunity subsystem, an
-  opponent-paid negation during resolution, effect-text replacement on the Chain, and un-negatable
-  Summons — and taking two of those in one batch would repeat the mistake batch 11 nearly made.
+* **its one new concept is a piece of DEAD VOCABULARY the engine already declares.**
+  `CardInstance.unaffected_by_effects` exists at `Scripts/engine/CardInstance.gd:94`, is reset in
+  `on_left_field()` and `on_flipped_face_down()`, carries the comment *"(The Monarchs Awaken)"* —
+  and is **never written and never read**. That is the fourth time this exact shape has appeared:
+  batch 5 found it in `cannot_be_targeted`, batch 6 in `GameEvent.Kind.CONTROL_CHANGED`, batch 14
+  in `GameEvent.Kind.ATTACK_TARGET_SELECTED`. **All three times, consuming the declared vocabulary
+  was cheaper and more correct than building something new**, and twice the declared thing turned
+  out to already be right. Expect the same and verify it rather than assuming it;
+* **everything else the card needs is shipped and tested.** Official English text (verified,
+  `Data/cards/cards.json`, cid **10963**): *"If you have no cards in your Extra Deck: Target 1
+  face-up Tribute Summoned monster you control; its effects are negated, also it is unaffected by
+  the effects of cards other than this card."* The activation condition is an Extra Deck read
+  (both decks' Extra Decks are empty, so it is always satisfied — the same never-false shape R1
+  records for `Runick Flashing Fire`); "Tribute Summoned" is `CardInstance.summoned_by ==
+  Enums.SummonKind.TRIBUTE`, which `SummonRules` already sets and which `Runick Flashing Fire`
+  already reads for `SPECIAL`; "its effects are negated" is `ContinuousEffects.NEGATION_FLAG` /
+  `negate_effects()`, built and tested in **batch 4** and driven by `Fiendish Chain`; the target
+  is `surviving_own_monster_target()`. **A Normal Trap needs no new card class, no new zone and no
+  new activation location**;
+* **the other three each need a genuinely new rules concept** — an opponent-side decision *during*
+  resolution (which no `EffectContext` in the engine can express today: `ctx.ask()` always reaches
+  the link controller's `PlayerController`), effect-text **substitution** on a Chain Link, and the
+  Field Spell Zone plus a turn-player activation plus three lingering rules in one card. Taking
+  two of those in one batch would repeat the mistake batch 11 nearly made.
 
-**Settle R15 with `request_locale=ja`** on `faq_search.action?ope=4&cid=5915` **before** writing
+**Settle R12 with `request_locale=ja`** on `faq_search.action?ope=4&cid=10963` **before** writing
 anything, and read the linked Q&A entries as well as the 補足情報 — batch 13 got four of its seven
-settled facts out of the Q&A list rather than out of the supplement, and batch 14's single Q&A
-entry (fid 22558) settled the multi-target question the supplement does not mention. Per R40's
-methodology note the `en` endpoint returns boilerplate.
+settled facts out of the Q&A list rather than out of the supplement, batch 14's single Q&A entry
+settled its multi-target question, and **batch 15's two Q&A entries settled the two facts that
+mattered most and that the supplement does not mention at all**. Per R40's methodology note the
+`en` endpoint returns boilerplate. Re-fetch the **English** text from the live database and diff
+it against `Data/cards/cards.json` first, as batches 13, 14 and 15 all did.
 
-**Questions R15 must answer before the card is written**, none of which the English text settles:
+**Questions R12 must answer before the card is written**, none of which the English text settles:
 
-* is the random choice made **before or after** anything else, and is the card **revealed** to
-  both players (it must be, or "send it to the GY" is unobservable) — and what exactly does the
-  card's controller get to see?
-* what does "**a monster that can be Special Summoned**" exclude? A Nomi/semi-Nomi monster, a
-  monster with no free Monster Zone, a monster whose own text forbids it — these are three
-  different reasons and the engine answers them in three different places;
-* **who** performs the Special Summon and **in what position**? The text says the opponent
-  *chooses*, but the Summon is the controller's;
-* is the "Otherwise, send it to the GY" branch a **send** (not a discard)? [S1 p.52-53] makes the
-  distinction and `One for One` / `Honest` have already made it load-bearing twice;
-* the timing: "When an opponent's monster declares an attack" — is it legal in the **Damage Step**
-  (it must not be), and does it survive an attack that is later negated?
+* **what exactly does "unaffected by the effects of cards other than this card" reach?** The three
+  are different questions answered in three different places: does it stop an effect from
+  **targeting** the monster, from **resolving** on it, or only from **applying** to it? Does it
+  stop the monster being destroyed by a card effect, being returned to the hand, losing ATK,
+  changing control, being Tributed as a cost for someone else's card? Does it stop a **cost** that
+  names it? Konami's general answer for "unaffected" is narrower than English readers expect and
+  it must be taken from the source, not from the phrase;
+* **"other than this card" — does `The Monarchs Awaken` itself keep affecting it?** Its own first
+  clause negates the monster's effects, so the exemption is load-bearing rather than decorative:
+  the immunity must not switch the negation off. And the Trap is a **Normal Trap** that reaches
+  the Graveyard the moment it resolves — so does an effect applied by a card that is no longer on
+  the field still count as "this card"?
+* **how long does any of it last, and what ends it?** Neither clause names a duration. The
+  candidates the engine already distinguishes are: until the monster leaves the field, until it is
+  flipped face-down, on a control change, and at the end of the turn — `CardInstance` resets both
+  `effects_negated` and `unaffected_by_effects` in `on_left_field()` and `on_flipped_face_down()`
+  already, which is a **guess baked into the engine** and must be confirmed rather than trusted;
+* **does the monster's own effect still apply to itself while negated?** and does the immunity
+  cover the monster's **own** effects, which are not "cards other than this card" but are also not
+  this Trap?
+* **"1 face-up Tribute Summoned monster you control"** — is a monster that was Tribute **Set** and
+  later flipped face-up "Tribute Summoned"? (`Enums.SummonKind` keeps `TRIBUTE` and `TRIBUTE_SET`
+  apart and `_complete_flip_summon()` writes `FLIP`, so the engine's current answer is **no** and
+  it is untested.) Does a monster that left the field and came back keep the property?
+* the activation condition: **"If you have no cards in your Extra Deck"** — is it checked only at
+  activation, or again at resolution? Both decks have empty Extra Decks so it is never false in
+  the V1 pool; implement it exactly anyway and say so, the way R1 requires for
+  `Runick Flashing Fire`.
 
 **Assume §8 is WRONG about "no research needed" again.** It has been wrong in batch 11, batch 12,
-batch 13 **and batch 14**. In particular, **look for an activation restriction the printed English
-text does not carry** — that is now four for four (`Burst Stream of Destruction`,
-`Damage Condenser`, `Honest`, `Witchcrafter Golem Aruru`).
+batch 13, batch 14 **and batch 15**. In particular, **look for an activation restriction the
+printed English text does not carry** — that is now **five for five** (`Burst Stream of
+Destruction`, `Damage Condenser`, `Honest`, `Witchcrafter Golem Aruru`, `A Hero Emerges`).
 
-**Write the random-choice gate BEFORE the card**, from synthetic cards, the way `EquipTests`,
-`ControlTests`, `MovementTests`, `DeckAccessTests` and `CostLegalityTests` were written. The two
-things it must prove are that the same seed produces the same card every time (replay) and that
-the choosing player never learns anything about the cards they did **not** pick
-(`RULES_SPEC.md` §12).
+**Write the immunity gate BEFORE the card**, from synthetic cards, the way `EquipTests`,
+`ControlTests`, `MovementTests`, `DeckAccessTests`, `CostLegalityTests` and batch 15's
+random-choice gate were written. It belongs in `ContinuousTests` if the verified ruling makes it
+an operation over the continuous layer, and in a suite of its own only if it genuinely is not —
+follow batch 12's and batch 15's precedent and put an operation where its subsystem already
+lives rather than starting a new file. The things it must prove are that an immune monster is
+**untouched by each category of effect the ruling names**, that it is still touched by everything
+the ruling does **not** name, and that the source's own effects still reach it.
 
 **Do NOT take more than one ruling-blocked card per unit**, and do not group them: the point of
 "one subsystem per unit" is that a gate can be written and made green before the card exists.
@@ -1987,36 +2051,74 @@ the choosing player never learns anything about the cards they did **not** pick
 **Cleanup items, none of which should derail a card unit:**
 
 * **`R35` / `Mirage Dragon` has still NOT been re-checked against the `ja` locale.** Carried
-  across **five** checkpoints now. The recorded conclusion is "the official Konami database has no
+  across **six** checkpoints now. The recorded conclusion is "the official Konami database has no
   Q&A entry for cid 6196", reached the `en` way that R40's methodology note warns about. Do not
-  silently upgrade R34 part D's confidence without doing the lookup. Batch 14 did not have the
+  silently upgrade R34 part D's confidence without doing the lookup. Batch 15 did not have the
   room and does not claim it.
+* **`docs/PROJECT_STATUS.md` is stale** and has been since before batch 13. It is not read by any
+  tool and contradicts `PROJECT_STATE.md` §0, which is the authority. Deleting it or regenerating
+  it from the matrix is a five-minute unit; carried, not claimed.
+* **`Tools/build_matrix.py` hard-codes the "Ruling Verified" column to `PENDING` for every card
+  that carries a ruling reference at all** (`"PENDING" if ruling else "N/A"`, line ~165). It has
+  never tracked whether a ruling was actually RESOLVED, which is why `A Hero Emerges`,
+  `Witchcrafter Golem Aruru` and `Honest` all read `PENDING` although R15, R13 and R20 are closed,
+  and why eighteen other implemented, tested, ruling-resolved cards read the same. **The column
+  means "this card carries a flagged ruling", not "the ruling is unresolved".** Found in batch 13
+  and deliberately not changed in batches 13, 14 or 15: altering the tool's semantics mid-batch
+  would move numbers the checkpoint is reporting. `Research/CARD_RULINGS.md` is the authority on
+  which rulings are closed. Fixing the tool is a clean, self-contained unit for a future batch —
+  and it is still the **cheapest** remaining non-card unit.
 * **`Spiritual Wind Art - Miyabi` reads the printed Attribute** where batch 12 established the
   field reader is correct. §7 records it as a latent divergence that is **never live in the V1
   pool**, so it is not a bug to chase — but a batch that touches `Miyabi` for any other reason
   should fix it then.
-* **`Tools/build_matrix.py` hard-codes the "Ruling Verified" column to `PENDING` for every card
-  that carries a ruling reference at all** (`"PENDING" if ruling else "N/A"`, line ~165). It has
-  never tracked whether a ruling was actually RESOLVED, which is why `Witchcrafter Golem Aruru`
-  and `Honest` both still read `PENDING` in the matrix although R13 and R20 are closed, and why
-  sixteen other implemented, tested, ruling-resolved cards read the same. **The column means
-  "this card carries a flagged ruling", not "the ruling is unresolved".** Found in batch 13 and
-  deliberately not changed in batch 13 or 14: altering the tool's semantics mid-batch would move
-  numbers the checkpoint is reporting. `Research/CARD_RULINGS.md` is the authority on which
-  rulings are closed. Fixing the tool is a clean, self-contained unit for a future batch — and it
-  is now the **cheapest** remaining non-card unit.
-* **`Scripts/tests/RunBatch14Tests.gd`** is the targeted runner batch 14 used
-  (`./Tools/run_tests.sh RunBatch14Tests`). It runs the new suite next to the three it is most
-  likely to disturb. A batch-15 twin should follow the same shape; the full run stays the
-  authority for every number.
+* **`Scripts/tests/RunBatch15Tests.gd`** is the targeted runner batch 15 used
+  (`./Tools/run_tests.sh RunBatch15Tests`). It runs the new suite next to the hidden-information
+  gate it extends, the replay claim its randomness rides on, the Special Summon layer it consumes,
+  and the three neighbouring cards. A batch-16 twin should follow the same shape; the full run
+  stays the authority for every number.
 
-**Also scheduled and NOT optional:** the **ObjectDB characterisation task** (§7). It is now at
-**261302 at exit**. Against the 312 new assertions this batch that is **~37.0 per new assertion**,
-up from batch 13's ~35.2 and batch 12's ~28.4, and inside the ~21.6 / ~26.9 / ~34.9 / ~44.6 range
-seen before those. That is now four falls and four rises inside eight checkpoints, which is still
-**not a trend and still has no measured explanation**; none may be recorded until one is measured.
-It fails nothing, so it must not derail a card unit, but it **must be characterised or fixed
-before Phase 7**.
+**The ObjectDB item is NO LONGER a characterisation task.** Batch 15 measured it (§0 and
+`Reports/TEST_RESULTS.md`): **188 leaked objects per duel constructed**, exactly linear, ~6 more
+per turn played, zero for the card registry — the count tracks **duels built**, not assertions,
+and the whole "per new assertion" series eight checkpoints watched was measuring the wrong
+quantity. What remains is a **fix**: break the reference cycle at the `DuelEngine` / `GameState`
+root. It fails nothing, so it must still not derail a card unit, but it **must be fixed before
+Phase 7**, and it is now the second-cheapest non-card unit in the repository. **Do not re-open the
+characterisation, and do not record a new per-assertion ratio — that metric is retired.**
+
+---
+
+### Batch 15 — COMPLETE (kept for the record; it is done, not a plan)
+
+One unit, one card. §8 recommended `A Hero Emerges` and predicted its subsystem would be "a random
+choice made by the OPPONENT from your hand, through the seeded `Rng` so replay survives", with
+five open questions. **That prediction was right and, as usual, incomplete.**
+
+| Unit | What it was | Result |
+|---|---|---|
+| A | **R15** research: cid 5915 supplement (2015-03-26) + **both** Q&A entries (fid 12566 「御前試合」, fid 8193 「虚無空間」, both 2017-03-24), `request_locale=ja`, plus a live re-fetch and character-for-character diff of the **English** text against `Data/cards/cards.json` | **COMPLETE** — R15 CLOSED |
+| A | the random-choice gate (`HiddenInfoTests` 116 → 156) + `RULES_SPEC.md` §10.8 and §12.3 + three `EffectPrimitives` functions | **COMPLETE** |
+| A | `A Hero Emerges` (`AHeroEmergesTests`, 197) | **COMPLETE** |
+
+**What batch 15 proved about §8's own predictions, kept because the pattern is now five deep:**
+
+* §8 predicted the randomness must go through the seeded `Rng` "and nowhere else, or the duel stops
+  being replayable". **Correct**, and mutation M10 (swap in Godot's global RNG) proves the suite
+  would notice.
+* §8 predicted "one generic primitive with its own gate". **Nearly correct — it was three**, and
+  the two it did not predict are the ones that carry the ruling.
+* §8 predicted no new engine surface. **Correct** — no new event kind, location, permission, zone,
+  Summon route or decision kind.
+* §8 predicted an activation restriction the printed English text does not carry. **Correct for
+  the fifth batch running.**
+* §8 asked five open questions and **every one was answered from an official source.** It did
+  **not** predict the fact that mattered most — that a resolution-time failure of the activation
+  requirement suppresses the random choice **itself**. It is now `RULES_SPEC.md` **§10.8**.
+
+**Twenty-one mutations, zero survivors** — the first batch in this project with no survivor on the
+first pass. `Reports/TEST_RESULTS.md` carries the table and the three test-design rules that made
+the difference, all of them learned from the survivors of batches 13 and 14.
 
 ---
 

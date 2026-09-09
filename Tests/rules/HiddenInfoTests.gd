@@ -37,6 +37,15 @@ static func run() -> TestCase:
 	_test_the_knowledge_survives_the_look(t)
 	_test_a_look_does_not_leak_into_the_public_log(t)
 	_test_sending_from_a_hand_is_not_a_discard(t)
+	# The random-choice gate — batch 15 unit A, written before `A Hero Emerges`.
+	_test_a_random_pick_is_seeded_and_repeatable(t)
+	_test_a_random_pick_consumes_the_duel_rng(t)
+	_test_the_chooser_is_asked_nothing(t)
+	_test_only_the_chosen_card_is_revealed(t)
+	_test_a_random_pick_moves_nothing(t)
+	_test_can_be_special_summoned_now(t)
+	_test_the_control_limit_is_part_of_the_question(t)
+	_test_the_summonable_hand_list(t)
 	return t
 
 
@@ -583,3 +592,270 @@ static func _test_sending_from_a_hand_is_not_a_discard(t: TestCase) -> void:
 	t.is_false(EffectPrimitives.send_from_hand_to_gy(_ctx(engine, 0, source), null),
 		"and null is refused rather than crashing")
 
+
+
+# ---------------------------------------------------------------------------
+# A RANDOM choice made by the OTHER player, out of a hidden hand — the gate for
+# `EffectPrimitives.random_hand_card_chosen_by()` and for the "can this be Special
+# Summoned right now?" question that goes with it.
+# RULES_SPEC.md 12.3, CARD_RULINGS.md R15.
+#
+# Written and passing BEFORE `A Hero Emerges` existed, the way the batch-12 `look_at_hand`
+# gate above it, the batch-7 movement gate and the batch-6 control gate were. It belongs in
+# this file for the same reason the look gate does: a random pick out of a hidden hand is an
+# OPERATION over the hidden-information subsystem this file already owns, plus the seeded
+# `Rng` that `ReplayTests` already owns. Neither is a new subsystem, and splitting one
+# primitive's gate across two suites would leave both halves incomplete.
+#
+# The four things that make it a distinct operation, each asserted below:
+#   1. the pick comes from the SEEDED `Rng` — same seed, same card, every time;
+#   2. the chooser is asked NOTHING, so a hidden hand is never handed to them as options;
+#   3. exactly ONE card is revealed, to BOTH players, and the rest of the hand stays hidden;
+#   4. it moves nothing — the caller's own text decides where the chosen card goes.
+# ---------------------------------------------------------------------------
+
+
+## A hand of exactly `names` for player `pid`, replacing whatever was dealt.
+static func _stack_hand(engine: DuelEngine, pid: int, names: Array) -> Array:
+	engine.state.player(pid).hand.clear()
+	var out: Array = []
+	for n in names:
+		out.append(TestFixtures.give_to_hand(engine, pid,
+			TestFixtures.monster(str(n), 4, 1000, 1000)))
+	return out
+
+
+static func _test_a_random_pick_is_seeded_and_repeatable(t: TestCase) -> void:
+	t.start("random_hand_card_chosen_by(): the SEEDED Rng decides, so the same seed and the "
+		+ "same hand produce the same card every time — which is what makes it replayable")
+	var picks: Array = []
+	for run in range(3):
+		var d := TestFixtures.new_duel(1021, 0)
+		var engine: DuelEngine = d["engine"]
+		var source := TestFixtures.give_set_spell_trap(engine, 0,
+			TestFixtures.trap("Picking Trap"))
+		_stack_hand(engine, 1, ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"])
+		var chosen := EffectPrimitives.random_hand_card_chosen_by(_ctx(engine, 0, source),
+			0, 1)
+		t.not_null(chosen, "a card was chosen (run %d)" % run)
+		picks.append("" if chosen == null else chosen.card_name())
+	t.eq(picks[1], picks[0], "the second run picked the same card as the first")
+	t.eq(picks[2], picks[0], "and so did the third")
+
+	# A DIFFERENT seed must be able to reach a different card, or "deterministic" would be
+	# indistinguishable from "always returns hand[0]" — which is the mutation this catches.
+	var seen := {}
+	for seed_value in range(2000, 2064):
+		var d2 := TestFixtures.new_duel(seed_value, 0)
+		var engine2: DuelEngine = d2["engine"]
+		var src2 := TestFixtures.give_set_spell_trap(engine2, 0,
+			TestFixtures.trap("Picking Trap"))
+		_stack_hand(engine2, 1, ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"])
+		var c2 := EffectPrimitives.random_hand_card_chosen_by(_ctx(engine2, 0, src2), 0, 1)
+		if c2 != null:
+			seen[c2.card_name()] = true
+	t.eq(seen.size(), 5,
+		"across 64 seeds every one of the five hand cards is reachable — the pick is really "
+		+ "uniform over the hand and not a fixed index")
+
+
+static func _test_a_random_pick_consumes_the_duel_rng(t: TestCase) -> void:
+	t.start("random_hand_card_chosen_by(): the draw goes through GameState.rng and is "
+		+ "COUNTED, so a replay that diverges is visible in the call count")
+	var d := TestFixtures.new_duel(1022, 0)
+	var engine: DuelEngine = d["engine"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0,
+		TestFixtures.trap("Picking Trap"))
+	_stack_hand(engine, 1, ["Alpha", "Beta", "Gamma"])
+	var before: int = engine.state.rng.get_call_count()
+
+	EffectPrimitives.random_hand_card_chosen_by(_ctx(engine, 0, source), 0, 1)
+	t.eq(engine.state.rng.get_call_count(), before + 1,
+		"exactly one value was drawn from the duel's own generator")
+
+	# And an empty hand draws nothing at all, so a no-op cannot desynchronise a replay.
+	engine.state.player(1).hand.clear()
+	var after_empty: int = engine.state.rng.get_call_count()
+	t.is_null(EffectPrimitives.random_hand_card_chosen_by(_ctx(engine, 0, source), 0, 1),
+		"an empty hand yields no card")
+	t.eq(engine.state.rng.get_call_count(), after_empty,
+		"and consumes no random value")
+
+
+static func _test_the_chooser_is_asked_nothing(t: TestCase) -> void:
+	t.start("random_hand_card_chosen_by(): 'your opponent chooses' is agency WITHOUT "
+		+ "information — the chooser's controller is asked no question at all")
+	var d := TestFixtures.new_duel(1023, 0)
+	var engine: DuelEngine = d["engine"]
+	var chooser: ScriptedController = d["p0"]
+	var owner: ScriptedController = d["p1"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0,
+		TestFixtures.trap("Picking Trap"))
+	_stack_hand(engine, 1, ["Alpha", "Beta", "Gamma"])
+	var ctx := _ctx(engine, 0, source)
+	ctx.decider = chooser
+
+	var chosen := EffectPrimitives.random_hand_card_chosen_by(ctx, 0, 1)
+	t.not_null(chosen, "a card was chosen")
+	t.eq(chooser.seen_requests.size(), 0,
+		"the chooser was never handed a decision — a SELECT request here would have listed "
+		+ "the contents of a hidden hand")
+	t.eq(owner.seen_requests.size(), 0, "and neither was the hand's owner")
+
+
+static func _test_only_the_chosen_card_is_revealed(t: TestCase) -> void:
+	t.start("random_hand_card_chosen_by(): exactly ONE card becomes known, to BOTH players; "
+		+ "the rest of the hand is as hidden afterwards as it was before")
+	var d := TestFixtures.new_duel(1024, 0)
+	var engine: DuelEngine = d["engine"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0,
+		TestFixtures.trap("Picking Trap"))
+	var hand := _stack_hand(engine, 1, ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"])
+	var mark: int = engine.state.events.size()
+
+	var chosen := EffectPrimitives.random_hand_card_chosen_by(_ctx(engine, 0, source), 0, 1)
+	t.not_null(chosen, "a card was chosen")
+	t.is_true(chosen.revealed_to.has(0) and chosen.revealed_to.has(1),
+		"the chosen card is known to both players")
+
+	var unrevealed := 0
+	for entry in hand:
+		var card: CardInstance = entry
+		if card == chosen:
+			continue
+		t.is_false(card.revealed_to.has(0),
+			"%s was NOT shown to the chooser" % card.card_name())
+		unrevealed += 1
+	t.eq(unrevealed, hand.size() - 1, "four of the five cards stayed hidden")
+
+	# One reveal event, and it is PUBLIC — the opposite of a look, which is private.
+	var reveals := TestFixtures.events_of(engine, GameEvent.Kind.CARD_REVEALED, mark)
+	t.eq(reveals.size(), 1, "exactly one reveal event was raised")
+	t.is_true(reveals[0].is_public(),
+		"and it is public — both players may see which card was chosen")
+
+	# The filtered view is the real test of a leak: the chooser's own view must name the
+	# chosen card and nothing else out of that hand.
+	var view0 := engine.get_visible_state(0)
+	var named: Array = []
+	for entry in view0["players"][1]["hand"]:
+		if entry != null and entry.get("name") != null:
+			named.append(str(entry["name"]))
+	t.eq(named, [chosen.card_name()],
+		"the chooser's filtered view names the chosen card and no other hand card")
+
+
+static func _test_a_random_pick_moves_nothing(t: TestCase) -> void:
+	t.start("random_hand_card_chosen_by(): choosing is not moving — the card is still in "
+		+ "the hand afterwards, and the caller's own text decides where it goes")
+	var d := TestFixtures.new_duel(1025, 0)
+	var engine: DuelEngine = d["engine"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0,
+		TestFixtures.trap("Picking Trap"))
+	_stack_hand(engine, 1, ["Alpha", "Beta", "Gamma"])
+	var before_hand: int = engine.state.player(1).hand.size()
+	var before_gy: int = engine.state.player(1).graveyard.size()
+
+	var chosen := EffectPrimitives.random_hand_card_chosen_by(_ctx(engine, 0, source), 0, 1)
+	t.not_null(chosen, "a card was chosen")
+	t.eq(chosen.zone, Enums.Zone.HAND, "it is still in the hand")
+	t.eq(engine.state.player(1).hand.size(), before_hand, "the hand is the same size")
+	t.eq(engine.state.player(1).graveyard.size(), before_gy, "and the Graveyard did not grow")
+
+
+static func _test_can_be_special_summoned_now(t: TestCase) -> void:
+	t.start("can_be_special_summoned_now(): 'a monster that can be Special Summoned' is a "
+		+ "question about THIS moment, and it refuses for each of the reasons "
+		+ "SummonRules.begin_special_summon() itself refuses")
+	var d := TestFixtures.new_duel(1026, 0)
+	var engine: DuelEngine = d["engine"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0,
+		TestFixtures.trap("Asking Trap"))
+	var ctx := _ctx(engine, 0, source)
+
+	var monster := TestFixtures.give_to_hand(engine, 0,
+		TestFixtures.monster("Ordinary Monster", 4, 1000, 1000))
+	var spell := TestFixtures.give_to_hand(engine, 0, TestFixtures.spell("Ordinary Spell"))
+	var trap_card := TestFixtures.give_to_hand(engine, 0, TestFixtures.trap("Ordinary Trap"))
+
+	t.is_true(EffectPrimitives.can_be_special_summoned_now(ctx, monster),
+		"an ordinary monster with room on the field can be")
+	t.is_false(EffectPrimitives.can_be_special_summoned_now(ctx, spell),
+		"a Spell cannot — it is not a monster")
+	t.is_false(EffectPrimitives.can_be_special_summoned_now(ctx, trap_card),
+		"and neither can a Trap")
+	t.is_false(EffectPrimitives.can_be_special_summoned_now(ctx, null),
+		"null is refused rather than crashing")
+
+	# A FULL Monster Zone is the pool's live reason for the answer to flip.
+	for i in range(PlayerState.MONSTER_ZONE_COUNT):
+		TestFixtures.give_monster_on_field(engine, 0,
+			TestFixtures.monster("Blocker %d" % i, 4, 100, 100))
+	t.is_false(engine.state.player(0).has_free_monster_zone(), "the Monster Zone is full")
+	t.is_false(EffectPrimitives.can_be_special_summoned_now(ctx, monster),
+		"the same monster can no longer be Special Summoned — the question is about NOW")
+
+
+static func _test_the_control_limit_is_part_of_the_question(t: TestCase) -> void:
+	t.start("can_be_special_summoned_now(): 'You can only control 1 …' makes a monster "
+		+ "unsummonable while a copy is already on the field, and summonable again after it "
+		+ "leaves")
+	var d := TestFixtures.new_duel(1027, 0)
+	var engine: DuelEngine = d["engine"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0,
+		TestFixtures.trap("Asking Trap"))
+	var ctx := _ctx(engine, 0, source)
+
+	# "You can only control 1 …" as the rules layer really asks it: a CONTINUOUS clause
+	# under `SummonRules.CONTROL_LIMIT_EFFECT_ID` that answers a question and applies
+	# nothing — the same shape `Inari Fire` and `Castle of Dragon Souls` print.
+	var limit_clause := EffectDef.new(SummonRules.CONTROL_LIMIT_EFFECT_ID,
+		"Test: You can only control 1 \"Only One Of These\".")
+	limit_clause.of_type(Enums.EffectType.CONTINUOUS)
+	limit_clause.condition = func(c: EffectContext) -> bool:
+		return EffectPrimitives.controls_no_other_copy(c)
+	var limited := TestFixtures.with_effect(
+		TestFixtures.monster("Only One Of These", 4, 1000, 1000), limit_clause)
+	var in_hand := TestFixtures.give_to_hand(engine, 0, limited)
+	t.is_true(EffectPrimitives.can_be_special_summoned_now(ctx, in_hand),
+		"with no copy on the field it can be Special Summoned")
+
+	var on_field := TestFixtures.give_monster_on_field(engine, 0, limited)
+	t.is_false(EffectPrimitives.can_be_special_summoned_now(ctx, in_hand),
+		"a copy on the field makes the hand copy unsummonable")
+
+	engine.state.move_card(on_field, Enums.Zone.GRAVEYARD,
+		Enums.MoveReason.SENT_TO_GY_BY_EFFECT, {})
+	t.is_true(EffectPrimitives.can_be_special_summoned_now(ctx, in_hand),
+		"and it is summonable again once the copy has left the field")
+
+
+static func _test_the_summonable_hand_list(t: TestCase) -> void:
+	t.start("hand_monsters_that_could_be_special_summoned(): the list an activation "
+		+ "requirement and a resolution-time re-check BOTH read, so the two cannot drift")
+	var d := TestFixtures.new_duel(1028, 0)
+	var engine: DuelEngine = d["engine"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0,
+		TestFixtures.trap("Asking Trap"))
+	var ctx := _ctx(engine, 0, source)
+	engine.state.player(0).hand.clear()
+
+	t.eq(EffectPrimitives.hand_monsters_that_could_be_special_summoned(ctx, 0).size(), 0,
+		"an empty hand offers nothing")
+
+	TestFixtures.give_to_hand(engine, 0, TestFixtures.spell("Only A Spell"))
+	TestFixtures.give_to_hand(engine, 0, TestFixtures.trap("Only A Trap"))
+	t.eq(EffectPrimitives.hand_monsters_that_could_be_special_summoned(ctx, 0).size(), 0,
+		"a hand of Spells and Traps offers nothing either")
+
+	var m := TestFixtures.give_to_hand(engine, 0,
+		TestFixtures.monster("The One Monster", 4, 1000, 1000))
+	var found := EffectPrimitives.hand_monsters_that_could_be_special_summoned(ctx, 0)
+	t.eq(found.size(), 1, "one monster in the hand is one candidate")
+	t.eq(found[0], m, "and it is that monster")
+
+	# It reads the named player's hand, not the controller's, so a clause aimed at the
+	# other side cannot silently answer about the wrong one.
+	t.eq(EffectPrimitives.hand_monsters_that_could_be_special_summoned(ctx, 1).size(),
+		engine.state.player(1).hand.size(),
+		"asked about the opponent, it answers about the OPPONENT's hand")

@@ -163,7 +163,7 @@ in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`. **No effect may be approximated.**
 | R12 | `The Monarchs Awaken` | "If you have no cards in your Extra Deck" is an activation condition; grants "unaffected by the effects of cards other than this card" — a broad immunity that must be applied in the rules layer. |
 | R13 | `Witchcrafter Golem Aruru` | **RESOLVED — see "R13 — `Witchcrafter Golem Aruru`" below.** The original note (both trigger branches; the "Witchcrafter" Spell branch is never live) was right but far from complete: cid 14483 also forbids activation **during the Damage Step**, narrows the Spellcaster to **face-up in your Monster Zone**, restricts the targeting trigger to the **opponent's** activation, and states that a target that has left the field costs the bounce but **not** the Special Summon. |
 | R14 | `Hidden Springs of the Far East` | Field Spell whose once-per-turn effect may be activated by **the turn player**, i.e. by either player depending on whose turn it is, including the opponent of its controller. |
-| R15 | `A Hero Emerges` | Opponent chooses a **random** card from your hand — must use the seeded deterministic RNG and must not leak hand contents. |
+| R15 | `A Hero Emerges` | **RESOLVED — see "R15 — `A Hero Emerges`" below.** The original note (a **random** choice from your hand, through the seeded RNG, leaking nothing) was right but far from complete: cid 5915 also forbids the activation entirely when your hand is empty **or holds no monster**, Q&A fid 12566 narrows that to "a monster this effect could actually Special Summon **right now**", and Q&A fid 8193 states that if the Special Summon has become impossible by resolution the effect is **not applied at all** — the random choice is not even made. |
 | R16 | `Five Brothers Explosion` | Second effect triggers only when the face-up card **you control** is sent to **your** GY **by your opponent's card effect** — a precise movement-reason + agent check. |
 | R17 | `Nefarious Archfiend Eater of Nefariousness` | GY effect during the **opponent's** End Phase; destroys your own face-up monster as part of the effect ("destroy it, and if you do, Special Summon this card"). |
 | R18 | `Inari Fire` | Revives itself "during your next Standby Phase after this face-up card on the field was destroyed by card effect and sent to the GY" — a delayed trigger with a specific destruction reason. |
@@ -1999,6 +1999,296 @@ one new `EffectPrimitives` sibling, no new event kind, no new activation locatio
 permission, no new zone. The five rulings that remain — **R5, R11, R12, R14, R15** — are all still
 **OPEN**, all still belong to the five cards that remain after batch 14, and none of them was
 touched.
+
+### R15 — `A Hero Emerges` — RESOLVED and CLOSED in Phase 5 batch 15
+
+**R15 was carried OPEN across twelve checkpoints.** §4 opened it with one line — *"Opponent
+chooses a **random** card from your hand — must use the seeded deterministic RNG and must not leak
+hand contents"* — and both halves of that line survive and are implemented exactly. What the line
+did **not** contain is an **activation restriction the printed English text does not carry**, a
+**narrowing** of that restriction that only the Q&A supplies, and a **resolution-time gate that
+suppresses the random choice itself**. All three would have been silent bugs.
+
+**§8's standing warning was right for a FIFTH batch in a row.** *Look for an activation
+restriction the printed English text does not carry.* This card's is
+**「自分の手札が0枚の場合や、自分の手札にモンスターカードがない場合、「ヒーロー見参」を発動する事自体ができません。」**
+— with an empty hand, or with no monster in hand, it **cannot be activated at all**. The printed
+English text says nothing about the hand as a requirement. (`Burst Stream of Destruction`,
+`Damage Condenser`, `Honest`, `Witchcrafter Golem Aruru`, now `A Hero Emerges`.)
+
+**Sources.** All PRIMARY (official Konami), fetched **2026-09-09** with `request_locale=ja` per
+R40's methodology note. None is the `en` boilerplate R40 warns about. The raw captures are cached
+under `Data/generated/konami_raw/` (untracked, per `.gitignore`).
+
+| Source | What it gives | Date on the page |
+|---|---|---|
+| `faq_search.action?ope=4&cid=5915&request_locale=ja` — card text + 補足情報 | it does **not target**; it **cannot be activated** with an empty hand or with no monster card in hand; a randomly chosen monster this effect **cannot** Special Summon (a Spirit such as 「月読命」, a Special Summon Monster) is **not** Summoned and is **sent to the Graveyard** instead | **2015-03-26** |
+| `faq_search.action?ope=5&fid=12566&request_locale=ja` — 「御前試合」 (*Gozen Match*) | the activation requirement is **not** "a monster card in your hand" but "**a monster in your hand that THIS EFFECT could actually Special Summon right now**": under Gozen Match with only LIGHT monsters on your field, a hand of DARK monsters makes the activation **illegal**; and a chosen card that fails the same test at resolution is **sent to the Graveyard** | **2017-03-24** |
+| `faq_search.action?ope=5&fid=8193&request_locale=ja` — 「虚無空間」 (*Vanity's Emptiness*) | chained to this card's activation, Special Summoning becomes impossible and **the effect is not applied at all** — 「『自分の手札１枚を相手がランダムに選ぶ』事も行いません」, the random choice is **not even made** | **2017-03-24** |
+
+cid 5915 has a real Q&A section with **2** entries, so the
+「このカードに関連するＱ＆Ａはありません」 absence shape R40 records does not apply here. **Both
+entries were read, and each settled a question the supplement does not answer** — which is the
+third batch running in which the Q&A list, not the supplement, carried the decisive fact.
+
+**The English text was re-fetched from the live database on 2026-09-09 and diffed against the
+persisted text in `Data/cards/cards.json`** — the same procedure batches 13 and 14 used. It
+matches character for character, so nothing below rests on a stale transcription.
+
+**Official English text.**
+
+> "When an opponent's monster declares an attack: Your opponent chooses 1 random card from your
+> hand, then if it is a monster that can be Special Summoned, Special Summon it. Otherwise, send
+> it to the GY."
+
+**Official Japanese text.**
+
+> ①：相手モンスターの攻撃宣言時に発動できる。自分の手札１枚を相手がランダムに選ぶ。それがモンスターだった場合、自分フィールドに特殊召喚し、違った場合は墓地へ送る。
+
+**Official supplement (補足情報), 2015-03-26, quoted in full.**
+
+> ■対象を取る効果ではありません。
+> ■自分の手札が0枚の場合や、自分の手札にモンスターカードがない場合、「ヒーロー見参」を発動する事自体ができません。
+> ■相手がランダムに選んだモンスターが「月読命」や特殊召喚モンスターなど、「ヒーロー見参」の効果によって特殊召喚できないモンスターだった場合には、特殊召喚できず、そのモンスターは墓地へ送られます。
+
+**Official Q&A fid 12566 (2017-03-24), answer quoted in full.**
+
+> 質問の状況の場合、「ヒーロー見参」の効果によって特殊召喚する事ができる光属性モンスターが自分の手札に存在するのであれば、「ヒーロー見参」を発動する事ができます。
+> （例えば、質問の状況にて、自分の手札が闇属性のモンスターのみであった場合には、「ヒーロー見参」を発動する事はできません。）
+> なお、その『自分の手札１枚を相手がランダムに選ぶ。それがモンスターだった場合、自分フィールドに特殊召喚し、違った場合は墓地へ送る』処理の際に、相手が選んだ手札が光属性のモンスターだった場合には通常通り特殊召喚されますが、相手が選んだ手札が光属性以外のモンスターまたは魔法・罠カードだった場合には、選んだカードは墓地へ送られます。
+
+**Official Q&A fid 8193 (2017-03-24), answer quoted in full.**
+
+> 質問の状況の場合、「虚無空間」の効果によってモンスターの特殊召喚を行う事ができなくなっていますので、「ヒーロー見参」の効果処理は適用されません。
+> （『自分の手札１枚を相手がランダムに選ぶ』事も行いません。）
+
+#### Part A — the fact the English text does not carry: the HAND gates the ACTIVATION. Confidence: HIGH.
+
+> ■自分の手札が0枚の場合や、自分の手札にモンスターカードがない場合、「ヒーロー見参」を発動する事自体ができません。
+> *If your hand is 0 cards, or if there is no monster card in your hand, you cannot activate "A
+> Hero Emerges" at all.*
+
+「発動する事自体ができません」 — *cannot activate it in the first place* — is the same construction
+cid 6582 uses for `Damage Condenser` (R42 Part C), and it means the same thing: this is an
+**activation restriction**, not a resolution filter. The printed English text carries no hand
+requirement whatever, and an English-only implementation would have offered the card on an empty
+hand and resolved it for nothing.
+
+The restriction is not an accident of wording. The card exists to Special Summon; an effect that
+could not possibly Special Summon anything has nothing to do, and the OCG makes that an activation
+question here rather than letting the card be spent. Contrast `Spiritual Water Art - Aoi` (R42
+Part B), which **can** be activated against an empty hand precisely because its supplement is
+silent — the two are asserted against each other so neither can drift.
+
+*Engine:* the whole restriction lives in `EffectDef.condition`, alongside the trigger read. No new
+surface.
+
+#### Part B — the requirement is narrower than "a monster card". Confidence: HIGH.
+
+The supplement's second bullet, read alone, says "a monster card in your hand". The Gozen Match
+Q&A (fid 12566) shows that is a simplification:
+
+> …「ヒーロー見参」の効果によって特殊召喚する事ができる光属性モンスターが自分の手札に存在するのであれば、「ヒーロー見参」を発動する事ができます。
+> （例えば…自分の手札が闇属性のモンスターのみであった場合には、「ヒーロー見参」を発動する事はできません。）
+> *If a LIGHT monster **that can be Special Summoned by "A Hero Emerges"' effect** exists in your
+> hand, you can activate it. (For example … if your hand were only DARK monsters, you could not.)*
+
+So the real requirement is **"at least one card in your hand is a monster that THIS EFFECT could
+legally Special Summon to your field at this moment"**. A hand full of monsters none of which
+could be placed does **not** satisfy it. Gozen Match is not in the V1 pool, but the *shape* of the
+restriction it demonstrates is entirely live here, because the engine already refuses a Special
+Summon for two reasons that are present in this pool:
+
+* **no free Monster Zone** — `PlayerState.has_free_monster_zone()`, checked by
+  `SummonRules.begin_special_summon()`;
+* **"You can only control 1 …"** — `SummonRules.control_limit_satisfied()`, which the V1 pool
+  really carries (`Inari Fire`, `Nefarious Archfiend Eater of Nefariousness`,
+  `Castle of Dragon Souls`).
+
+Both are asserted, in both directions. The Nomi / Spirit dimension the supplement names
+(「月読命」, 特殊召喚モンスター) is carried by the already-existing named predicate
+`EffectPrimitives.revivable_monster()`, which RULES_SPEC §5.5 records as "any monster **for this
+pool**, named rather than inlined so a later card that does carry the restriction has one place to
+extend". This card is that place, and it now reads it.
+
+**A full Monster Zone therefore forbids the ACTIVATION**, which is the same conclusion
+`Damage Condenser` reached from a different direction and for a different reason. It is
+**reasoned** from the Q&A's rule rather than stated for a full zone specifically — confidence
+**HIGH** for the rule, **MEDIUM-HIGH** for that particular instance of it — and it is asserted in
+both directions so it cannot silently invert.
+
+#### Part C — the whole effect is gated at RESOLUTION, and the random choice is NOT made. Confidence: HIGH.
+
+The single most valuable thing R15 bought, and the one no reading of the English text produces.
+fid 8193:
+
+> …「虚無空間」の効果によってモンスターの特殊召喚を行う事ができなくなっていますので、「ヒーロー見参」の効果処理は適用されません。
+> （『自分の手札１枚を相手がランダムに選ぶ』事も行いません。）
+> *…because Special Summoning monsters has become impossible, "A Hero Emerges"' effect processing
+> is **not applied**. (The "your opponent randomly chooses 1 card from your hand" is **also not
+> performed**.)*
+
+The parenthesis is the ruling. The naive implementation — pick a card, then branch — is **wrong**,
+and wrong in an observable way: it would send a Spell out of the hand to the Graveyard in a
+situation where the official answer is that nothing happens at all. The correct order is
+
+1. re-check Part B's requirement **at resolution**;
+2. if it fails, the effect does nothing — **no pick, no reveal, no send**;
+3. only then does the opponent choose a random card.
+
+The card's own activation requirement is therefore re-checked at resolution, and it gates the
+*first* sentence rather than only the Summon. This is **not** in tension with `RULES_SPEC.md`
+§10.6 (*a dead target does not automatically kill the whole effect*), and the contrast is worth
+stating because the two look superficially opposed: §10.6 is about a **target** that has left, and
+each sentence of a resolution being performed on its own terms. Here the thing that has failed is
+the effect's own **activation requirement**, which is not a sentence of the resolution at all — it
+is the condition under which the OCG lets the card do anything. `Witchcrafter Golem Aruru` and
+`A Hero Emerges` are asserted against each other so neither rule is generalised over the other.
+
+Vanity's Emptiness is not in the V1 pool. The gate is nevertheless **fully live**, because the
+same requirement fails for reasons the pool does supply — the last summonable monster leaves the
+hand between activation and resolution, or the Monster Zone fills up. Both are driven with real
+Chain interference.
+
+#### Part D — it is RANDOM, it is the OPPONENT's, and it does not TARGET. Confidence: HIGH.
+
+> ■対象を取る効果ではありません。 — *It is not an effect that targets.*
+
+No `targets`, no `legal_targets`, no target re-check. The hand is hidden, so a target could not be
+chosen there in the first place; the choice happens at **resolution**, which is what PSCT's
+absence of the word "target" already means (RULES_SPEC §10).
+
+「自分の手札１枚を**相手がランダムに選ぶ**」 — the opponent chooses, **at random**. Two consequences
+the engine must respect, and both are asserted:
+
+* **it goes through the seeded `Rng` and nowhere else.** `Rng.pick()` already exists, is already
+  the only generator in the engine, and is already guarded by `ReplayTests`. A duel is
+  reproducible from (Decks, seed, decisions); a pick taken from Godot's global RNG would silently
+  destroy that, and no ordinary test would notice.
+* **it is NOT a decision, and the chooser is asked nothing.** Routing "your opponent chooses"
+  through `ctx.ask()` would hand the chooser a list of the cards in a hidden hand — the exact leak
+  `RULES_SPEC.md` §12 exists to prevent. The chooser's `PlayerController` sees **no request at
+  all**, which is asserted directly rather than inferred.
+
+The word "chooses" is therefore agency without information, and in a two-player Duel it has **no
+other observable consequence**: the distribution is uniform whoever is named. That is recorded
+here honestly rather than dressed up as a testable fact, and the primitive still takes the chooser
+explicitly so that the reveal and the log name the right player.
+
+#### Part E — the "Otherwise" branch, and what it catches. Confidence: HIGH.
+
+> ■相手がランダムに選んだモンスターが…特殊召喚できないモンスターだった場合には、特殊召喚できず、そのモンスターは墓地へ送られます。
+
+The English "Otherwise, send it to the GY" is therefore **two** cases, not one:
+
+* the chosen card is **not a monster** (a Spell or a Trap) — 「違った場合は墓地へ送る」;
+* the chosen card **is** a monster but **this effect cannot Special Summon it** — a Spirit, a
+  Special Summon Monster, or (fid 12566) a monster a lingering restriction forbids.
+
+Both go to the Graveyard, and the Gozen Match answer states the second explicitly:
+「相手が選んだ手札が光属性以外のモンスターまたは魔法・罠カードだった場合には、選んだカードは墓地へ送られます」
+— *a non-LIGHT monster **or** a Spell/Trap card: the chosen card is sent to the Graveyard.*
+
+**It is a SEND, not a discard.** 墓地へ送る is the send verb, and [S1 p.52-53] keeps "discard"
+apart from "send to the Graveyard" — a separation R40 and R42 Part B have already made
+load-bearing twice. `MoveReason.SENT_TO_GY_BY_EFFECT`, never `DISCARDED`, so a future card that
+watches for a discard must not see this. Asserted in both directions.
+
+Note the asymmetry this creates, which is the card's sharpest edge: the same Spell in the same
+hand is **sent** when the effect resolves and **left alone** when Part C's gate fails. Nothing
+about the English text hints at it.
+
+#### Part F — whose field, whose Summon, and in what position. Confidence: HIGH for the field; MEDIUM-HIGH for the position.
+
+「それがモンスターだった場合、**自分フィールドに**特殊召喚し」 — *Special Summon it to **your**
+field.* The opponent chooses; **you** Special Summon, to your own Monster Zone, and you keep
+control. Ownership never changes: the card came out of your own hand. The English "Special Summon
+it" leaves the field implicit and the Japanese does not, which is why it is worth recording.
+
+**The position is not named by either text**, so RULES_SPEC §5.5 [S1 p.24] applies and the
+**summoning player** chooses face-up Attack or face-up Defense Position —
+`EffectPrimitives.special_summon_one_any_position()`, not a fixed position. Confidence
+**MEDIUM-HIGH**: reasoned from the general rule and from the contrast with `Damage Condenser`,
+whose text *does* name "in Attack Position" and which is implemented with a fixed position for
+exactly that reason. The two are asserted against each other.
+
+#### Part G — the Damage Step, and an attack that is later negated. Confidence: MEDIUM. Reasoned, not officially stated.
+
+The supplement is **silent** about the Damage Step, and that silence is recorded rather than
+filled in. What is officially given is the window: 「相手モンスターの**攻撃宣言時**に発動できる」 —
+at the opponent's monster's **attack declaration**, which is the Battle Step [S1 p.37-39]. The
+Damage Step has not begun, so `Enums.DamageStepPermission.NONE` — the default — is correct, and
+`ActivationRules.damage_step_ok()` answers **false** for `NONE` inside the Damage Step.
+
+`RULES_SPEC.md` §10.7 says plainly that "never offered in the Damage Step" is **not** evidence
+that the permission is enforced, because an effect declaring `trigger_events` is only ever offered
+in a window whose events match, and `ATTACK_DECLARED` cannot occur inside the Damage Step. Batch
+14 reached the enforceable case for `Witchcrafter Golem Aruru` because that card's other trigger
+branch can open inside the Damage Step. **`A Hero Emerges` has no such branch, so the permission
+is genuinely unreachable through the window machinery for this card** — and rather than write a
+test that proves only the structural gate, the permission is asserted **directly** against
+`ActivationRules.damage_step_ok()` with the Damage Step forced, next to the declaration assertion.
+That is stated here so nobody later mistakes the direct assertion for a redundant one and deletes
+it.
+
+**An attack negated after this card is activated does not undo it.** A Chain resolves in reverse,
+so an attack negation chained above `A Hero Emerges` resolves first; `A Hero Emerges` then resolves
+on its own terms, because nothing in its resolution reads the attack — the attack appears only in
+its activation timing. Reasoned from RULES_SPEC §4.1 and §6.4 rather than from an official
+statement about this card; confidence **MEDIUM**, and asserted so it cannot drift.
+
+#### Part H — what each player is allowed to see. Confidence: MEDIUM-HIGH. Reasoned from observability.
+
+The supplement says nothing, and §8 predicted correctly that it must be settled anyway, because
+"send it to the GY" is unobservable unless the chosen card becomes public.
+
+**The chosen card is revealed to both players; nothing else about the hand is.** Both destinations
+are public zones — a face-up Monster Zone or a Graveyard [S1 p.50] — so the chosen card becomes
+public in **every** branch that happens at all, and revealing it at the moment of the choice
+therefore gives away nothing the outcome does not already give. It is done explicitly rather than
+left to the move, so that the branch the effect takes is verifiable by the opponent at the moment
+it is taken.
+
+**The controller learns nothing new** — it is their own hand. **The chooser learns exactly one
+card**, the one that was chosen, and nothing whatever about the others: no `look_at_hand()`, no
+decision request, no event naming an unchosen card. Asserted from both sides and against the
+filtered `get_visible_state()` view, the way `RULES_SPEC.md` §12's own gate is.
+
+When Part C's gate fails, **nothing is revealed at all**, because no card is chosen.
+
+#### Part I — what is live in the V1 pool, so none of this suite is vacuous. Confidence: HIGH.
+
+`A Hero Emerges` is in `Fairy-Tail Tribute Guard`, a deck of 39 entries holding **21 monsters**
+and 18 Spells/Traps, so both resolution branches are reached constantly with printed cards, and
+the opening hand of the real deck is a mixture. The opposing deck (`Blue-Eyes Dragon Guard`)
+attacks with real monsters, so the trigger is ordinary play.
+
+Live for the activation restriction: an **empty hand**, a hand of **Spells and Traps only**, and a
+**full Monster Zone** are all reachable in a real Duel, and the last of them is the pool's live
+instance of Part B's narrowing. Live for Part C with printed cards: the controller's own
+`Birthright` — a Continuous Trap in the same deck, Spell Speed 2, which Special Summons a Normal
+Monster from their Graveyard — can be chained **above** `A Hero Emerges` in the same window and
+fill their last Monster Zone, after which nothing in the hand can be Special Summoned and the
+whole effect is suppressed. The suite drives that shape with a fixture rather than with
+`Birthright` itself, so the test stays about `A Hero Emerges`; the opposing deck
+(`Blue-Eyes Dragon Guard`) holds no hand disruption, so the *other* route to the same gate — the
+last summonable monster leaving the hand — is fixture-only and is marked as such.
+
+Never live in the V1 pool, and implemented exactly anyway: the Nomi / Spirit exclusion (the pool
+has no such monster — R40 Part F and RULES_SPEC §5.5 both already record this), and the
+"You can only control 1" narrowing (the pool holds exactly one copy of each such card, so a copy
+in hand while another is on the field cannot arise). Both are driven against synthetic cards and
+are marked as such.
+
+**R15 is CLOSED.** It opened one activation restriction the printed English text does not carry
+(Part A), one narrowing of it that only the Q&A supplies (Part B), and one resolution-time gate
+that suppresses the random choice itself (Part C). It needed **no new subsystem**: three new
+`EffectPrimitives` functions over the existing seeded `Rng`, the existing `revealed_to` machinery
+and the existing `SummonRules` legality checks, no new event kind, no new activation location, no new permission, no new zone, no new
+Summon route. The four rulings that remain — **R5, R11, R12, R14** — are all still **OPEN**, all
+still belong to the four cards that remain after batch 15, and none of them was touched.
+
+---
 
 ## 5. Banlist note (master prompt §51)
 
