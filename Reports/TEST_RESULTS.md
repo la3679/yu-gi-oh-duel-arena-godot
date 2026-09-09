@@ -1,10 +1,8 @@
 # TEST_RESULTS
 
-**Last run:** 2026-09-08 (Phase 5 **batch 13 COMPLETE**: unit A is the **authoritative
-correction** to `One for One` — the one place in this project where a shipped assertion was
-deliberately **inverted**, with its official source re-fetched first — and unit B is `Honest`,
-the pool's first monster effect activated **from the hand** and its first Quick Effect inside
-the **Damage Step**. R42 Part D and **R20** are both now CLOSED.)
+**Last run:** 2026-09-08 (Phase 5 **batch 14 COMPLETE**: `Witchcrafter Golem Aruru`, the pool's
+first effect that answers **being targeted** from the hand and its first clause whose resolution
+proves that a **dead target does not fizzle the whole effect**. **R13** is now CLOSED.)
 **Engine:** Godot 4.7.1.stable.official.a13da4feb (headless)
 
 Command:
@@ -30,6 +28,10 @@ The raw command still works and produces the same numbers:
 "%LOCALAPPDATA%\Microsoft\WinGet\Packages\GodotEngine.GodotEngine_*\Godot_v4.7.1-stable_win64.exe" --headless --path "<repo>" --script res://Scripts/tests/RunTests.gd
 ```
 
+`Tools/run_tests.sh` is the POSIX twin and takes an entry-script name, so a single unit can be
+driven without the full run: `./Tools/run_tests.sh RunBatch14Tests`. The full suite remains the
+authority for every number below.
+
 ---
 
 ## Summary — actual measured results
@@ -37,13 +39,146 @@ The raw command still works and produces the same numbers:
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
 | Core rules tests | 24 | 2249 | **2249** | 0 |
-| Per-card tests | 63 | 6188 | **6188** | 0 |
+| Per-card tests | 64 | 6500 | **6500** | 0 |
 | Interaction tests | 1 | 46 | **46** | 0 |
 | Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **88** | **8483** | **8483** | **0** |
+| **TOTAL** | **89** | **8795** | **8795** | **0** |
 
-SmokeCheck: **PASS**. Matrix: **71 / 77 implemented, 71 / 77 tested, 6 remaining** (computed by
-`python Tools/build_matrix.py`, not written by hand). ObjectDB at exit: **249757**.
+SmokeCheck: **PASS**. Matrix: **72 / 77 implemented, 72 / 77 tested, 5 remaining** (computed by
+`python Tools/build_matrix.py`, not written by hand). ObjectDB at exit: **261302**.
+
+## Batch 14 — COMPLETE. Nothing in it is partial or unverified.
+
+One card, one unit, one new `EffectPrimitives` sibling. **Every one of the previous checkpoint's
+8483 assertions passes unchanged** — no suite other than the new one was touched, nothing was
+retired, weakened or retargeted, and the batch-13 `One for One` correction stands exactly as it
+was left.
+
+The arithmetic is checked rather than asserted:
+
+8795 − 8483 = **312** = the whole of `WitchcrafterGolemAruruTests`. The
+5509 → 5973 → 6284 → 6914 → 7725 → 8272 → 8483 → **8795** chain is unbroken.
+
+### `WitchcrafterGolemAruruTests` — NEW, 312 assertions, 40 tests
+
+R13 was settled from official Konami sources **before a line of the card was written**: cid
+14483's 補足情報 (2020-07-04) and Q&A fid 22558 (2022-12-30), both fetched with
+`request_locale=ja` per R40's methodology note, plus a re-fetch of the **English** text from the
+live database and a character-for-character diff against `Data/cards/cards.json`. The full record
+is `CARD_RULINGS.md` **R13**.
+
+**Four facts the printed English text does not carry**, each of which changes the implementation:
+
+| Fact | Where it lives in the code | Where it is asserted |
+|---|---|---|
+| **cannot be activated during the Damage Step** (ダメージステップ中には発動できません) | the DEFAULT `DamageStepPermission.NONE` — no code at all | the shape test **and** an opponent activation that really happens inside a Damage Step |
+| the Spellcaster must be **face-up in your MONSTER ZONE**, not merely "on your field" | `PlayerState.face_up_monsters()` + `current_race()` | face-down in both windows; a Spellcaster in the hand and in the GY |
+| the targeting trigger is the **OPPONENT's** activation only | `is_targeted_by_a_live_opponent_activation()`, the batch's one new primitive | your own Spell on your turn, and your own Trap on theirs |
+| a target that has **left the field** costs the bounce and **NOT** the Special Summon | the resolution performs the Summon first and unconditionally | a banished target, and a target that changed control |
+
+The last of those is the one the research existed to buy. The ordinary reading of a single-target
+effect is that a dead target kills the whole thing; Konami says
+『このカードを特殊召喚する処理のみを行います』 — *only the Special Summon is performed*. An
+English-only implementation would have returned early and no test written from the English text
+would ever have caught it. `RULES_SPEC.md` **§10.6** now states the general rule.
+
+Also covered: the multi-target Q&A (fid 22558, with the Spellcaster deliberately the **second**
+of two targets so an implementation reading `target_ids[0]` fails); "1 **card**" reaching a Set
+Spell/Trap; the bounce reaching the **owner** rather than the controller; the bounce not being a
+destruction or a send to the GY; the Special Summon and the bounce being one uninterrupted
+resolution with no Chain Link between them; both negation kinds with the once-per-turn use still
+spent; the per-NAME once-per-turn locking a second copy; the mandatory opponent-Standby-Phase
+return with its own resolution-time re-check; and a deterministic replay of the whole line.
+
+**The GY branch is never live in the V1 pool** — `Witchcrafter Golem Aruru` is the only
+"Witchcrafter" card printed in either deck and it is a Monster — so it gets the R21 / R23
+synthetic treatment: a synthetic "Witchcrafter" Spell proves it works, a synthetic "Witchcrafter"
+**Trap**, a non-archetype Spell and the **opponent's** copy each prove it is not over-wide, and a
+real-pool assertion proves no printed card can satisfy it.
+
+**Nothing in this suite is vacuous.** Every "not offered" assertion is preceded by an assertion
+that the player really has a response window, and the targeting branch is driven once with the
+real opposing `Compulsory Evacuation Device` against the real `Apprentice Magician`.
+
+### Mutation testing — sixteen mutations, all caught, none by fewer than two assertions
+
+Every load-bearing condition in the card was inverted or deleted and the unit re-run. A mutation
+caught by only one assertion was **strengthened**, not accepted.
+
+| Mutation | First pass | After strengthening |
+|---|---|---|
+| drop the opponent-only narrowing (use Maiden's primitive) | **SURVIVED** | caught by 2 |
+| read every monster, not only the face-up ones | 1 | **2** |
+| drop the Spellcaster Race check | 2 | 2 |
+| fizzle the whole effect when the target is gone | 3 | 3 |
+| bounce even when the Special Summon failed | 2 | 2 |
+| re-check only the zone, not the control (R29 dropped) | 3 | 3 |
+| grant clause ① a Damage Step permission | 1 | **2** |
+| clause ② reads its own controller's Standby Phase | 8 | 8 |
+| drop the attack window | 5 | 5 |
+| once per turn per COPY instead of per NAME | 5 | 5 |
+| the GY branch accepts a Trap as well as a Spell | 1 | **2** |
+| the GY branch reads the opponent's Graveyard | 7 | 7 |
+| the attack branch ignores whether it is an attack TARGET | 1 | **2** |
+| the opponent's field pool becomes the whole field | 6 | 6 |
+| clause ② drops its resolution-time re-check | **SURVIVED** | caught by 2 |
+| clause ① may also be activated from the field | 1 | **2** |
+
+**Two mutations SURVIVED the first pass and both were real gaps in the tests, not in the card.**
+
+1. *Dropping the opponent-only narrowing.* The negative test asserted on the OUTCOME — Aruru was
+   still in the hand — which is true either way, because the effect is optional and the test never
+   activated it. It now asserts on the **offer**, inside a response window the test proves player 0
+   is really being given, with the same board and the opponent as the activator as its control.
+2. *Dropping clause ②'s resolution-time re-check.* Nothing destroyed Aruru while its own mandatory
+   trigger was waiting, so the re-check was never reached. There is now a test that chains a
+   destruction above the Standby Phase trigger and asserts the clause returns **nothing** — a
+   missing re-check would drag Aruru out of the Graveyard and into the hand.
+
+**One measurement fact worth keeping, recorded in `RULES_SPEC.md` §10.7.** Mutating the Damage
+Step permission was caught only by the declaration assertion on the first pass, and the reason is
+structural: an effect that declares `trigger_events` is offered only in a window whose events
+match, so an ordinary Damage Step sub-step window would never carry it **whatever** its permission
+said. The restriction is observable only where the opponent's own **targeting** activation happens
+inside the Damage Step. That case is now driven, with the identical card and target outside the
+Damage Step as its control. "Never offered in the Damage Step" is not, on its own, evidence that
+the permission is being enforced.
+
+### Engine defects found by this unit: none
+
+The card needed **no new subsystem**: one new `EffectPrimitives` sibling
+(`is_targeted_by_a_live_opponent_activation()`, ten lines, written next to the shipped
+`is_targeted_by_a_live_activation()` rather than by changing it, in the same relation
+`surviving_opponent_field_target()` has to `surviving_field_target()`), no new event kind, no new
+activation location, no new Damage Step permission, no new zone, no new summon route. Everything
+else is `Honest`'s hand activation (RULES_SPEC §7.5), `Maiden with Eyes of Blue`'s chain read,
+`Nefarious Archfiend`'s opponent-phase trigger, and the shipped movement and Special Summon
+primitives.
+
+`GameEvent.Kind.ATTACK_TARGET_SELECTED` had **one emitter and zero readers** before this card —
+the dead-vocabulary shape batch 5 found in `cannot_be_targeted` and batch 6 in `CONTROL_CHANGED`.
+It is now consumed, and it was already correct: it is emitted only for a non-direct attack, which
+is exactly 「攻撃対象に選択された時」.
+
+**No `SCRIPT ERROR` appeared in the final run**, and none appeared in the SmokeCheck. One appeared
+during development (`Nonexistent function 'with_choices' in base 'Nil'`, from a test helper that
+assumed a response was offered) and was fixed by making the helper prove the window exists before
+using it — which is the same class of test bug the runner's `SCRIPT ERROR` check exists to catch.
+
+Stderr still carries exactly the **five** deliberate `push_error` lines batch 13 recorded. This
+batch added none.
+
+### ObjectDB
+
+**249757 → 261302**, a rise of 11545 against 312 new assertions: **~37.0 per new assertion**, up
+from batch 13's ~35.2 and inside the ~21.6 / ~26.9 / ~28.4 / ~34.9 / ~44.6 range seen before. That
+is four falls and four rises across eight checkpoints, which is **still not a trend and still has
+no measured explanation**; none may be recorded until one is measured. It fails nothing. It must
+be characterised or fixed before Phase 7.
+
+---
+
+## Batch 13 — COMPLETE (kept for the record). Nothing in it is partial or unverified.
 
 ### The one place this project has ever inverted an assertion — read this before the arithmetic
 
@@ -1084,13 +1219,14 @@ removed.
 | `AttackRestrictionTests` | 272 | `RULES_SPEC.md §6.1, §6.3, §6.4, §6.5, §4.4, §11`, R41 |
 | `ChoiceConstraintTests` | 137 | `RULES_SPEC.md §5.9`, R39 |
 | `DeckAccessTests` | 139 | `RULES_SPEC.md §8.4`, R40 |
+| `CostLegalityTests` | 56 | `RULES_SPEC.md §10.5`, R42 Part D |
 | `ShiningAngelTests` | 43 | per-card |
 | `NormalMonsterTests` | 76 | per-card |
 | `MonsterRebornTests` | 48 | per-card |
 | `SilversCryTests` | 47 | per-card |
 | `KaibamanTests` | 47 | per-card |
 | `DragonicTacticsTests` | 39 | per-card |
-| `OneForOneTests` | 40 | per-card |
+| `OneForOneTests` | 70 | per-card |
 | `BirthrightTests` | 59 | per-card |
 | `CallOfTheHauntedTests` | 48 | per-card |
 | `HieraticDragonOfTefnuitTests` | 67 | per-card |
@@ -1147,9 +1283,11 @@ removed.
 | `SpiritualFireArtKurenaiTests` | 160 | per-card |
 | `SpiritualWaterArtAoiTests` | 179 | per-card |
 | `DamageCondenserTests` | 156 | per-card |
-| **TOTAL** | **8272** | 86 suites |
+| `HonestTests` | 125 | per-card |
+| `WitchcrafterGolemAruruTests` | 312 | per-card |
+| **TOTAL** | **8795** | 89 suites |
 
-<!-- summary: core 23 suites / 2193 ; per-card 62 / 6033 ; interaction 1 / 46 ; total 86 / 8272 -->
+<!-- summary: core 24 suites / 2249 ; per-card 64 / 6500 ; interaction 1 / 46 ; total 89 / 8795 -->
 ### BanishTests — 158/158
 
 `Tests/rules/BanishTests.gd`. Rules: `RULES_SPEC.md §8, §8.3, §12, §15` [S1 p.52–53],

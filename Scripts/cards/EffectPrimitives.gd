@@ -1948,6 +1948,36 @@ static func is_targeted_by_a_live_activation(ctx: EffectContext,
 	return false
 
 
+## "When YOUR OPPONENT activates a card or effect that targets a Spellcaster monster(s) you
+## control." (`Witchcrafter Golem Aruru`; `CARD_RULINGS.md` R13 Part C.)
+##
+## The same Chain walk as `is_targeted_by_a_live_activation()` with one extra question: whose
+## activation is it? A deliberate **sibling** rather than a parameter on the shipped function,
+## for the reason `surviving_opponent_field_target()` is a sibling of `surviving_field_target()`
+## — the two clauses ask genuinely different questions and `Maiden with Eyes of Blue`'s text
+## does not care who activated, so its behaviour must not move.
+##
+## `card` is one specific card, so an opponent effect that targets SEVERAL cards qualifies as
+## long as this one is among them — official Q&A fid 22558, R13 Part D. Comparing the whole
+## target set, or only its first entry, would both be wrong.
+##
+## "Your opponent" is read from the CHAIN LINK's controller, not from the card's owner: a link
+## activated by the player who currently controls the card is that player's activation.
+static func is_targeted_by_a_live_opponent_activation(ctx: EffectContext,
+		card: CardInstance) -> bool:
+	if card == null:
+		return false
+	for entry in ctx.state.chain:
+		var link: ChainLink = entry
+		if link.resolved or link.activation_negated:
+			continue
+		if link.controller_id != ctx.opponent_id():
+			continue
+		if link.target_ids.has(card.id):
+			return true
+	return false
+
+
 ## "When this card is targeted for an attack: You can negate the attack." (`Maiden with Eyes
 ## of Blue`)
 ##

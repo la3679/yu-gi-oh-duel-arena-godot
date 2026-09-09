@@ -161,7 +161,7 @@ in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`. **No effect may be approximated.**
 | R10 | `Gagagashield` | "Twice per turn, it cannot be destroyed by battle or card effects" — a counted prevention effect, resetting each turn. |
 | R11 | `Fairy Tail - Luna` | Opponent may send a card with the targeted monster's name from Deck/Extra Deck to the GY **to negate this effect** — an opponent-side decision **during resolution**. |
 | R12 | `The Monarchs Awaken` | "If you have no cards in your Extra Deck" is an activation condition; grants "unaffected by the effects of cards other than this card" — a broad immunity that must be applied in the rules layer. |
-| R13 | `Witchcrafter Golem Aruru` | Trigger condition covers both "targets a Spellcaster monster(s) you control" and "targets it for an attack". No "Witchcrafter" Spells exist in the deck, so only the "1 card your opponent controls" branch is ever live. |
+| R13 | `Witchcrafter Golem Aruru` | **RESOLVED — see "R13 — `Witchcrafter Golem Aruru`" below.** The original note (both trigger branches; the "Witchcrafter" Spell branch is never live) was right but far from complete: cid 14483 also forbids activation **during the Damage Step**, narrows the Spellcaster to **face-up in your Monster Zone**, restricts the targeting trigger to the **opponent's** activation, and states that a target that has left the field costs the bounce but **not** the Special Summon. |
 | R14 | `Hidden Springs of the Far East` | Field Spell whose once-per-turn effect may be activated by **the turn player**, i.e. by either player depending on whose turn it is, including the opponent of its controller. |
 | R15 | `A Hero Emerges` | Opponent chooses a **random** card from your hand — must use the seeded deterministic RNG and must not leak hand contents. |
 | R16 | `Five Brothers Explosion` | Second effect triggers only when the face-up card **you control** is sent to **your** GY **by your opponent's card effect** — a precise movement-reason + agent check. |
@@ -1787,6 +1787,218 @@ surface**: no new Damage Step permission, no new activation location, no new sta
 emphatically no card-specific damage calculation. The six rulings that remain — **R5, R11, R12,
 R13, R14, R15** — are all still **OPEN**, all still belong to the six cards that remain after
 batch 13, and none of them was touched.
+
+### R13 — `Witchcrafter Golem Aruru` — RESOLVED and CLOSED in Phase 5 batch 14
+
+**R13 was carried OPEN across eleven checkpoints.** §4 opened it with one line — *"Trigger
+condition covers both 'targets a Spellcaster monster(s) you control' and 'targets it for an
+attack'. No 'Witchcrafter' Spells exist in the deck, so only the '1 card your opponent controls'
+branch is ever live"* — and both halves of that line survive. What the line did **not** contain is
+the set of facts below that change the implementation, three of which would have been silent bugs.
+
+**§8's standing warning was right for a FOURTH batch in a row.** *Look for an activation
+restriction the printed English text does not carry.* Aruru's is **「ダメージステップ中には発動できません」**
+— it cannot be activated during the Damage Step. The printed English text says nothing about the
+Damage Step at all. (`Burst Stream of Destruction`, `Damage Condenser`, `Honest`, now
+`Witchcrafter Golem Aruru`.)
+
+**Sources.** All PRIMARY (official Konami), fetched **2026-09-08** with `request_locale=ja` per
+R40's methodology note. None is the `en` boilerplate R40 warns about. The raw captures are cached
+under `Data/generated/konami_raw/` (untracked, per `.gitignore`).
+
+| Source | What it gives | Date on the page |
+|---|---|---|
+| `faq_search.action?ope=4&cid=14483&request_locale=ja` — card text + 補足情報 | ① is a **Quick Effect activated in the hand**; the Spellcaster must be **face-up in your MONSTER ZONE**; the response chains **directly** to the opponent's activation; **cannot be activated during the Damage Step**; the Special Summon is performed **first** and the return happens **only if it succeeded**; the two are treated as **simultaneous**; a target that has **left the field** costs the return but **not** the Summon; ② is a **mandatory Trigger Effect in the Monster Zone**, once per **each** opponent Standby Phase | **2020-07-04** |
+| `faq_search.action?ope=5&fid=22558&request_locale=ja` | an opponent effect that targets **two or more** cards makes ① legal as long as **one** of them is a face-up Spellcaster in your Monster Zone | **2022-12-30** |
+
+cid 14483 has a real Q&A section with **1** entry, so the
+「このカードに関連するＱ＆Ａはありません」 absence shape R40 records does not apply here.
+
+**The English text was re-fetched from the live database on 2026-09-08 and diffed against the
+persisted text in `Data/cards/cards.json`** — the same procedure batch 13 unit A used before it
+inverted an assertion. It matches character for character, so nothing below rests on a stale
+transcription.
+
+**Official Japanese text.**
+
+> このカード名の①の効果は１ターンに１度しか使用できない。
+> ①：このカードが手札に存在し、自分フィールドの魔法使い族モンスターが相手の効果の対象になった時、または相手モンスターの攻撃対象に選択された時、相手フィールドのカード１枚または自分の墓地の「ウィッチクラフト」魔法カード１枚を対象として発動できる。このカードを特殊召喚し、対象のカードを手札に戻す。
+> ②：相手スタンバイフェイズに発動する。フィールドのこのカードを手札に戻す。
+
+**Official supplement (補足情報), 2020-07-04, quoted in full.**
+
+> 【①の効果について】
+> ■手札で発動できる誘発即時効果です。
+> ■自分のモンスターゾーンの表側表示の魔法使い族モンスターを対象として相手が効果を発動した時、その発動に直接チェーンして発動できます。また、自分のモンスターゾーンの表側表示の魔法使い族モンスターが相手モンスターの攻撃対象に選択された時に発動できます。
+> ■ダメージステップ中には発動できません。
+> ■処理時に、『このカードを特殊召喚し』の処理を行います。特殊召喚に成功した場合、『そのカードを手札に戻す』処理を行います。
+> ■特殊召喚の処理と手札に戻す処理は同時に行われたものとして扱います。
+> ■処理時に、対象のカードがフィールドに存在しない場合、このカードを特殊召喚する処理のみを行います。
+>
+> 【②の効果について】
+> ■モンスターゾーンで発動する誘発効果です。
+> ■相手のスタンバイフェイズごとに１度、必ず発動します。
+
+#### Part A — the fact the English text does not carry: the DAMAGE STEP is closed. Confidence: HIGH.
+
+> ■ダメージステップ中には発動できません。
+> *It cannot be activated during the Damage Step.*
+
+The printed English text names no Damage Step restriction, and the card's own attack branch makes
+one look unnecessary — an attack target is selected in the **Battle Step**, before the Damage Step
+begins. The restriction is nevertheless real and it is **reachable**: an opponent's effect that
+targets a Spellcaster you control and is itself legal inside the Damage Step would otherwise open
+Aruru's window there.
+
+Nothing was added to the engine for it. `EffectDef.damage_step_permission` defaults to
+`DamageStepPermission.NONE`, and `ActivationRules.damage_step_ok()` answers **false** for `NONE`
+whenever `state.battle_step == BattleStep.DAMAGE`. So the correct behaviour is the **default**
+behaviour — which is exactly why it has to be asserted rather than assumed: a later change that
+gave this clause a permission in order to reach some other window would silently break the ruling.
+Asserted in both directions: offered in the Battle Step attack window, refused in the Damage Step
+with the same board.
+
+#### Part B — the SHAPE of each clause, stated officially rather than inferred. Confidence: HIGH.
+
+* **① is 誘発即時効果 — a QUICK EFFECT — activated 手札で, IN THE HAND**, and it is **one clause
+  covering both triggers**, not two. This is the point on which Aruru and `Maiden with Eyes of
+  Blue` (R3 / R37) genuinely differ and must not be made to match: Maiden prints two sentences and
+  only the first says "(Quick Effect)", so Maiden is a Quick Effect **plus** a Trigger Effect.
+  Aruru prints one sentence carrying both triggers with a single "(Quick Effect)", and the
+  supplement confirms it by describing ① as one 誘発即時効果 with two windows. **One `EffectDef`,
+  two trigger events.**
+* **② is 誘発効果 — a TRIGGER effect — activated モンスターゾーンで, in the Monster Zone**, and it is
+  **必ず発動します — MANDATORY**. The English "Once per turn, during your opponent's Standby Phase:
+  Return this card to the hand" carries no "You can", so English and Japanese agree; the supplement
+  removes any doubt. `mandatory()` + `opt_instance()`.
+* **相手のスタンバイフェイズごとに１度** — once per **each** opponent Standby Phase, which is once
+  per turn on the turns that have one. `opt_instance()` is per copy per turn, which is the same
+  thing given that a turn has at most one Standby Phase.
+
+**No new engine surface was needed for either.** `ActivationLocation.HAND` for a monster's effect
+was proved by `Honest` in batch 13 (`RULES_SPEC.md` §7.5) and is reused unchanged; the opponent
+Standby Phase trigger is the `Nefarious Archfiend Eater of Nefariousness` shape
+(`PHASE_CHANGED` + `event_is_phase_change_to(..., ctx.opponent_id())`) reused unchanged.
+
+#### Part C — the trigger is narrower than the printed English text. Confidence: HIGH.
+
+> ■自分のモンスターゾーンの表側表示の魔法使い族モンスターを対象として相手が効果を発動した時、その発動に直接チェーンして発動できます。
+
+Three narrowings, each of which the English "a Spellcaster monster(s) you control" hides:
+
+1. **モンスターゾーンの** — the Monster Zone, not "your field". A Spellcaster occupying a Spell &
+   Trap Zone (a Trap Monster; the engine has them, `RULES_SPEC.md` §14 / R33) does not qualify.
+2. **表側表示の** — **face-up**. A face-down Spellcaster does not qualify, and it could not: its
+   Race is not a property either player may act on (the same rule R39 and `Honest` both rest on).
+   The Race is read with `CardInstance.current_race()`, the field reader, per R33 — never the
+   printed one.
+3. **相手が効果を発動した時** — the **OPPONENT's** activation. Your own effect targeting your own
+   Spellcaster does **not** open Aruru's window.
+   `EffectPrimitives.is_targeted_by_a_live_activation()` (shipped for Maiden) does not ask **whose**
+   activation it is, because Maiden's text does not care — so this needed the one genuinely new
+   primitive in batch 14: `is_targeted_by_a_live_opponent_activation()`. It is the same Chain walk
+   with the link's controller checked, written as a **sibling** rather than by changing the shipped
+   function, in the same way `surviving_opponent_field_target()` is a sibling of
+   `surviving_field_target()`.
+
+**その発動に直接チェーンして** — *chaining directly to that activation* — means the window is the
+response window that activation opened, which is what a Quick Effect keyed on `TARGET_SELECTED`
+already gets from `DuelEngine._activation_actions()`. Nothing was built for the word "directly".
+
+**The attack branch keys on `GameEvent.Kind.ATTACK_TARGET_SELECTED`**, which existed with **one
+emitter and zero readers** — the same shape of dead vocabulary that batch 5 found in
+`cannot_be_targeted` and batch 6 found in `CONTROL_CHANGED`. It is emitted only for a
+**non-direct** attack, which is exactly the distinction 「攻撃対象に選択された時」 draws, so a direct
+attack correctly opens no window.
+
+#### Part D — a MULTI-target opponent effect qualifies if ONE of its targets is yours. Confidence: HIGH.
+
+Q&A **fid 22558** (2022-12-30) asks exactly this and answers yes:
+
+> 複数枚のカードを対象とする相手のカードの効果が発動した時にも、その対象となるカードの内１枚に自分のモンスターゾーンに表側表示で存在する魔法使い族モンスターが含まれるのであれば、自分は手札の「ウィッチクラフトゴーレム・アルル」のモンスター効果を発動する事ができます。
+
+This falls out of the per-card Chain walk — `link.target_ids.has(card.id)` — rather than needing
+anything of its own, but it is asserted against a synthetic two-target opponent Spell because an
+implementation that compared the **whole** target set, or that took only the first target, would
+pass every single-target test in this suite.
+
+#### Part E — the RESOLUTION order, and the load-bearing fact that the Summon still happens. Confidence: HIGH.
+
+> ■処理時に、『このカードを特殊召喚し』の処理を行います。特殊召喚に成功した場合、『そのカードを手札に戻す』処理を行います。
+> ■特殊召喚の処理と手札に戻す処理は同時に行われたものとして扱います。
+> ■処理時に、対象のカードがフィールドに存在しない場合、このカードを特殊召喚する処理のみを行います。
+
+**This is the fact that could not have been guessed and that decides whether the card is right.**
+
+* The Special Summon is performed **first**, and the return to the hand happens **only if the
+  Special Summon succeeded** — the printed "and if you do". A full Monster Zone, or an Aruru that
+  is no longer in the hand, therefore produces **no bounce at all**.
+* **A target that is gone does NOT make the effect fizzle.** The ordinary reading of a
+  single-target effect whose target has left is that the whole effect does nothing. Konami states
+  the opposite here: 『このカードを特殊召喚する処理のみを行います』 — *only the Special Summon is
+  performed*. The Summon is not conditional on the target. An implementation that returned early
+  on a dead target would be wrong in a way no English-only reading would ever catch, and it is the
+  single most valuable thing R13 bought.
+* The two are **treated as simultaneous**, so nothing may observe the board between them: no
+  trigger window opens inside the resolution, and anything watching either half sees both. The
+  engine gives this for free — a Chain Link resolves without interruption and the events it emits
+  are collected into one trigger check afterwards — so what is asserted is that no Chain Link forms
+  between the Summon and the bounce.
+
+#### Part F — which targets survive to resolution. Confidence: MEDIUM (inherited from R29).
+
+The supplement addresses only 「フィールドに存在しない場合」 — the target having left the field. It
+says nothing about control. `Witchcrafter Golem Aruru` targets **"1 card your opponent controls"**,
+which is the exact wording R29 already decided for `Phoenix Wing Wind Blast` and
+`Spiritual Wind Art - Miyabi`: the clause is re-checked for **control** at resolution, and R29's
+third pillar is uniformity across the cards that print the same words. **R13 therefore inherits
+R29 rather than reopening it**, and inherits its MEDIUM confidence with it. A target that changed
+control keeps the Special Summon (Part E) and loses the bounce.
+
+Implemented by re-running the clause's **own candidate builder** at resolution and asking whether
+the chosen card is still in it, rather than by a hand-written second copy of the test. That is what
+makes the field branch and the GY branch answer the same question — "is this still a legal target
+for this clause?" — and makes drift between activation and resolution impossible.
+
+**Ownership is not consulted**, exactly as R29 says. A card the opponent controls but Aruru's
+controller **owns** is a legal target, and returning it puts it in its **owner's** hand — which is
+its controller's opponent's hand. `GameState.move_card()` forces the owner's hand and the card
+passes no `to_player`, the same as `Compulsory Evacuation Device`. Both directions are asserted.
+
+#### Part G — the GY branch is NEVER live in the V1 pool, and is still implemented exactly. Confidence: HIGH.
+
+`Witchcrafter Golem Aruru` is the **only** card with "Witchcrafter" in its name in either deck, and
+it is a Monster, so **no "Witchcrafter" Spell exists in the V1 pool** and
+「自分の墓地の「ウィッチクラフト」魔法カード１枚」 can never have a printed target. §4's original
+R13 line said this and it is confirmed against `Data/cards/cards.json`.
+
+It is implemented in full and tested against a **synthetic** "Witchcrafter" Spell, the treatment
+R21 (`Apprentice Magician`'s Spell Counter clause) and R23 (`Fairy Tail - Rella`'s equip clause)
+established, with a real-pool assertion in the opposite direction that no printed card can satisfy
+it. The archetype test goes through `EffectPrimitives.name_matches_archetype()`, which already
+exists for `Runick Flashing Fire`.
+
+The English "1 'Witchcrafter' **Spell** in your GY" is a **Spell**, not a Spell or Trap, and the
+Japanese 「「ウィッチクラフト」魔法カード」 agrees. A synthetic "Witchcrafter" **Trap** in the GY is
+asserted **not** to be a legal target, so the category check is not vacuous.
+
+#### Part H — what is live, so none of this suite is vacuous. Confidence: HIGH.
+
+Aruru's own deck (`Fairy-Tail Tribute Guard`) holds **eight other Spellcaster monsters**
+(`Apprentice Magician`, `Crystal Seer`, the three Charmers, and the three `Fairy Tail` monsters),
+and the opposing deck (`Blue-Eyes Dragon Guard`) holds real cards that target a monster the
+opponent controls — `Compulsory Evacuation Device`, `Fiendish Chain`, `Kunai with Chain`,
+`Interdimensional Matter Transporter`. Both trigger branches and the field-target branch are
+genuinely reachable with printed cards, and the suite drives the targeting branch with a **real**
+opposing card (`Compulsory Evacuation Device`) as well as with fixtures.
+
+**R13 is CLOSED.** It opened one fact the printed English text does not carry (Part A), one
+narrowing of the trigger that needed the batch's single new primitive (Part C), and one resolution
+rule that inverts the ordinary reading of a dead target (Part E). It needed **no new subsystem**:
+one new `EffectPrimitives` sibling, no new event kind, no new activation location, no new
+permission, no new zone. The five rulings that remain — **R5, R11, R12, R14, R15** — are all still
+**OPEN**, all still belong to the five cards that remain after batch 14, and none of them was
+touched.
 
 ## 5. Banlist note (master prompt §51)
 

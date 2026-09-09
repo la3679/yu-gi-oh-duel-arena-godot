@@ -16,7 +16,7 @@ your question, then go and read that document.
 |---|---|---|
 | [`../Research/RULES_SOURCES.md`](../Research/RULES_SOURCES.md) | **The source register.** For each source S1–S4: title, publisher, canonical URL, byte size, SHA-256, date accessed, and the exact list of rules it establishes, with page numbers. | You need to know *where a rule came from*, or you are adding a new source. |
 | [`../Research/RULES_SPEC.md`](../Research/RULES_SPEC.md) | **The implementable rules contract**, §1–§17. The rules as the engine implements them, each section citing the source it came from. | You are implementing or changing anything rules-bearing. This is the document engine code cites in comments. |
-| [`../Research/CARD_RULINGS.md`](../Research/CARD_RULINGS.md) | **Per-card ruling decisions R1–R34**, plus data discrepancies resolved against the official source, each with an explicit confidence level. | A specific card's official text is ambiguous, or you want to know why a card behaves the way it does. |
+| [`../Research/CARD_RULINGS.md`](../Research/CARD_RULINGS.md) | **Per-card ruling decisions R1–R42**, plus data discrepancies resolved against the official source, each with an explicit confidence level. | A specific card's official text is ambiguous, or you want to know why a card behaves the way it does. |
 
 The chain runs one way and is meant to be followed backwards:
 
@@ -120,12 +120,19 @@ Real examples currently on the record — this is what honest bookkeeping looks 
 
 ### Open rulings
 
-**R3, R6, R7 and R8 are still OPEN.** They concern `Maiden with Eyes of Blue`,
-`Swords of Revealing Light`, `Soul Exchange` and `Kaiser Sea Horse` — four of the 28 cards not
-yet implemented. The generic *mechanisms* those cards will use have been settled by batch 9
-unit A; the per-card questions have not. Do not treat them as closed.
+**R5, R11, R12, R14 and R15 are still OPEN**, one for each of the five cards not yet
+implemented: `Fairy Tail - Sleeper`, `Fairy Tail - Luna`, `The Monarchs Awaken`,
+`Hidden Springs of the Far East` and `A Hero Emerges`. No two of them share a subsystem, and
+none of the generic machinery they need exists yet. Do not treat any as closed.
 
-`CARD_RULINGS.md` §4 lists all 21 ruling-flagged cards; §4A holds the decided rulings R4–R34,
+**R1 and R2 are also still OPEN**, but they belong to cards that are already implemented
+(`Runick Flashing Fire`, `Judge of the Ice Barrier`) and are carried as recorded questions
+about branches that are never live in the V1 pool.
+
+R3, R6, R7 and R8 — listed as open in earlier versions of this file — were **closed** by
+R37, R36, R39 and R38 respectively. R4, R13, R20 and R42 are closed as well.
+
+`CARD_RULINGS.md` §4 lists all 21 ruling-flagged cards; §4A holds the decided rulings R4–R42,
 each marked CLOSED or OPEN.
 
 ---

@@ -780,6 +780,68 @@ Additional distinctions the engine models explicitly (master prompt §15): `targ
 `choose/select` (non-targeting), `then` vs `and if you do` vs `also` vs `after that`,
 "negate the activation" vs "negate the effect", and the three once-per-turn text forms in §11.
 
+### 10.6 A dead TARGET does not automatically kill the whole effect — **DECIDED** (Phase 5 batch 14)
+
+Added for `Witchcrafter Golem Aruru`. `CARD_RULINGS.md` **R13 Part E**; official supplement for
+cid 14483, 2020-07-04.
+
+The engine's working assumption up to batch 13 was the ordinary one: an effect that targets one
+card and finds that card gone at resolution does nothing. Every card that reached the library
+before batch 14 happened to be shaped that way, so the assumption was never tested against a card
+that says otherwise. **It is not a rule.** Konami states the opposite for cid 14483:
+
+> 処理時に、対象のカードがフィールドに存在しない場合、このカードを特殊召喚する処理のみを行います。
+> *At resolution, if the targeted card is not on the field, only "Special Summon this card" is
+> performed.*
+
+The rule is: **each sentence of the resolution is performed on its own terms.** A sentence that
+does not refer to the target is not conditional on the target, and a target that is gone removes
+only the sentences that name it. What links two sentences is the PSCT connective — "and if you do"
+makes the second conditional on the FIRST SUCCEEDING, which is a different question from whether
+the target survived. `Witchcrafter Golem Aruru` carries both in one clause and the two are
+independent:
+
+| At resolution | The Special Summon | The return to the hand |
+|---|---|---|
+| everything is still legal | happens | happens |
+| the **target** has left the field / changed control | **still happens** | does not |
+| the **Special Summon** fails (no free Monster Zone; the card is no longer in the hand) | does not | **does not** — "and if you do" |
+
+**Consequence for anyone writing a card.** Do not begin a `resolve` with a target re-check that
+returns early unless the card's text really makes every sentence depend on the target. Re-check
+the target immediately before the sentence that USES it. A card whose whole resolution is one
+sentence about the target is unaffected by this and keeps the earlier shape.
+
+**How the re-check itself is written.** The clause's `legal_targets` builder is re-run at
+resolution and the chosen card is tested for membership, rather than a second, hand-written copy
+of the same conditions. That is what keeps a heterogeneous target pool ("1 card your opponent
+controls, **or** 1 archetype Spell in your GY") answering one question — *is this still a legal
+target for this clause?* — instead of two that can drift apart. `surviving_target()`,
+`surviving_field_target()` and `surviving_opponent_field_target()` remain correct for the single-
+pool clauses that already use them and were not touched.
+
+### 10.7 Two independent gates keep a Quick Effect out of a window, and both must be declared
+
+Found while testing `Witchcrafter Golem Aruru`'s Damage Step restriction (R13 Part A), and
+recorded because it changes what a test can prove.
+
+An effect that declares `trigger_events` is offered by `DuelEngine._activation_actions()` **only
+in a window whose events match one of them** (`_window_matches()`), *and* only when
+`ActivationRules.damage_step_ok()` allows it. These are independent:
+
+* an ordinary Damage Step sub-step window carries `DAMAGE_SUBSTEP_CHANGED`, not `TARGET_SELECTED`
+  or `ATTACK_TARGET_SELECTED`, so such an effect is absent from it **whatever** its Damage Step
+  permission says;
+* the permission is what bites when the opponent's own **targeting activation happens inside the
+  Damage Step**, because that window does carry `TARGET_SELECTED`.
+
+So "it is never offered in the Damage Step" is **not** by itself evidence that the permission is
+being enforced. A card whose printed text forbids the Damage Step must (a) declare
+`DamageStepPermission.NONE` — the default — and (b) be tested against an opponent activation that
+really happens inside a Damage Step, or the assertion is passing on the window-event gate alone.
+`WitchcrafterGolemAruruTests` drives both, and mutation-testing the permission proved the second
+is what makes the first meaningful.
+
 ### 10.4 Paying LIFE POINTS as a cost, and identifying that it happened
 
 Added in Phase 5 batch 8 for `Judge of the Ice Barrier`. `CARD_RULINGS.md` **R31**.
