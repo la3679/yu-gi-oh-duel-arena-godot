@@ -23,7 +23,8 @@ Gate B (the generic rules engine) is MET; nothing in Phase 4 needs revisiting.
 **Measured at this checkpoint: 8795 passed / 0 failed across 89 suites; SmokeCheck PASS; 0
 `SCRIPT ERROR`; 72 / 77 implemented, 72 / 77 tested, 5 remaining** (counts computed by
 `python Tools/build_matrix.py`, never written by hand). ObjectDB at exit: **261302**.
-**Previous clean HEAD:** `95d5e64`.
+**Previous clean HEAD:** `95d5e64`. **Batch-14 commit:** `edd7226` (R13, the card, its suite and
+this checkpoint — one commit, because batch 14 was one unit).
 
 ### Every one of the previous checkpoint's 8483 assertions passes UNCHANGED
 

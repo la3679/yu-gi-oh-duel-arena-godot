@@ -44,7 +44,7 @@ authority for every number below.
 | Scripted duel tests | 0 | 0 | 0 | 0 |
 | **TOTAL** | **89** | **8795** | **8795** | **0** |
 
-SmokeCheck: **PASS**. Matrix: **72 / 77 implemented, 72 / 77 tested, 5 remaining** (computed by
+Commit: **`edd7226`**. SmokeCheck: **PASS**. Matrix: **72 / 77 implemented, 72 / 77 tested, 5 remaining** (computed by
 `python Tools/build_matrix.py`, not written by hand). ObjectDB at exit: **261302**.
 
 ## Batch 14 — COMPLETE. Nothing in it is partial or unverified.
