@@ -1,9 +1,10 @@
 # TEST_RESULTS
 
-**Last run:** 2026-09-09 (Phase 5 **batch 15 COMPLETE**: `A Hero Emerges`, the pool's first
-effect whose choice is made **at random by the opponent out of a hidden hand**, and its first
-clause whose own activation requirement, re-checked at resolution, **suppresses the whole
-effect including its first sentence**. **R15** is now CLOSED.)
+**Last run:** 2026-09-09 (Phase 5 **batch 16 COMPLETE**: `The Monarchs Awaken`, the pool's first
+card that makes a monster **unaffected by the effects of cards other than itself** — a gate over
+effect APPLICATION that touches every mutation entry point in the engine — together with an
+**authoritative correction** to what the engine believed "Tribute Summoned" meant. **R12** is now
+CLOSED.)
 **Engine:** Godot 4.7.1.stable.official.a13da4feb (headless)
 
 Command:
@@ -39,16 +40,220 @@ authority for every number below.
 
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
-| Core rules tests | 24 | 2289 | **2289** | 0 |
-| Per-card tests | 65 | 6697 | **6697** | 0 |
+| Core rules tests | 25 | 2539 | **2539** | 0 |
+| Per-card tests | 66 | 6874 | **6874** | 0 |
 | Interaction tests | 1 | 46 | **46** | 0 |
 | Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **90** | **9032** | **9032** | **0** |
+| **TOTAL** | **92** | **9459** | **9459** | **0** |
 
-Commit: **`3302994`**. Previous clean commit: **`6a98eae`**. SmokeCheck: **PASS**. `SCRIPT ERROR` occurrences in the
-full run: **0**. Matrix: **73 / 77 implemented, 73 / 77 tested, 4 remaining** (computed by
-`python Tools/build_matrix.py`, not written by hand). ObjectDB at exit: **308910** — and that
-number is **finally characterised**; see the batch-15 ObjectDB note below.
+Commit: **`__COMMIT__`**. Previous clean commit: **`2a97206`**. SmokeCheck: **PASS**. `SCRIPT ERROR`
+occurrences in the full run: **0**. Matrix: **74 / 77 implemented, 74 / 77 tested, 3 remaining**
+(computed by `python Tools/build_matrix.py`, not written by hand). ObjectDB at exit: **322751** —
++13841 over batch 15, which is ~187 per duel built against the 188 batch 15 measured, i.e. the
+known linear behaviour and not a regression; see the batch-16 ObjectDB note below.
+
+The targeted runner for this batch is `./Tools/run_tests.sh RunBatch16Tests` (1294 assertions
+across 11 suites). The full suite remains the authority for every number above.
+
+## Batch 16 — COMPLETE. Nothing in it is partial or unverified.
+
+One card, one unit, **one genuinely new rules subsystem** — and an **authoritative correction to
+the engine's own answer** about what "Tribute Summoned" means. **Every one of the previous
+checkpoint's 9032 assertions passes unchanged** — no existing assertion was retired, weakened or
+retargeted. Nothing that already worked changed behaviour: the new gate is a no-op for every
+card in the library except the one that turns it on, and that is true **by construction**, not by
+inspection — `CardInstance.unaffected_by_effects` was `false` everywhere before this batch and is
+still `false` everywhere except where `The Monarchs Awaken` has resolved.
+
+| Unit | What it was | Result |
+|---|---|---|
+| A | **R12** research: cid 10963 supplement (2015-09-19) + **both** Q&A entries (fid 11352, fid 11871), plus **ten** general 「効果を受けない」 rulings, all `request_locale=ja`, plus a live re-fetch and character-for-character diff of the **English** text against `Data/cards/cards.json` | **COMPLETE** — R12 CLOSED |
+| A | the immunity gate (`EffectImmunity` + `ImmunityTests`, 250) + `RULES_SPEC.md` §18 and §10.9 | **COMPLETE** |
+| A | the "Tribute Summoned" correction (`CardInstance.tribute_summoned`, `SummonRules`, the banish lease) | **COMPLETE** |
+| A | `The Monarchs Awaken` (`MonarchsAwakenTests`, 177) | **COMPLETE** |
+
+### The dead vocabulary was right, for the fourth time — and it was not enough on its own
+
+§8 predicted that `CardInstance.unaffected_by_effects` — declared at `CardInstance.gd:94`, reset in
+`on_left_field()` and `on_flipped_face_down()`, carrying the comment *"(The Monarchs Awaken)"*, and
+with **zero readers and zero writers** — would turn out to be the right shape, as
+`cannot_be_targeted`, `GameEvent.Kind.CONTROL_CHANGED` and `GameEvent.Kind.ATTACK_TARGET_SELECTED`
+had been before it. **The prediction was correct and, as usual, incomplete.**
+
+Correct: the field is a plain per-instance `bool` rather than a `ContinuousEffects` restriction
+flag, and the official duration — 「モンスターゾーンに表側表示で存在する限り」 — makes that exactly
+right. `The Monarchs Awaken` is a **Normal Trap that is in the Graveyard the moment it resolves**;
+a continuous flag would be wiped by the next recompute. Both reset points were guesses when they
+were written and both are now confirmed from the supplement.
+
+Incomplete: a bare `bool` cannot express *"unaffected by the effects of cards other than **this
+card**"*. The immunity is always relative to a source, so the batch added
+`unaffected_exempt_source_ids` next to it and made every reader go through
+`is_unaffected_by_effect_of(source_id)`. Without the exemption the card would switch off its own
+first clause.
+
+### The fact the printed English text does not carry — SIX for six
+
+**「ダメージステップには発動できません。」** — `The Monarchs Awaken` cannot be activated during the
+Damage Step. The printed English text says nothing about the Damage Step.
+(`Burst Stream of Destruction`, `Damage Condenser`, `Honest`, `Witchcrafter Golem Aruru`,
+`A Hero Emerges`, now this.)
+
+**This one is different from the previous five, and the difference is the point.** For this card
+the restriction is the engine's **default** (`DamageStepPermission.NONE`), so no new machinery was
+needed and no line was added. That is precisely why it is asserted: a default that happens to be
+right is indistinguishable from a default nobody checked, and a later batch reaching for
+`UNTIL_DAMAGE_CALC` on the grounds that this card "changes a monster's state" would have broken it
+in silence. `MonarchsAwakenTests` asks `ActivationRules.damage_step_ok()` at **all five** Damage
+Step sub-steps, and carries a control clause that IS permitted in one of them so the five refusals
+cannot be passing because the gate refuses everything.
+
+### The correction: the engine's answer to "Tribute Summoned" was WRONG
+
+§8 asked whether a monster Tribute **Set** and later flipped face-up is "Tribute Summoned",
+recorded the engine's answer as **no**, and noted it was **untested**. Official Q&A fid 20548 says
+「アドバンス召喚されたカードとして扱われます」 — it **is** treated as an Advance Summoned card — and
+fid 20533 applies an "Advance Summoned" clause to one that is **still face-down**. fid 11352, which
+names 「帝王の凍志」 in its own answer, adds that the property survives going face-down and back,
+and survives a **temporary banishment**.
+
+`summoned_by` cannot carry any of that: `TRIBUTE_SET` is a different value, and
+`_complete_flip_summon()` overwrites the field with `FLIP`. So the batch added
+`CardInstance.tribute_summoned`, written on **both** Tribute routes, **not** cleared by
+`on_flipped_face_down()`, cleared by `on_leave_field()`, and carried across a temporary
+banishment by the existing `banish_leases` record — the same mechanism that already carries the
+return position and controller (R30).
+
+**This changed no existing behaviour.** `card.summoned_by` is read by exactly one card in the
+repository (`RunickFlashingFire`, which asks for `SPECIAL`), and that read is untouched.
+
+### Mutation testing: eighteen mutations, eighteen caught — but TWO only after the tests were fixed
+
+The honest version, because the first pass did not catch everything.
+
+| # | What was broken | Caught? |
+|---|---|---|
+| M1 | the immunity predicate always answers "not immune" | 33 failures |
+| M2 | the exemption is ignored — even the granting card is blocked | 10 failures |
+| M3 | `grant()` drops the face-up-on-the-field requirement | 4 failures |
+| M4 | battle destruction is wrongly gated as an effect | 4 failures |
+| M5 | a Tribute is wrongly gated as an effect | 7 failures |
+| M6 | `destroy()` no longer consults the gate | **survived at first** → 2 failures after new tests |
+| M7 | `change_control()` no longer consults the gate | 3 failures |
+| M8 | ATK modifiers no longer consult the gate | 3 failures |
+| M9 | `restrict()`/`negate_effects()` no longer consult the gate | 5 failures |
+| M10 | a Tribute SET no longer records "Tribute Summoned" | 4 failures |
+| M11 | being flipped face-down wrongly erases "Tribute Summoned" | 2 failures |
+| M12 | a temporary banishment wrongly erases "Tribute Summoned" | 3 failures |
+| M13 | the card wrongly claims a Damage Step permission | 3 failures |
+| M14 | the target filter drops the "Tribute Summoned" requirement | 2 failures |
+| M15 | the resolution-time face-up gate is dropped | **survived at first** → 1 failure after the test was rewritten |
+| M16 | the negation is written as a CONTINUOUS flag, which cannot outlive the Trap | 4 failures |
+| M17 | the Extra Deck activation condition is dropped | 1 failure |
+| M18 | the immunity is granted with NO exempt source, so it blocks itself | 2 failures |
+
+**M6 exposed a real coverage gap, not a redundant check.** Removing the gate from `destroy()` left
+the suite green because `carry_out_destruction()` calls `move_card()`, which is gated too — the
+monster still survived. But the behaviour was **not** the same: with `destroy()`'s gate gone,
+`destruction_prevented()` runs first and **spends a counted prevention** (`Gagagashield`'s
+twice-per-turn), and `carry_out_destruction()` runs **destruction replacement** and can destroy a
+substitute card in place of a monster that was never going to be destroyed at all. Both are real,
+observable bugs that the suite could not see. Two tests were added — a counted prevention that must
+**not** be spent, and a replacement that must **not** fire — each with a control proving the probe
+does fire for an ordinary monster. M6 then failed as it should.
+
+**M15 exposed a VACUOUS test.** The original resolution-time face-up test flipped the target
+face-down by poking the board *after* `submit_action()` had already resolved the Chain. It passed
+whatever the card did, because `on_flipped_face_down()` wipes both states afterwards regardless.
+Rewritten so the flip lands on a real **Chain Link 2** activated by the opponent in response — so
+Chain Link 1 genuinely finds a face-down target — and M15 then failed.
+
+Both fixes strengthened the suite rather than the code: the engine was already correct in both
+cases. That is the outcome mutation testing is for, and it is the second batch running in which the
+mutation pass found a weakness in the **tests** rather than in the implementation.
+
+### `ImmunityTests` — NEW, 250 assertions, 33 tests
+
+Written from synthetic cards **before** `The Monarchs Awaken` existed and green before it was
+written, the way `EquipTests`, `ControlTests`, `MovementTests`, `DeckAccessTests`,
+`CostLegalityTests` and batch 15's random-choice gate were.
+
+**Why it is its own suite and not part of `ContinuousTests`.** §8 asked for the operation to go
+where its subsystem already lives, and the verified ruling says this one does **not** live in the
+continuous layer — the state is a per-instance field that outlives its source, and the gate is a
+check consulted by `GameState`'s mutation entry points and by `CardInstance`'s stat modifiers,
+across the whole engine. Batch 12's and batch 15's precedent was followed by asking the question,
+not by assuming the answer.
+
+What it proves, in the three groups §8 named:
+
+* **untouched by each category the ruling names** — destruction by effect, banish, bounce, send to
+  GY, control change, ATK **and** DEF modifiers, battle-position change by effect, negation,
+  restriction flags, counters, and a **protection** granted by another card (the immunity refuses
+  benefits too — official Q&A fid 18199);
+* **still touched by everything the ruling does NOT name** — targeting and selection, the effect's
+  activation and its resolution, sub-processes of that same effect aimed at another card, battle
+  destruction, a Tribute paid as a cost, the game rules (`source_id` −1), and an effect that had
+  **already applied** before the immunity began;
+* **the source's own effects still reach it** — including from the Graveyard, where a Normal Trap
+  already is, and the exemption is proved to name one **instance**: a second copy of the very same
+  printed card is still blocked.
+
+Plus lifetime (leaves the field, flipped face-down, does **not** come back on a later flip,
+survives a control change, survives into later turns), Chain interaction (the blocked link still
+resolves and is still spent while the unblocked link works), deterministic replay, and the six
+"Tribute Summoned" cases.
+
+### `MonarchsAwakenTests` — NEW, 177 assertions, 24 tests
+
+Real pool cards wherever the pool has one: `Compulsory Evacuation Device` is the removal the warded
+monster shrugs off (with the **same card** bouncing an unwarded bystander in the same duel, so the
+first refusal is the ward and not a broken arrangement), `Interdimensional Matter Transporter` is
+the temporary banishment the "Tribute Summoned" property survives, and `Metaphys Armed Dragon` is
+the Level 7 vanilla that proves a **Normal Monster** is a legal target.
+
+The Extra Deck condition is the **only** thing tested synthetically, and deliberately so: both V1
+decks have empty Extra Decks, so it is never false in the pool — the never-false shape R1 records
+for `Runick Flashing Fire`. It is tested by putting a card into the Extra Deck, watching the
+activation disappear, and taking it out again to watch it come back, so the refusal is attributable.
+
+### Engine defects found by this unit: none
+
+The gate is new surface rather than a fix. The one engine **answer** that was wrong —
+"Tribute Summoned" — was wrong in a way no existing card could observe, and is corrected with an
+official citation rather than a judgement call.
+
+### What changed in existing files, and why none of it is a behaviour change
+
+* `ContinuousEffects.restrict()` and `negate_effects()` gained an **optional** `source` parameter.
+  With `source == null` — which is what every existing synthetic test clause passes — the gate is
+  not consulted at all, so those call sites behave exactly as before. The four production call
+  sites (`Fiendish Chain` ×2, `Fairy Tail - Rella`, `Rider of the Storm Winds`,
+  `Hieratic Dragon of Tefnuit`) now pass `ctx.source`, which only matters against an immune monster.
+* `GameState.destroy()`, `move_card()`, `change_control()`, `set_battle_position()` and
+  `place_counters()` gained a gate that cannot fire unless `unaffected_by_effects` is true.
+* `remove_counters()` was deliberately **left ungated**: removing counters is most often a cost,
+  the call site cannot tell a cost from an effect, and blocking a cost would contradict fid 298.
+  Recorded in `RULES_SPEC.md` §18 rather than left as an omission.
+
+### ObjectDB — batch 16
+
+**322751 at exit**, against 308910 at the batch-15 checkpoint: **+13841**. The two new suites build
+roughly 74 duels between them, which is **~187 leaked objects per duel** — matching the **188 per
+duel** batch 15 measured exactly. So this is the known linear behaviour tracking **duels built**,
+not a new leak and not a regression. It fails nothing.
+
+Per batch 15's finding, the "per new assertion" ratio is **retired** and is not recorded here. What
+remains is the **fix** — breaking the reference cycle at the `DuelEngine` / `GameState` root — which
+must land before Phase 7 and which this batch again did not have room for and does not claim.
+
+### Nothing else changed
+
+No card in the library was retargeted, no assertion was rewritten to fit the new behaviour, and no
+number below was typed by hand: the matrix is `python Tools/build_matrix.py` output and the totals
+are the runner's.
+
+---
 
 ## Batch 15 — COMPLETE. Nothing in it is partial or unverified.
 

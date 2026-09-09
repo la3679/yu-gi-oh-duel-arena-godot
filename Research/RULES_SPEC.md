@@ -1034,6 +1034,45 @@ cost that overlaps its own effect's pool; the day one does, the set-level check 
 
 ---
 
+### 10.9 A card may state its OWN resolution-time condition, per clause — **DECIDED** (Phase 5 batch 16)
+
+Decided in `CARD_RULINGS.md` **R12 Part E**, from the official supplement to
+`The Monarchs Awaken` (cid 10963, 2015-09-19). Read it **next to §10.6 and §10.8**, which it
+sits between.
+
+**Rule: when a card's supplement names a state its target must be in AT RESOLUTION, that
+condition is checked at resolution and governs exactly the clauses the supplement says it
+governs — no more and no less. It is not an activation requirement (§10.8) and it is not the
+target ceasing to exist (§10.6).**
+
+The official case:
+
+> ■処理時に、対象のモンスターが裏側守備表示の場合、効果は無効にならず、『このカード以外の効果を受けない』効果は適用されません。
+> *If, at resolution, the target monster is face-down Defense Position, its effects are not
+> negated and the "unaffected by the effects of cards other than this card" effect is not
+> applied.*
+
+The target is still on the field and is still the card that was targeted, so §10.6's "the
+target is gone" does not describe it. Nothing about the card's *activation* has stopped being
+true, so §10.8 does not either. What has changed is a property the printed text asks for —
+"**face-up** Tribute Summoned monster" — and the supplement states the consequence directly:
+both clauses are skipped, and the card is still spent.
+
+**How this differs from §10.6 and §10.8, in one line each:**
+
+| | §10.6 | §10.8 | §10.9 |
+|---|---|---|---|
+| what failed | a **target** the clause chose | the card's own **activation requirement** | a **property of the target** the text names |
+| what it costs | only the sentences naming that target | the **entire** resolution | exactly the clauses the supplement names |
+| where the answer comes from | the general rule | the card's supplement | the card's supplement |
+
+**Implementation.** `EffectPrimitives.surviving_own_monster_target(ctx, true)` already asks all
+three of "face-up", "monster" and "you control" at resolution (R29), so the rule needs no new
+machinery — only that a card whose supplement states it actually passes `true`. The defence
+against the obvious mistake is a test: `MonarchsAwakenTests` flips the target face-down on a
+real **Chain Link 2** rather than by touching the board after the fact, because a post-hoc flip
+would clear the states anyway and the test would pass whatever the card did.
+
 ## 11. Once-per-turn tracking (master prompt §47)
 
 | Text form | Key scope | Reset |
@@ -1339,3 +1378,76 @@ confirmed when its Chain Link is processed even if its EFFECT is negated, but ne
 ACTIVATION is negated. No phase can begin while the Chain is pending. The consequence uses
 skip_battle_phase_this_turn and expires in the existing end-of-turn cleanup. R39 sources and
 confidence are authoritative for this decision.
+
+## 18. "Unaffected by the effects of cards other than this card"
+
+Decided in `CARD_RULINGS.md` **R12 Parts B–E**, from official Konami Q&A — principally fid
+13065, which answers the question on the *same card wording*, plus fid 17304, fid 18199, fid
+13085, fid 16491, fid 298 and fid 23510. The English phrase is far broader than the rule, so
+none of this may be reasoned from the words.
+
+**Rule: an effect applies to a card at a definite MOMENT. If the card is immune at that
+moment, that one application does not happen. Nothing else about the effect changes.**
+
+The effect is still activated, still targets the immune card, still resolves, and every part
+of it aimed at some **other** card still applies. Only the individual sub-process aimed at the
+immune card is skipped, so one effect can half-apply — and does: fid 13065 has an effect whose
+ATK-copy applies and whose ATK-zeroing does not.
+
+**Blocked**, each being an effect applied to the card: destruction by a card effect; being
+moved by an effect (bounce, banish, send to GY); a control change; an ATK or DEF modifier; a
+battle-position change by an effect; having its effects negated; having a restriction flag set
+on it; having a **protection or benefit** granted to it; counters placed by an effect.
+
+**Not blocked**, each a deliberate hole with a source behind it:
+
+* **targeting and selection** (fid 13065). That is the separate `cannot_be_targeted()` flag.
+  Conflating the two is the commonest misreading of "unaffected";
+* **activation and resolution** of the effect (fid 13065, fid 17304);
+* **costs, and Tributes for a Summon procedure** (fid 298 —
+  「相手モンスターに適用する効果として扱われません」). The engine already separates cost
+  primitives from effect primitives, and the gate goes only on the effect side;
+* **battle** (fid 18199). An immune monster is destroyed by battle as normal;
+* **the game rules** — a source id of `-1` is never blocked;
+* **an application that already COMPLETED** before the immunity began (fid 13085, fid 16491).
+  Nothing is undone retroactively.
+
+That last one falls out of the design rather than being coded: a **continuous** effect is
+re-applied on every recompute and so is asked every time, while an obligation **recorded once**
+on the instance or in a lease is never re-applied and so is never asked.
+
+**The immunity is a shield, not a blessing.** It refuses helpful effects too — fid 18199 has an
+immune monster destroyed by battle precisely because it did not receive the "cannot be
+destroyed by battle" its opponent's card was handing out.
+
+**Where the state lives, and why not in `ContinuousEffects`.** `CardInstance.unaffected_by_effects`
+is a plain per-instance field with `unaffected_exempt_source_ids` alongside it. The official
+duration is "as long as the monster is face-up in the Monster Zone" — a statement about the
+**monster**, with no condition on the source — and the source in the V1 pool is a Normal Trap
+that is in the Graveyard before the state matters. A `ContinuousEffects` restriction flag is
+wiped and rebuilt from the board on every recompute and would switch off instantly. The state
+ends at exactly the two things the ruling names, both already in `CardInstance`:
+`on_leave_field()` and `on_flipped_face_down()`. A control change is **not** an end condition.
+Once an end condition is met the state is gone for good; flipping the monster face-up again
+does not restore it.
+
+**The exemption is an INSTANCE, not a card name and not a zone test.** "Other than **this**
+card" means the specific instance that applied the state, wherever it now is — which is what
+lets the same card's negation coexist with the immunity it granted (fid 11871). A second copy
+of the very same printed card is **not** exempt.
+
+**Where the gate is asked.** `Scripts/rules/EffectImmunity.gd` holds the predicate; the call
+sites are `GameState.destroy()`, `GameState.move_card()` (for the reasons listed in
+`EFFECT_APPLICATION_MOVE_REASONS` and no others), `GameState.change_control()`,
+`GameState.set_battle_position()` when `by_effect`, `GameState.place_counters()`,
+`CardInstance.add_atk_modifier()` / `add_def_modifier()`, and `ContinuousEffects.restrict()` /
+`negate_effects()` when given a source.
+
+`destroy()` asks **before** `destruction_prevented()`, and that order is load-bearing rather
+than tidy: an immune monster is not *protected from* the destruction, the effect never applied
+to it, so a **counted** prevention (`Gagagashield`'s twice-per-turn) must not be spent and a
+destruction **replacement** must not consume a substitute. Both are asserted in `ImmunityTests`
+with a control that proves the probe fires for an ordinary monster.
+
+`remove_counters()` is deliberately **not** gated: removing counters is most often a cost, the
+call site cannot tell a cost from an effect, and blocking a cost would contradict fid 298.

@@ -196,11 +196,21 @@ static func add_def(source: CardInstance, card: CardInstance, amount: int) -> vo
 
 
 ## Set one of RESTRICTION_FLAGS on a card for as long as the source applies.
-static func restrict(card: CardInstance, flag: String) -> bool:
+##
+## `source` is optional only so that a synthetic test clause can restrict a card without
+## inventing one. A real card must always pass `ctx.source`: a monster that is unaffected by
+## the effects of other cards does not receive a flag from them either, whether the flag
+## helps it (`cannot_be_destroyed_by_battle`, `piercing`) or hurts it (`cannot_attack`).
+## RULES_SPEC.md 18, CARD_RULINGS.md R12 Part B — official Q&A fid 18199 is exactly this
+## case, and the flag it refuses is a protection.
+static func restrict(card: CardInstance, flag: String,
+		source: CardInstance = null) -> bool:
 	if card == null:
 		return false
 	if not RESTRICTION_FLAGS.has(flag):
 		push_error("ContinuousEffects: unknown restriction flag '%s'" % flag)
+		return false
+	if source != null and EffectImmunity.blocks(card, source.id):
 		return false
 	card.flags[flag] = true
 	return true
@@ -211,8 +221,8 @@ static func restrict(card: CardInstance, flag: String) -> bool:
 ## This is the ONLY way to write a continuously-applied negation. It goes through
 ## `restrict()` so the flag is validated against RESTRICTION_FLAGS and is wiped by the next
 ## recompute like everything else this system owns.
-static func negate_effects(card: CardInstance) -> bool:
-	return restrict(card, NEGATION_FLAG)
+static func negate_effects(card: CardInstance, source: CardInstance = null) -> bool:
+	return restrict(card, NEGATION_FLAG, source)
 
 
 ## Set a player-level continuous restriction, e.g. "cannot_conduct_battle_phase".

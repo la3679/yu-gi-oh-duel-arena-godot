@@ -106,8 +106,8 @@ func _negate_and_lock() -> EffectDef:
 		# "while it is ON THE FIELD" and "that FACE-UP monster" — both halves.
 		if monster.zone != Enums.Zone.MONSTER_ZONE or not monster.is_face_up():
 			return
-		ContinuousEffects.negate_effects(monster)
-		ContinuousEffects.restrict(monster, "cannot_attack")
+		ContinuousEffects.negate_effects(monster, ctx.source)
+		ContinuousEffects.restrict(monster, "cannot_attack", ctx.source)
 
 	return e
 

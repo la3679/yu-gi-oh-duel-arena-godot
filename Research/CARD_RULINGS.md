@@ -160,7 +160,7 @@ in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`. **No effect may be approximated.**
 | R9 | `Rider of the Storm Winds` | Equips **itself** from hand or field; grants piercing; is a destruction **replacement** effect for the equipped monster. Also interacts with the rule that Equip Cards are destroyed when the equipped monster leaves the field. |
 | R10 | `Gagagashield` | "Twice per turn, it cannot be destroyed by battle or card effects" — a counted prevention effect, resetting each turn. |
 | R11 | `Fairy Tail - Luna` | Opponent may send a card with the targeted monster's name from Deck/Extra Deck to the GY **to negate this effect** — an opponent-side decision **during resolution**. |
-| R12 | `The Monarchs Awaken` | "If you have no cards in your Extra Deck" is an activation condition; grants "unaffected by the effects of cards other than this card" — a broad immunity that must be applied in the rules layer. |
+| R12 | `The Monarchs Awaken` | **RESOLVED — see "R12 — `The Monarchs Awaken`" below.** The original note (an Extra Deck activation condition; a broad immunity belonging in the rules layer) was right but far from complete: cid 10963 also forbids activation **during the Damage Step**, states the whole effect **does nothing** if the target is face-down at resolution, fixes the duration at **"as long as it is face-up in the Monster Zone"**, and permits a **Normal Monster** target. The general 「効果を受けない」 Q&A narrow the immunity to **application only** — targeting, resolution, costs, Tributes and battle are all untouched — and Q&A fid 20548 / 20533 overturn the engine's guess that a **Tribute Set** monster is not "Tribute Summoned". |
 | R13 | `Witchcrafter Golem Aruru` | **RESOLVED — see "R13 — `Witchcrafter Golem Aruru`" below.** The original note (both trigger branches; the "Witchcrafter" Spell branch is never live) was right but far from complete: cid 14483 also forbids activation **during the Damage Step**, narrows the Spellcaster to **face-up in your Monster Zone**, restricts the targeting trigger to the **opponent's** activation, and states that a target that has left the field costs the bounce but **not** the Special Summon. |
 | R14 | `Hidden Springs of the Far East` | Field Spell whose once-per-turn effect may be activated by **the turn player**, i.e. by either player depending on whose turn it is, including the opponent of its controller. |
 | R15 | `A Hero Emerges` | **RESOLVED — see "R15 — `A Hero Emerges`" below.** The original note (a **random** choice from your hand, through the seeded RNG, leaking nothing) was right but far from complete: cid 5915 also forbids the activation entirely when your hand is empty **or holds no monster**, Q&A fid 12566 narrows that to "a monster this effect could actually Special Summon **right now**", and Q&A fid 8193 states that if the Special Summon has become impossible by resolution the effect is **not applied at all** — the random choice is not even made. |
@@ -2287,6 +2287,343 @@ that suppresses the random choice itself (Part C). It needed **no new subsystem*
 and the existing `SummonRules` legality checks, no new event kind, no new activation location, no new permission, no new zone, no new
 Summon route. The four rulings that remain — **R5, R11, R12, R14** — are all still **OPEN**, all
 still belong to the four cards that remain after batch 15, and none of them was touched.
+
+---
+
+### R12 — `The Monarchs Awaken` — RESOLVED and CLOSED in Phase 5 batch 16
+
+**R12 was carried OPEN across thirteen checkpoints.** §4 opened it with one line — *"'If you have
+no cards in your Extra Deck' is an activation condition; grants 'unaffected by the effects of
+cards other than this card' — a broad immunity that must be applied in the rules layer"*. Both
+halves survive and are implemented exactly. What the line did **not** contain is an **activation
+restriction the printed English text does not carry**, a **resolution-time face-up gate that kills
+both clauses at once**, an explicit **duration**, a general rule that makes the immunity far
+**narrower** than the English phrase suggests, and an **authoritative correction to the engine's
+own answer** about what "Tribute Summoned" means.
+
+**§8's standing warning was right for a SIXTH batch in a row.** *Look for an activation
+restriction the printed English text does not carry.* This card's is
+**「ダメージステップには発動できません。」** — it cannot be activated during the Damage Step. The
+printed English text says nothing about the Damage Step. (`Burst Stream of Destruction`,
+`Damage Condenser`, `Honest`, `Witchcrafter Golem Aruru`, `A Hero Emerges`, now
+`The Monarchs Awaken`.) Unlike the previous five, this one is satisfied by the engine's **default**
+`DamageStepPermission.NONE` rather than by new machinery — but it is a fact about the card, it was
+never asserted, and batch 16 asserts it.
+
+**Sources.** All PRIMARY (official Konami), fetched **2026-09-09** with `request_locale=ja` per
+R40's methodology note. None is the `en` boilerplate R40 warns about. The raw captures are cached
+under `Data/generated/konami_raw/` (untracked, per `.gitignore`).
+
+| Source | What it gives | Date on the page |
+|---|---|---|
+| `faq_search.action?ope=4&cid=10963&request_locale=ja` — card text + 補足情報 | it is **this card's activation-time effect**; it **cannot be activated in the Damage Step**; a Tribute Summoned **Normal Monster** is a legal target and still becomes unaffected; the state lasts **as long as the monster is face-up in the Monster Zone**; if the target is **face-down at resolution** neither clause applies | **2015-09-19** |
+| `faq_search.action?ope=5&fid=11352&request_locale=ja` — 「帝王の凍志」 is named in its own answer | a monster that went **face-down and back face-up**, or was **temporarily banished and returned** to the Monster Zone, is **still treated as Tribute Summoned**; and a monster **Tribute Set** face-down that later turns face-up is too | **2026-01-23** |
+| `faq_search.action?ope=5&fid=11871&request_locale=ja` — 「真紅眼の凶雷皇－エビル・デーモン」 | a Gemini monster treated as a Normal Monster is a legal target; the negation switches off even its *identity* effect; the immunity applies alongside — i.e. **this card's own negation is not blocked by the immunity it grants** | **2017-03-24** |
+| `faq_search.action?ope=5&fid=20548&request_locale=ja` — 「真竜剣皇マスターP」 Tribute **Set** | a monster Tribute **Set** is 「アドバンス召喚されたカードとして扱われます」; once flipped face-up every "Advance Summoned" condition applies to it | **2017-03-24** |
+| `faq_search.action?ope=5&fid=20533&request_locale=ja` — 「ドラゴニックD」 | the same, **while it is still face-down** — the property does not wait for the flip | **2017-03-24** |
+| `faq_search.action?ope=5&fid=13065&request_locale=ja` — 「神竜騎士フェルグラント」, the **same construction** | the effect is **activated, targets and resolves normally**; only the sub-processes that **apply to that monster** are skipped; sub-processes of the same effect that apply to **another** card still happen | **2025-05-04** |
+| `faq_search.action?ope=5&fid=17304&request_locale=ja` — 「真竜剣皇マスターP」 / 「無償交換」 | an immune monster's effect activation **cannot be negated** by a card it is immune to; the negating card still activates, still resolves, and its **other** processes still apply | **2017-04-20** |
+| `faq_search.action?ope=5&fid=18199&request_locale=ja` — 「ヴェルズ・タナトス」 / 「月光舞猫姫」 | a **lingering protection** granted by another card does **not** reach an immune monster at the moment it would apply — it was destroyed by battle as normal | **2017-03-24** |
+| `faq_search.action?ope=5&fid=13085&request_locale=ja` — 「マドルチェ・エンジェリー」 / 「神竜騎士フェルグラント」 | an effect that had **already applied** before the immunity began is **not** undone by it — the delayed return to the Deck still happens | **2017-03-24** |
+| `faq_search.action?ope=5&fid=16491&request_locale=ja` — 「古代の機械魔神」 / 「アンクリボー」 | the same conclusion from a **permanent** immunity: "sent to the GY in the End Phase" was applied at the Special Summon and still happens | **2019-03-04** |
+| `faq_search.action?ope=5&fid=298&request_locale=ja` — 「海亀壊獣ガメシエル」 | an immune monster **can be Tributed** by the opponent as part of a Summon procedure — 「相手モンスターに適用する効果として扱われません」 | **2026-03-20** |
+| `faq_search.action?ope=5&fid=23510&request_locale=ja` — 「超融合」 | an immune monster **cannot be taken as Fusion Material by an opponent's effect**, and with no legal material set the activation itself is illegal | **2026-07-17** |
+
+cid 10963 has a real Q&A section with **exactly 2** entries — confirmed twice, from the card page
+and from a 「帝王の凍志」 Q&A-text search that returned 「検索結果 2件」 — so the
+「このカードに関連するＱ＆Ａはありません」 absence shape R40 records does not apply here. **Both
+entries were read, and each settled a question the supplement does not answer.** The remaining ten
+sources are the **general** 「効果を受けない」 rulings, and they are what settle the question §8 said
+"must be taken from the source, not from the phrase".
+
+**The English text was re-fetched from the live database on 2026-09-09 and diffed against the
+persisted text in `Data/cards/cards.json`** — the same procedure batches 13, 14 and 15 used. It
+matches **character for character**, so nothing below rests on a stale transcription.
+
+**Official English text.**
+
+> "If you have no cards in your Extra Deck: Target 1 face-up Tribute Summoned monster you control;
+> its effects are negated, also it is unaffected by the effects of cards other than this card."
+
+**Official Japanese text.**
+
+> ①：自分のエクストラデッキにカードが存在しない場合、自分フィールドのアドバンス召喚した表側表示モンスター１体を対象として発動できる。そのモンスターは効果が無効になり、このカード以外の効果を受けない。
+
+**Official supplement (補足情報), 2015-09-19, quoted in full.**
+
+> 【①の効果について】
+> ■このカードの発動時の効果です。
+> ■ダメージステップには発動できません。
+> ■アドバンス召喚された通常モンスターを対象に発動することもできます。（その場合でも、対象のモンスターはこのカード以外の効果を受けなくなります。）
+> ■この効果が適用されたモンスターはモンスターゾーンに表側表示で存在する限り、効果が無効になり、このカード以外のカードの効果を受けなくなります。
+> ■処理時に、対象のモンスターが裏側守備表示の場合、効果は無効にならず、『このカード以外の効果を受けない』効果は適用されません。
+
+#### Part A — the fact the English text does not carry: NO Damage Step activation. Confidence: HIGH.
+
+> ■ダメージステップには発動できません。
+> *It cannot be activated during the Damage Step.*
+
+The printed English text carries no Damage Step wording at all. The engine's
+`DamageStepPermission.NONE` is the default and already produces this behaviour, so — unlike the
+five previous cards in this series — **no new machinery is needed**. That is precisely why it is
+worth an explicit assertion: a default that happens to be right is indistinguishable from a
+default nobody checked, and a later batch that reached for `UNTIL_DAMAGE_CALC` because the card
+"changes a monster's state" would have broken it silently. `MonarchsAwakenTests` asserts it
+directly, at the Damage Step sub-steps where a Trap could otherwise be offered.
+
+#### Part B — what "unaffected by the effects of cards other than this card" actually reaches. Confidence: HIGH.
+
+§8 asked the right question — *does it stop an effect from **targeting** the monster, from
+**resolving** on it, or only from **applying** to it?* — and predicted Konami's answer would be
+"narrower than English readers expect". **It is, and the answer is the third one.**
+
+fid 13065 is the decisive source because it is the **same construction on another card**:
+Divine Dragon Knight Felgrand reads 『選択したモンスターの効果は無効になり、このカード以外のカードの
+効果を受けない』, which is `The Monarchs Awaken`'s second clause word for word. Genome Heritor then
+targets a monster in that state:
+
+> 「No.8 紋章王ゲノム・ヘリター」の『元々の攻撃力がそのモンスターの攻撃力と同じになり、そのモンスターの元々のカード名・効果と同じカード名・効果を得る』処理は、エンドフェイズまで通常通り適用されます。（対象のモンスターの攻撃力と同じになる処理や、カード名・効果を得る処理は、そのモンスターに適用する効果ではありません。）
+> なお、『その後、対象のモンスターの攻撃力は０になり、効果は無効化される』効果は、そのモンスターに適用する効果ですので、モンスター効果を受けないモンスターには適用されません。
+
+Three separate facts, and all three are load-bearing:
+
+1. **Targeting is NOT blocked.** The opponent's effect targets the immune monster and is legally
+   activated. Immunity is not targeting protection — the engine already has a *separate*
+   `cannot_be_targeted` flag for that, and the two must not be conflated.
+2. **Resolution is NOT blocked.** The Chain Link resolves.
+3. **Only the sub-processes that APPLY TO THAT MONSTER are skipped**, one at a time. In the quoted
+   answer the ATK-copy and name-copy processes apply (they apply to *Genome Heritor*), and the
+   "that monster's ATK becomes 0 and its effects are negated" process does not (it applies to the
+   immune monster). **One effect, two sub-processes, opposite answers.**
+
+fid 17304 confirms 1–3 from the other direction: a Trap that would "negate that activation and
+destroy it" fails to do either to a monster immune to Traps, the monster's own effect resolves as
+normal, **and the Trap's unrelated "your opponent draws 1 card" process still applies**.
+
+fid 298 draws the outer boundary: an immune monster **can be Tributed** by the opponent as part of
+a Kaiju's Summon procedure, because 「相手モンスターに適用する効果として扱われません」 — that
+Tribute is not an effect applied to the monster. **A cost is not an application.** The engine
+already keeps these apart on purpose (batch 4: `pay_banish_cost()` vs `banish_target()`;
+`pay_tribute_cost()` vs everything else), so the gate goes on the effect primitives and stays off
+the cost primitives.
+
+fid 23510 draws the boundary on the other side: an immune monster **cannot be taken as Fusion
+Material by an opponent's effect** — there the effect really is being applied to it.
+
+fid 18199 settles **battle**: an immune monster is destroyed by battle exactly as normal.
+Battle destruction is not a card effect. What that Q&A actually shows is stronger and is recorded
+in Part C.
+
+**Summary of Part B, as implemented.** The immunity blocks an effect from **applying** to the
+monster, and blocks nothing else:
+
+| Category | Blocked? | Source |
+|---|---|---|
+| Being **targeted** / selected by an effect | **NO** | fid 13065 |
+| The effect **activating** and **resolving** | **NO** | fid 13065, fid 17304 |
+| Destruction **by a card effect** | **YES** | fid 13065 (general application rule) |
+| Destruction **by battle** | **NO** | fid 18199 |
+| Being **moved** by an effect (bounce, banish, send to GY) | **YES** | fid 23510 |
+| **Control** change by an effect | **YES** | general application rule |
+| **ATK/DEF** change by an effect | **YES** | fid 13065 (「攻撃力は０になり」) |
+| Its effects being **negated** by another card | **YES** | fid 13065, fid 17304 |
+| Its effect activation being **negated** by another card | **YES** | fid 17304 |
+| A **restriction** (cannot attack, cannot be targeted, …) applied by another card | **YES** | fid 18199 |
+| A **protection** granted by another card | **YES** — it does not receive it either | fid 18199 |
+| Being **Tributed** as a cost or for a Summon procedure | **NO** | fid 298 |
+| Sub-processes of the same effect that apply to **another** card | **NO** | fid 13065, fid 17304 |
+| An effect that **already applied** before the immunity began | **NO** — not undone | fid 13085, fid 16491 |
+
+**The immunity is a shield, not a blessing.** fid 18199 is the entry the phrase "unaffected"
+misleads English readers about most: Lunalight Cat Dancer's *"your opponent's monsters are each
+not destroyed by battle once this turn"* is a **benefit**, and the immune monster **does not get
+it** and is destroyed by battle. Immunity does not filter for the monster's advantage; it refuses
+everything from other cards, helpful or not.
+
+#### Part C — WHEN an effect counts as "applying", and what "already applied" means. Confidence: HIGH.
+
+Three Q&A entries look contradictory until the rule behind them is stated:
+
+* fid 18199 — a lingering "not destroyed by battle once this turn" granted by another card's
+  already-resolved effect **does not reach** the immune monster;
+* fid 13085 — a lingering "return it to the Deck in the End Phase of your next turn" attached by
+  another card's already-resolved effect **does reach** it;
+* fid 16491 — the same as 13085, from a **permanent** immunity rather than a granted one.
+
+The rule that produces all three: **an effect applies to a monster at a definite moment. If the
+monster is immune at that moment, it does not apply. An application that COMPLETED before the
+immunity began is not undone, even when its consequence lands later.**
+
+Cat Dancer's protection has to apply *at the moment of battle destruction* — the immunity is
+already up, so it does not. Madolche Anjelly's and Unclabby's clauses applied *at the moment of
+the Special Summon* — before the immunity existed — and the later send is only the consequence
+being collected. This is exactly the distinction the engine already draws between a **continuous
+effect** (recomputed, therefore re-applied every time, therefore gated) and a **fact recorded on
+the instance** (`banish_when_it_leaves_the_field`, `banish_leases`, `battle_phase_skips` — written
+once, therefore not gated). No new concept is needed to honour it: gating the continuous layer and
+leaving recorded obligations alone reproduces all three answers.
+
+**A caution about a near-miss source.** fid 23491 (2026-07-17) answers that Skill Drain, Snatch
+Steal and their kind **do** apply to a monster with 『発動した効果を受けない』, because those
+effects "begin applying at the resolution of the chain block that activated the card and continue
+to apply afterwards". **That entry is about a DIFFERENT, narrower immunity** — *unaffected by
+**activated** effects* — and it does **not** govern `The Monarchs Awaken`, whose clause is the
+unrestricted 『このカード以外の効果を受けない』. It is recorded here so that a later batch does not
+find it, mistake it for this card's rule, and conclude that continuous effects pierce this
+immunity. They do not: fid 18199 is the entry that governs, and it says the opposite for the broad
+form. **Do not narrow Part B on the strength of fid 23491.**
+
+#### Part D — "other than this card": the source is exempt, and it stays exempt from the Graveyard. Confidence: HIGH.
+
+§8 flagged the exemption as load-bearing rather than decorative, because the first clause negates
+the monster's effects and the immunity must not switch that negation off. **It does not**, and the
+supplement says so twice over:
+
+> ■この効果が適用されたモンスターはモンスターゾーンに表側表示で存在する限り、**効果が無効になり**、このカード以外のカードの効果を受けなくなります。
+
+Both states are named in one sentence as coexisting. fid 11871 then shows them coexisting on a real
+board: a Gemini monster treated as a Normal Monster is targeted, and 「そのデュアルモンスターの
+『①：このカードはフィールド・墓地に存在する限り、通常モンスターとして扱う』効果が無効になり」 — the
+negation reaches even the monster's *identity* effect — 「（結果的に、…『このカード以外のカードの効果
+を受けない』状態になります。）」.
+
+**And `The Monarchs Awaken` is a Normal Trap that is in the Graveyard by the time any of this
+matters.** §8 asked whether an effect applied by a card that is no longer on the field still counts
+as "this card". The supplement answers it by never mentioning the Trap again: the duration clause
+is 「モンスターゾーンに表側表示で存在する限り」 — a statement about **the monster**, with no
+condition on the Trap at all. The negation and the immunity both outlive their source. The engine
+models this correctly already and for the right reason: `unaffected_by_effects` and
+`effects_negated` are per-instance fields on `CardInstance`, **not** `ContinuousEffects` restriction
+flags, so no recompute can wipe them when the source leaves.
+
+The exemption is therefore an identity, not a zone test: the exempt card is **the specific
+`The Monarchs Awaken` instance that applied the state**, wherever it now is. That is why the engine
+records an exempt **instance id** and not a card name and not a "is the source still on the field"
+check.
+
+**The monster's own effects.** §8 asked whether the immunity covers them. Read literally it does —
+the monster is not `The Monarchs Awaken`, so its own effects are "effects of cards other than this
+card" — and the generic gate implements exactly that literal reading. The question is moot on this
+card, because the first clause has already negated those effects, and it is recorded here only so
+that a future card worded *"other than itself"* is given a **different exempt id** rather than
+being assumed to share this one.
+
+#### Part E — duration, and the resolution-time face-up gate. Confidence: HIGH.
+
+§8 called the engine's reset points *"a guess baked into the engine"* and demanded they be confirmed
+rather than trusted. **They are confirmed, and they are right.**
+
+> ■この効果が適用されたモンスターはモンスターゾーンに表側表示で存在する限り、効果が無効になり、このカード以外のカードの効果を受けなくなります。
+> *As long as the monster this effect applied to exists **face-up in the Monster Zone**, its effects are negated and it does not receive the effects of cards other than this card.*
+
+Two end conditions, and exactly two: **leaving the Monster Zone** and **stopping being face-up**.
+`CardInstance.on_leave_field()` and `on_flipped_face_down()` already clear both
+`effects_negated` and `unaffected_by_effects`, which is precisely this rule.
+
+Three things the duration is **not**, all of which the engine already gets right and none of which
+was previously asserted:
+
+* **not** "until the end of the turn" — it survives into later turns;
+* **not** "while `The Monarchs Awaken` is on the field" — see Part D;
+* **not** restored by flipping the monster face-up again. Once an end condition is met the state is
+  gone; a later Flip Summon does not bring it back. This follows from 「限り」 naming a *state to be
+  maintained*, and it is what `on_flipped_face_down()` clearing the field (with nothing that ever
+  re-sets it) already does.
+
+A **control change** is deliberately **not** an end condition. The supplement names the Monster
+Zone and face-up-ness and nothing else, and a monster that changes control has not left the Monster
+Zone. `MonarchsAwakenTests` asserts the state survives an `Enemy Controller` swap in both
+directions.
+
+**And the resolution-time gate is a separate, sharper fact:**
+
+> ■処理時に、対象のモンスターが裏側守備表示の場合、効果は無効にならず、『このカード以外の効果を受けない』効果は適用されません。
+> *If, at resolution, the target monster is face-down Defense Position, its effects are not negated and the "unaffected by the effects of cards other than this card" effect is not applied.*
+
+The target is locked in at activation while face-up; if the opponent flips it face-down in response,
+**both** clauses fail and the Trap is spent for nothing. Note what this is **not**: it is not
+R10.8's "an activation requirement that fails by resolution kills the whole effect" — there is no
+activation requirement in play here — and it is not a target that has ceased to exist. It is the
+narrower, per-clause statement R10.6 established for `Witchcrafter Golem Aruru` — *a target that has
+gone bad does not automatically kill the whole effect* — reached here by the card's own supplement
+naming both clauses explicitly. `RULES_SPEC.md` §10.9 records it.
+
+#### Part F — "Tribute Summoned": the AUTHORITATIVE correction to the engine's own answer. Confidence: HIGH.
+
+§8 asked *"is a monster that was Tribute **Set** and later flipped face-up 'Tribute Summoned'?"* and
+recorded the engine's current answer as **no** — `Enums.SummonKind` keeps `TRIBUTE` and
+`TRIBUTE_SET` apart, and `_complete_flip_summon()` overwrites `summoned_by` with `FLIP`. §8 also
+said the answer was **untested**.
+
+**The engine's answer is WRONG.** fid 20548 could not be more direct:
+
+> 「真竜剣皇マスターP」をアドバンス召喚する際に、モンスター2体をリリースして、裏側守備表示でセットしました。…
+> 質問の状況の場合でも、「真竜剣皇マスターP」は**アドバンス召喚されたカードとして扱われます**ので、その後にリバースし、表側表示になった場合、…モンスター効果は適用され…
+
+and fid 20533 extends it to the monster **while it is still face-down**: Dragonic D's *"Advance
+Summoned 'True Draco' monsters are not destroyed by battle once per turn"* applies to a monster
+that was Tribute Set and has not yet been flipped.
+
+fid 11352 — which **names 「帝王の凍志」 in its own answer**, in the list of cards whose text is
+conditioned on having been Advance Summoned — adds the two persistence cases:
+
+> アドバンス召喚したモンスターが表側表示から裏側守備表示になった場合（その後、表側表示に戻った場合）や、一時的に除外されてモンスターゾーンに戻った場合でも、引き続きアドバンス召喚したモンスターとして扱われたままとなります。
+
+So **all four** of these are "Tribute Summoned" for this card:
+
+1. Tribute Summoned face-up — the obvious case;
+2. Tribute **Set**, then flipped face-up — fid 20548;
+3. Tribute Summoned, flipped face-down, flipped face-up again — fid 11352 (the `FLIP` overwrite must
+   not erase it);
+4. Tribute Summoned, **temporarily** banished, returned to the Monster Zone — fid 11352.
+
+Case 4 is a genuine interaction with **R30**. R30 established that a temporarily banished monster
+"genuinely left the field" and comes back without its equips, counters, modifiers or control
+leases. That stands — but fid 11352 says the **Tribute Summoned property specifically survives the
+round trip**. The two are not in conflict: R30 is about state applied *to* the monster, this is
+about how the monster *arrived*. `Interdimensional Matter Transporter` is the pool card that makes
+case 4 reachable, and `MonarchsAwakenTests` exercises it on real cards.
+
+Case 5, stated for completeness and **not** covered by the above: a monster that leaves the field
+**permanently** and is later summoned again is a new arrival and is **not** Tribute Summoned unless
+it is Tribute Summoned again. `on_leave_field()` clears the property, which is right.
+
+**What the correction changes.** `card.summoned_by` is read by exactly one card in the repository
+(`RunickFlashingFire`, which asks for `SPECIAL`), so recording the Tribute-Summoned property
+separately changes **no existing behaviour**. The new `CardInstance.tribute_summoned` is written by
+`SummonRules` on both the `TRIBUTE` and `TRIBUTE_SET` routes, is **not** cleared by
+`on_flipped_face_down()`, **is** cleared by `on_leave_field()`, and is carried across a temporary
+banishment by the existing `banish_leases` record — the same mechanism that already carries the
+return position and controller.
+
+#### Part G — the activation condition, and the Normal Monster target. Confidence: HIGH for the target, MEDIUM for the check timing.
+
+**"If you have no cards in your Extra Deck"** is an activation condition
+(「自分のエクストラデッキにカードが存在しない場合、…発動できる」). No official source found in this
+research states whether it is re-checked at resolution, and **both decks in the V1 pool have empty
+Extra Decks, so it is never false** — the same never-false shape R1 records for
+`Runick Flashing Fire`. It is implemented exactly anyway, as a condition checked **at activation**,
+which is the default reading for a 「場合」 clause standing before 「発動できる」. It is tested against
+a **synthetic** Extra Deck rather than against the pool, and the resolution-time behaviour is
+deliberately **not** asserted, because no source settles it. **Confidence MEDIUM, and it is
+recorded as MEDIUM rather than quietly promoted.**
+
+**A Tribute Summoned Normal Monster is a legal target**, and the immunity still applies to it even
+though the negation has nothing to negate:
+
+> ■アドバンス召喚された通常モンスターを対象に発動することもできます。（その場合でも、対象のモンスターはこのカード以外の効果を受けなくなります。）
+
+This matters because it forbids an "optimisation" that would look reasonable: refusing a target
+whose effects cannot be negated. The V1 pool has nine vanillas and several are Level 5+, so this is
+live on real cards, not synthetic ones. fid 11871 is the same point from the other end — a Gemini
+monster *treated as* a Normal Monster is also a legal target, and there the negation is very far
+from vacuous.
+
+#### What R12 leaves OPEN
+
+**Nothing that blocks the card.** One item is recorded as MEDIUM rather than HIGH and is named
+above: whether the Extra Deck condition is re-checked at resolution. It cannot be reached in the V1
+pool from either deck.
 
 ---
 

@@ -315,6 +315,12 @@ func normal_set_monster(card: CardInstance, controller_id: int, tributes: Array,
 	card.turn_set = state.turn_number
 	card.summoned_by = Enums.SummonKind.TRIBUTE_SET if not tributes.is_empty() \
 		else Enums.SummonKind.NORMAL_SET
+	# A monster Tribute SET counts as "Tribute Summoned" from this moment - official Q&A
+	# fid 20548 ("it is treated as an Advance Summoned card") and fid 20533, which applies
+	# an "Advance Summoned" clause to it while it is still face-down. It does NOT wait for
+	# the flip. CARD_RULINGS.md R12 Part F.
+	if not tributes.is_empty():
+		card.tribute_summoned = true
 	state.emit(GameEvent.Kind.CARD_SET, {
 		"card_id": card.id, "card_name": card.card_name(), "player": controller_id,
 		"is_monster": true, "private_to": [controller_id],
@@ -402,6 +408,11 @@ func complete_summon(pending: Dictionary) -> bool:
 
 	card.turn_summoned = state.turn_number
 	card.summoned_by = kind
+	# "Tribute Summoned" is recorded separately from `summoned_by`, which cannot carry it:
+	# a later Flip Summon overwrites `summoned_by` with FLIP, and the property survives that
+	# (official Q&A fid 11352). CARD_RULINGS.md R12 Part F.
+	if kind == Enums.SummonKind.TRIBUTE:
+		card.tribute_summoned = true
 	if kind == Enums.SummonKind.SPECIAL:
 		card.properly_special_summoned = true
 	# "Special Summoned THIS WAY" — recorded only for a summoning PROCEDURE, i.e. a monster

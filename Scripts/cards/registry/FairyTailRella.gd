@@ -81,7 +81,7 @@ func _targeting_protection() -> EffectDef:
 				var monster: CardInstance = entry
 				if monster == null or monster == ctx.source:
 					continue  # "except this one"
-				ContinuousEffects.restrict(monster, "cannot_be_targeted")
+				ContinuousEffects.restrict(monster, "cannot_be_targeted", ctx.source)
 
 	return e
 

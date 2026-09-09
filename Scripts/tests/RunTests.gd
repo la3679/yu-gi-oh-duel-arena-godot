@@ -38,6 +38,7 @@ func _initialize() -> void:
 	suites.append(ChoiceConstraintTests.run())
 	suites.append(DeckAccessTests.run())
 	suites.append(CostLegalityTests.run())
+	suites.append(ImmunityTests.run())
 
 	# --- Per-card suites (Phase 5). One per implemented card. ---
 	suites.append(ShiningAngelTests.run())
@@ -116,6 +117,7 @@ func _initialize() -> void:
 
 	# --- Batch 15 ---
 	suites.append(AHeroEmergesTests.run())
+	suites.append(MonarchsAwakenTests.run())
 
 	var total_passed := 0
 	var total_failed := 0

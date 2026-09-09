@@ -92,7 +92,7 @@ func _piercing() -> EffectDef:
 	e.apply_continuous = func(ctx: EffectContext) -> void:
 		var host := EffectPrimitives.equipped_host(ctx)
 		if host != null:
-			ContinuousEffects.restrict(host, "piercing")
+			ContinuousEffects.restrict(host, "piercing", ctx.source)
 
 	return e
 

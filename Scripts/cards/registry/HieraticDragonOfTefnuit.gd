@@ -67,7 +67,7 @@ func _cannot_attack() -> EffectDef:
 
 	e.apply_continuous = func(ctx: EffectContext) -> void:
 		if EffectPrimitives.summoned_this_way_this_turn(ctx, PROCEDURE_ID):
-			ContinuousEffects.restrict(ctx.source, "cannot_attack")
+			ContinuousEffects.restrict(ctx.source, "cannot_attack", ctx.source)
 
 	return e
 

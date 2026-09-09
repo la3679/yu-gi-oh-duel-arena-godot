@@ -342,6 +342,33 @@ func _attach(card: CardInstance, pid: int, zone: Enums.Zone, index: int,
 ##
 ## `to_player` is ignored for owner-bound zones. `position` sets the resulting
 ## face/battle position where meaningful.
+## The move REASONS that are "a card effect being applied to this card", for the immunity
+## gate in `move_card()`. RULES_SPEC.md 18, CARD_RULINGS.md R12 Part B.
+##
+## Everything absent from this list is deliberately absent:
+##   * `TRIBUTED`, `SENT_AS_COST`, `DISCARDED` — costs and Tributes, explicitly NOT effects
+##     applied to the card (official Q&A fid 298);
+##   * `DESTROYED_BY_BATTLE` — battle is not an effect (fid 18199);
+##   * `DESTROYED_BY_RULE`, `RULE`, `DRAW`, `SUMMONED`, `SET`, `RESOLVED_TO_GY`,
+##     `HAND_SIZE_DISCARD`, `EXCAVATED`, `RETURNED_FROM_BANISHMENT` — the game rules, which
+##     no immunity answers;
+##   * `ADDED_TO_HAND` — reachable only from the Deck, the GY or an excavation, where a card
+##     can never be immune (the immunity requires face-up on the field).
+const EFFECT_APPLICATION_MOVE_REASONS := [
+	Enums.MoveReason.DESTROYED_BY_EFFECT,
+	Enums.MoveReason.SENT_TO_GY_BY_EFFECT,
+	Enums.MoveReason.BANISHED,
+	Enums.MoveReason.RETURNED_TO_HAND,
+	Enums.MoveReason.RETURNED_TO_DECK_TOP,
+	Enums.MoveReason.RETURNED_TO_DECK_BOTTOM,
+	Enums.MoveReason.SHUFFLED_INTO_DECK,
+]
+
+
+static func _move_is_effect_application(reason: Enums.MoveReason) -> bool:
+	return EFFECT_APPLICATION_MOVE_REASONS.has(reason)
+
+
 func move_card(card: CardInstance, to_zone: Enums.Zone, reason: Enums.MoveReason,
 		opts: Dictionary = {}) -> bool:
 	if card == null:
@@ -357,6 +384,17 @@ func move_card(card: CardInstance, to_zone: Enums.Zone, reason: Enums.MoveReason
 		deck_position = Enums.deck_position_for(reason)
 	var new_position = opts.get("position", null)
 	var source_id: int = int(opts.get("source_id", -1))
+
+	# "…unaffected by the effects of cards other than this card": an effect cannot MOVE the
+	# card either. RULES_SPEC.md 18, CARD_RULINGS.md R12 Part B — official Q&A fid 23510 has
+	# an immune monster that cannot be taken as Fusion Material by the opponent's effect.
+	#
+	# Only the reasons that ARE an effect being applied to the card are gated, and the list
+	# is deliberately explicit rather than "everything except battle": a Tribute, a cost and
+	# a discard must all still work on an immune monster (fid 298), and so must every
+	# rules-driven placement.
+	if _move_is_effect_application(reason) and EffectImmunity.blocks(card, source_id):
+		return false
 
 	# Owner-bound zones. [S1 p.52] A card is only ever excavated from its own Deck, so the
 	# excavation holding area is owner-bound for the same reason the Deck is.
@@ -583,6 +621,11 @@ func can_change_control(card: CardInstance, new_controller: int) -> bool:
 ## Take control of `card`. Returns false if it could not be done, in which case nothing moved.
 func change_control(card: CardInstance, new_controller: int, source_id: int,
 		duration: Enums.ControlDuration) -> bool:
+	# Taking control IS an effect applied to the monster. RULES_SPEC.md 18,
+	# CARD_RULINGS.md R12 Part B. Every control change in the V1 pool comes from a card
+	# effect, so there is no rules-driven case to let through here.
+	if EffectImmunity.blocks(card, source_id):
+		return false
 	if not can_change_control(card, new_controller):
 		return false
 	var from_controller := card.controller_id
@@ -788,6 +831,7 @@ func banish_temporarily(card: CardInstance, source_id: int,
 	# `move_card()`), and the Banished zone is owner-bound, so there is nothing left that
 	# says anyone else controls it. CARD_RULINGS.md R30, MEDIUM confidence, reasoned.
 	var return_controller := card.owner_id
+	var tribute_summoned_before := card.tribute_summoned
 
 	if not move_card(card, Enums.Zone.BANISHED, Enums.MoveReason.BANISHED,
 			{"source_id": source_id,
@@ -798,6 +842,14 @@ func banish_temporarily(card: CardInstance, source_id: int,
 		"card_id": card.id, "source_id": source_id, "duration": duration,
 		"return_zone": return_zone, "return_position": return_position,
 		"return_controller": return_controller, "face_up": face_up,
+		# A TEMPORARILY banished monster is still "Tribute Summoned" when it comes back —
+		# official Q&A fid 11352, CARD_RULINGS.md R12 Part F case 4. `on_leave_field()`
+		# clears the property, correctly, because the monster really did leave; the lease
+		# carries it across and `end_banish_lease()` puts it back. This is the same
+		# mechanism that already carries the return position and controller (R30), and it
+		# does NOT contradict R30: R30 governs state applied TO the monster, this governs
+		# how the monster arrived.
+		"tribute_summoned": tribute_summoned_before,
 	})
 	return true
 
@@ -846,6 +898,11 @@ func end_banish_lease(lease: Dictionary) -> bool:
 			"source_id": int(lease["source_id"]), "returned": false, "no_free_zone": true,
 		})
 		return false
+
+	# Restored AFTER the move, because `move_card()` runs `on_leave_field()`/arrival and
+	# would otherwise clear it again. CARD_RULINGS.md R12 Part F case 4.
+	if bool(lease.get("tribute_summoned", false)):
+		card.tribute_summoned = true
 
 	emit(GameEvent.Kind.CARD_RETURNED_FROM_BANISHMENT, {
 		"card_id": card.id, "card_name": card.card_name(),
@@ -1179,6 +1236,17 @@ func destroy(card: CardInstance, reason: Enums.MoveReason = Enums.MoveReason.DES
 		source_id: int = -1, depth: int = 0) -> bool:
 	if not _is_destroyable_zone(card):
 		return false
+	# Asked BEFORE `destruction_prevented()` on purpose. An immune monster is not "protected
+	# from" the destruction — the destroying effect never applies to it at all, so nothing
+	# that counts uses of a prevention effect (`Gagagashield`'s twice-per-turn) may be spent
+	# here. RULES_SPEC.md 18, CARD_RULINGS.md R12 Part B.
+	#
+	# Only destruction BY A CARD EFFECT is gated. Battle destruction reaches an immune
+	# monster exactly as normal (official Q&A fid 18199), and so does the rules destruction
+	# of an Equip Card that lost its host.
+	if reason == Enums.MoveReason.DESTROYED_BY_EFFECT \
+			and EffectImmunity.blocks(card, source_id):
+		return false
 	if destruction_prevented(card, reason):
 		return false
 	return carry_out_destruction(card, reason, source_id, depth)
@@ -1231,6 +1299,9 @@ func place_counters(card: CardInstance, kind: String, amount: int,
 		return false
 	if not card.is_on_field() or not card.is_face_up():
 		return false
+	# Putting a counter on a monster is an effect applied to it. RULES_SPEC.md 18.
+	if EffectImmunity.blocks(card, source_id):
+		return false
 	card.add_counters(kind, amount)
 	emit(GameEvent.Kind.COUNTER_PLACED, {
 		"card_id": card.id, "card_name": card.card_name(),
@@ -1270,6 +1341,12 @@ func total_counters(card: CardInstance, kind: String) -> int:
 func set_battle_position(card: CardInstance, new_position: Enums.Position,
 		by_effect: bool, source_id: int = -1) -> void:
 	if card == null or card.position == new_position:
+		return
+	# Changing a monster's battle position is an effect applied to it — but only when an
+	# EFFECT is doing it. A manual position change and the rules flip that happens when a
+	# face-down monster is attacked both pass `by_effect = false` and are never blocked.
+	# RULES_SPEC.md 18, CARD_RULINGS.md R12 Part B.
+	if by_effect and EffectImmunity.blocks(card, source_id):
 		return
 	var was_face_up := card.is_face_up()
 	var old := card.position

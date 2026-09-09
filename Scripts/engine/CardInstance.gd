@@ -53,6 +53,24 @@ var turn_summoned: int = -1
 var turn_set: int = -1
 var turn_flipped: int = -1
 var summoned_by: Enums.SummonKind = Enums.SummonKind.NORMAL
+## True while this monster counts as having been **Tribute Summoned**, for card text that
+## says "Tribute Summoned monster" (`The Monarchs Awaken`). CARD_RULINGS.md R12 Part F.
+##
+## Deliberately NOT derived from `summoned_by`, which cannot answer the question:
+##
+##   * a monster Tribute **Set** face-down IS "Tribute Summoned" — official Q&A fid 20548
+##     and fid 20533 — but `summoned_by` records `TRIBUTE_SET`, a different value;
+##   * a Tribute Summoned monster flipped face-down and Flip Summoned again is STILL
+##     "Tribute Summoned" — fid 11352 — but `_complete_flip_summon()` overwrites
+##     `summoned_by` with `FLIP`, destroying the record;
+##   * a monster **temporarily** banished and returned to the Monster Zone is STILL
+##     "Tribute Summoned" — fid 11352 — even though it genuinely left the field (R30).
+##
+## Written by `SummonRules` on both Tribute routes, carried across a temporary banishment by
+## the `banish_leases` record, NOT cleared by `on_flipped_face_down()`, and cleared by
+## `on_leave_field()` — a monster that left the field permanently and came back was not
+## Tribute Summoned unless it is Tribute Summoned again.
+var tribute_summoned: bool = false
 ## True once the monster has been properly Special Summoned (Extra Deck rule; unused in V1
 ## but modelled so it can be enforced later).
 var properly_special_summoned: bool = false
@@ -91,7 +109,21 @@ var flags: Dictionary = {}
 ## True when the card's effects are currently negated (e.g. by Fiendish Chain).
 var effects_negated: bool = false
 ## True when the card is unaffected by other cards' effects (The Monarchs Awaken).
+##
+## Read through `is_unaffected_by_effect_of()`, never directly, because the immunity is
+## always relative to a SOURCE: the printed wording is "unaffected by the effects of cards
+## other than **this card**", so the card that granted it stays able to affect the monster.
+## `unaffected_exempt_source_ids` carries that exemption. CARD_RULINGS.md R12 Part D.
+##
+## Deliberately a plain per-instance field and NOT a `ContinuousEffects` restriction flag:
+## `The Monarchs Awaken` is a Normal Trap that is in the Graveyard by the time the state
+## matters, and the official duration is "as long as the monster is face-up in the Monster
+## Zone" with no condition on the Trap at all (R12 Part D/E). A continuous flag would be
+## wiped by the next recompute, which would be wrong.
 var unaffected_by_effects: bool = false
+## Instance ids exempt from `unaffected_by_effects` — "cards other than **this card**".
+## Written only by `EffectImmunity.grant()`, and cleared wherever the immunity is cleared.
+var unaffected_exempt_source_ids: Array = []
 
 ## Which players have seen this card's identity while it was hidden.
 ## Used by hidden-information filtering (master prompt 40) for revealed cards.
@@ -249,6 +281,35 @@ func cannot_be_targeted() -> bool:
 	return bool(flags.get("cannot_be_targeted", false))
 
 
+## "…it is unaffected by the effects of cards other than this card." [`The Monarchs Awaken`]
+##
+## Is an effect whose SOURCE is instance `source_id` prevented from APPLYING to this card?
+##
+## Three things this deliberately does NOT answer, all three settled from official Konami
+## Q&A and all three easy to get wrong (CARD_RULINGS.md R12 Part B):
+##
+##   * it does not stop the card being **targeted** or otherwise chosen — that is the
+##     separate `cannot_be_targeted()` flag, and conflating the two is the single most
+##     common misreading of "unaffected";
+##   * it does not stop the effect **activating** or **resolving**, and it does not stop the
+##     parts of that same effect that apply to some OTHER card;
+##   * it does not stop a **cost**, a **Tribute**, or **battle**. None of those is an effect
+##     being applied to this card.
+##
+## `source_id` of -1 means "no card source" — a rules-driven action — and is never blocked.
+func is_unaffected_by_effect_of(source_id: int) -> bool:
+	if not unaffected_by_effects:
+		return false
+	if source_id == -1:
+		return false
+	return not unaffected_exempt_source_ids.has(source_id)
+
+
+## Does this monster count as "Tribute Summoned" for card text? CARD_RULINGS.md R12 Part F.
+func was_tribute_summoned() -> bool:
+	return tribute_summoned
+
+
 func is_face_up() -> bool:
 	return Enums.is_face_up(position)
 
@@ -314,13 +375,21 @@ func current_def() -> int:
 	return maxi(0, value)
 
 
+## A stat modifier is an effect applied to this card, so an immune card does not receive one
+## — whether it would have helped or hurt. RULES_SPEC.md 18, CARD_RULINGS.md R12 Part B;
+## official Q&A fid 13065 names "that monster's ATK becomes 0" as blocked, and fid 18199
+## makes the point that a BENEFIT is refused just the same.
 func add_atk_modifier(source_id: int, amount: int, duration: String, mod_id: String = "") -> void:
+	if is_unaffected_by_effect_of(source_id):
+		return
 	atk_modifiers.append({
 		"source_id": source_id, "atk": amount, "until": duration, "id": mod_id,
 	})
 
 
 func add_def_modifier(source_id: int, amount: int, duration: String, mod_id: String = "") -> void:
+	if is_unaffected_by_effect_of(source_id):
+		return
 	def_modifiers.append({
 		"source_id": source_id, "def": amount, "until": duration, "id": mod_id,
 	})
@@ -473,6 +542,12 @@ func on_leave_field() -> void:
 	flags.clear()
 	effects_negated = false
 	unaffected_by_effects = false
+	unaffected_exempt_source_ids.clear()
+	# A monster that LEFT the field was not Tribute Summoned any more. A **temporary**
+	# banishment is the documented exception (R12 Part F case 4) and is restored by
+	# `GameState.end_banish_lease()` from the lease, not excepted here — this function must
+	# stay the single honest "it left" reset.
+	tribute_summoned = false
 	equipped_to_id = -1
 	equipped_card_ids.clear()
 	has_attacked_this_turn = false
@@ -486,12 +561,18 @@ func on_leave_field() -> void:
 
 
 ## Flipping face-down also resets per-instance effect state. Master prompt 48.
+##
+## `tribute_summoned` is deliberately NOT reset here: official Q&A fid 11352 states that a
+## Tribute Summoned monster turned face-down "continues to be treated as a Tribute Summoned
+## monster", and fid 20533 states the property holds for a Tribute **Set** monster that has
+## never been face-up at all. CARD_RULINGS.md R12 Part F.
 func on_flipped_face_down() -> void:
 	effect_usage.clear()
 	effect_use_counts.clear()
 	turn_counters.clear()
 	effects_negated = false
 	unaffected_by_effects = false
+	unaffected_exempt_source_ids.clear()
 
 
 func _to_string() -> String:
