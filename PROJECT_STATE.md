@@ -3,16 +3,121 @@
 > Persistent resume file. A new Claude Code session should read **this file first**,
 > then read only the targeted files named in §8. Do **not** recursively reread the repository.
 
-**Last updated:** 2026-09-10 (Phase 6 COMPLETE — units 1, 2, 3 and 4)
-**Current phase:** **Phase 6 is COMPLETE** — integration, scripted full duels, backend acceptance
-(gate MET) and the unit-4 cleanup. Phases 0–6 are complete and Gates A, B and C are MET.
-**STOP HERE: the next phase is Phase 7 (the local Human-v-Human UI). Its full plan is persisted in
-§8 under "PHASE 7 PLAN"; it is NOT started and is not to be started without the user's explicit
+**Last updated:** 2026-09-10 (Phase 7 unit A COMPLETE — the engine session adapter)
+**Current phase:** **Phase 7 (the local Human-v-Human UI) — unit A COMPLETE, unit B NOT STARTED.**
+Phases 0–6 are complete; Gates A, B, C and the backend acceptance gate are MET.
+**STOP HERE: the next step is Phase 7 unit B, persisted EXACTLY in §8 under "PHASE 7 PLAN" →
+"Unit B — the EXACT continuation". It is not to be started without the user's explicit
 instruction.**
 
 ---
 
-## 0. READ THIS FIRST — Phase 6 is COMPLETE (units 1–4), and the backend acceptance gate is MET
+## 0. READ THIS FIRST — Phase 7 unit A is COMPLETE; unit B is NEXT and NOT STARTED
+
+**Unit A proved the UI / engine execution architecture (ADR-0001, `docs/ARCHITECTURE.md` → "The
+UI execution boundary"). The `DuelEngine` runs on its own worker thread behind `EngineSession`;
+the owner (UI) thread receives every question — timing-window prompts AND mid-resolution
+decisions — on the right player's channel as plain data, answers it, and stops the duel cleanly.
+No engine, rules or card code changed. Nothing in unit A is partial or unverified. STOP HERE —
+unit B is persisted exactly in §8 ("PHASE 7 PLAN" → "Unit B — the EXACT continuation") and is not
+to be started without the user's explicit instruction.**
+
+**Measured at this checkpoint (2026-09-10).** Previous clean HEAD: `aee8c3b`. The unit A commit
+hash is recorded in `Reports/TEST_RESULTS.md` ("Phase 7 unit A").
+
+| Gate | Result |
+|---|---|
+| Full regression (`RunTests`) | **10607 / 10607 across 100 suites**, 0 failed. **Every one of Phase 6's 10433 assertions passes unchanged**; 10607 − 10433 = **174** = the new `EngineSessionTests` |
+| Integration / backend acceptance (`RunIntegrationTests`) | **592 / 592** across 5 suites — unchanged; the session suite has its own runner (`RunSessionTests`, 174 / 174) |
+| SmokeCheck | **PASS** |
+| `SceneSpikeCheck` — `run/main_scene` through a REAL main loop | **PASS** — 11 frames; the screen's own "Normal Summon The White Stone of Legend" button was pressed and `NORMAL_SUMMON_SUCCEEDED` came back in the log the screen received; exactly one copy of the main scene in the tree (a `--script` run does not auto-load it) |
+| Cross-process determinism | **PASS** — 6 / 6 duels byte-identical across two processes |
+| `SCRIPT ERROR` | **0** in every run |
+| Leaks at exit | no "ObjectDB instances were leaked", no "resources still in use", no un-joined-`Thread` warning — in any run |
+| `ERROR:` lines | 17 in the full run = the 11 pre-existing deliberate fail-loudly tests + the 6 deliberate thread-guard refusals of the new suite |
+| Cards / matrix | 77 / 77 implemented and tested; `Tools/build_matrix.py` regenerates the CSV unchanged; matrix-tool tests 16 / 16 |
+| Engine code | `git diff`: **zero** lines changed under `Scripts/engine`, `Scripts/rules`, `Scripts/cards` |
+
+### What unit A built
+
+| File | What it is |
+|---|---|
+| `Scripts/session/EngineSession.gd` | the owner-thread API (`start_duel`, `start_attached` for tests, `poll(viewer)`, `submit(player, prompt_id, value)`, `stop`, `wait_for_message`; `debug_engine` for tests only), the per-viewer event projection, and the thread-shared `Core` |
+| `Scripts/session/HumanController.gd` | the `PlayerController` whose `decide()` hands the request to the session and blocks the worker until the owner answers or the session stops |
+| `Scripts/session/DeckLists.gd` | the two real decks for a duel outside the tests — asserted identical to `TestFixtures.real_deck()` |
+| `Scripts/ui/DuelSpike.gd`, `Scenes/ui/DuelSpike.tscn` | the thin spike screen (prompt text, offer / answer buttons, a log), now `run/main_scene` |
+| `Tests/integration/EngineSessionTests.gd` | 14 tests, 174 assertions (below); registered in `RunTests` |
+| `Scripts/tests/RunSessionTests.gd`, `Scripts/tests/SceneSpikeCheck.gd` | the targeted runner; the main-scene check (added to CI) |
+
+**The protocol in five lines.** One prompt is open at a time: `ACTION` / `RESPONSE` from
+`get_pending_decision()`, or `DECISION` from `decide()`. The worker publishes it to the asked
+player's channel ONLY and parks on a `Semaphore`. The owner answers by index — `{"offer": i,
+"choices": {...}}` or option indices / a bool — and the engine re-validates (actions) or its own
+`DecisionRequest.validate()` judges (decisions); anything malformed, stale, foreign or refused is
+rejected, changes nothing, and is re-prompted. A channel advances only at its own player's prompts
+and at the end ("over" to both). `stop()` hands out neutral answers so the engine's stack unwinds,
+then joins the thread.
+
+### EngineSessionTests — what each test proves
+
+| Test | Proves |
+|---|---|
+| the pure helpers | the projection drops the opponent's `RESPONSE_PASSED` (auto AND manual), private events, `sequence`, `private_to`; `plain()` deep-copies and strips Objects; malformed submissions (12 shapes, incl. an unknown int field) are refused; selections are option indices |
+| a Chain with responses and nested decisions | a synthetic Chain built through a `RESPONSE` prompt on EACH channel, then 5 mid-resolution decisions — sequential, nested (asked only because of an earlier answer), and asked of the opponent — all answered from the owner thread; forged / malformed / stale / foreign / wrong-count answers rejected with nothing changed (event count equal); `decide()` ran on the worker only; the duel is **identical** (events, replay payload, board) to the same inputs played single-threaded |
+| engine work only on the worker | every `GameEvent` emitted after start was emitted on the worker thread |
+| the owner API refuses other threads | poll / submit / wait / debug_engine / stop from another thread: refused, counted (6), no effect — the owner still receives the unstolen prompt |
+| an opponent decision mid-resolution is invisible | `Fairy Tail - Luna`: player 0's channel is byte-identical whether the opponent was asked and declined or had nothing to be asked |
+| an opponent response window is invisible | player 0's channel is byte-identical whether player 1 held a live Trap (response windows opened) or a dead card (none) — while the RAW `get_log_for(0)` differs, so the projection is load-bearing |
+| whole real duels equal the DuelDriver | the six `ScriptedDuelTests` duels, answered through the session by `DuelDriver`'s own policy objects: identical events, final board and replay payload; the same refused policy guesses; 0 engine errors on either thread; decisions of 7 kinds (CHOOSE_DISCARD 68, CHOOSE_POSITION 17, YES_NO 15, SELECT_EXACTLY 12, CHOOSE_COST / CHOOSE_TARGETS / CHOOSE_TRIBUTES 1 each) |
+| stop while blocked mid-resolution | returns promptly, every pending question gets the neutral default, the whole Chain unwinds, only "stopped" is published after |
+| stop idle / before start / twice | clean and idempotent; a stopped session cannot start; one duel per session |
+| dropping a running session | the session, core, thread, engine and controller are all freed; Godot reports nothing |
+| repeated sessions leak nothing | 8 × each of: stopped mid-resolution, stopped idle after 40 prompts, dropped — ObjectDB growth **0** |
+| the UI talks to the session only | a scan of `Scripts/ui/` for the engine, its state, the rules layer, the test harness and `debug_engine` |
+| the session never touches the scene tree | a scan of `Scripts/session/` for `Node`, `get_tree`, `call_deferred`, signals and emits |
+| the production deck loader | `DeckLists` = `TestFixtures.real_deck()`, name and order |
+
+### Findings
+
+1. **`PREDELETE` cannot call a method on `self`.** The first run: "Attempt to call function
+   '_shutdown' in base 'null instance'" — so every dropped session leaked its thread and core
+   (4 failures, ObjectDB growth 920 over 8 drops, "Thread object is being destroyed without its
+   completion"). Fixed by inlining the shutdown in `_notification`; the drop and leak tests are the
+   ones that caught it.
+2. **The raw engine log leaks whether a player COULD respond** (the engine auto-passes a player
+   without a legal response: a manual pass is `{"player","timing"}`, an automatic one
+   `{"player","automatic":true}`, and a skipped FAST / TP window emits nothing). The session's
+   projection closes it for the UI; the engine log itself is unchanged (replay, determinism and
+   every existing assertion read it). Measured by the response-window test's control.
+3. **A hidden card's stub id identifies the card** — `get_visible_state()` stubs carry the instance
+   `id`, and ids are assigned in pre-shuffle Deck-list order; the Deck lists are public. Measured
+   with a temporary probe (deleted): **15 of 15** hidden hand cards identified over three seeds.
+   Older than Phase 7, NOT introduced by unit A, NOT fixed here — **gated as step B0 of unit B.**
+4. **Two of my own expectations were wrong, not the engine.** After a Chain resolves, the turn
+   player gets a fast-effect window (RULES_SPEC.md 3 box B), and Trap C was still live — so the
+   next prompt is `RESPONSE`, not `ACTION`. Corrected in the test with the reason written beside it.
+5. **Mutation testing: 8 mutations, 8 caught — two only after a coverage fix.** Caught first pass:
+   the projection keeping the opponent's passes; a DECISION also delivered to the other channel; one
+   global prompt counter; a rejection naming who is being asked; every prompt carrying player 0's
+   view; the owner-thread guard disabled. **Survived first pass, both real gaps:** the worker
+   skipping `validate()` on a decision answer (no test sent a well-formed wrong-COUNT answer), and
+   accepting any choice field (only `params: {}` had been tried, which the type check refused; an
+   int field such as `card_id: 99` would have been silently ignored and the offer carried out).
+   Tests added; both then caught.
+
+### Honest limits
+
+* **No person pressed F5 at a window.** The main scene was driven by `SceneSpikeCheck` through the
+  real main loop, pressing the screen's own buttons, headless; the rendered layout was not
+  inspected visually.
+* **The spike screen is not shared-screen safe** — it shows whichever prompt is open. The session's
+  channels do not leak; the handoff policy is unit E. A human's thinking time (a timing channel)
+  is likewise unit E's policy, not the session's.
+* The spike's buttons for multi-parameter offers are capped at 12 combinations — unit C replaces
+  them.
+* Measured on Windows locally; CI (Ubuntu) runs the same suites and the new main-scene step.
+
+## 0c. The record of Phase 6 — COMPLETE (units 1–4); the backend acceptance gate is MET
 
 **The card library was already complete (77 / 77, §0b). This phase proved the GAME works: the
 ObjectDB reference cycle is fixed, the engine plays whole duels between the two real 40-card decks
@@ -944,7 +1049,7 @@ the pool that needs the behaviour. Full write-up in `Reports/TEST_RESULTS.md`.
 | 4 | Core rules engine | **COMPLETE** — 4b-1/4b-2/4b-3/4c done+tested |
 | 5 | Card effect library (77 cards) | **COMPLETE** — **77 / 77** implemented and tested (batches 1-18 all complete). The next phase is integration / scripted duels / backend acceptance, specified in §8. |
 | 6 | Automated tests — integration, scripted full duels, backend acceptance | **COMPLETE (units 1–4)** — the ObjectDB cycle is fixed, whole duels between the real decks are played, replayed and checked, the backend acceptance gate is MET, and the unit-4 cleanup (R35 closed, matrix ruling column, Miyabi reader, docs) is done. See §0 and §8. |
-| 7 | Basic playable UI — local Human-v-Human | NOT STARTED — planned in §8 "PHASE 7 PLAN" (units A–G, with acceptance criteria) |
+| 7 | Basic playable UI — local Human-v-Human | **IN PROGRESS** — unit A COMPLETE (the engine session adapter, ADR-0001; §0); unit B NEXT, NOT STARTED — §8 "PHASE 7 PLAN" (units A–G, with acceptance criteria) |
 | 8 | Arena / presentation | NOT STARTED |
 | 9 | Local privacy UX | NOT STARTED |
 | 10 | Asset polish | NOT STARTED |
@@ -1757,14 +1862,15 @@ still open — which no longer includes any engine gap. Do **not** re-read the w
 re-run research, or re-derive rules.
 
 > **Start here instead of reading this section top to bottom.** Everything below the "How to
-> resume" paragraph is historical. The current state is §0. **The next thing to do is Phase 7,
-> planned under "PHASE 7 PLAN" further down this section — and only on the user's explicit
-> instruction.** The Phase 6 plan below it is kept as the record.
+> resume" paragraph is historical. The current state is §0. **The next thing to do is Phase 7
+> UNIT B, persisted under "PHASE 7 PLAN" → "Unit B — the EXACT continuation" further down this
+> section (unit A is COMPLETE) — and only on the user's explicit instruction.** The Phase 6 plan
+> below it is kept as the record.
 >
-> **Measured now: 10433 / 10433 across 99 suites, SmokeCheck PASS, 0 `SCRIPT ERROR`, 77 / 77
-> implemented and tested — the CARD IMPLEMENTATION PHASE is COMPLETE, and Phase 6 units 1–4
-> (the ObjectDB fix, scripted full duels, backend acceptance, cleanup) are COMPLETE — no ObjectDB leak at
-> exit (see §0).** Batch 18 closed **R5** and **R14** and
+> **Measured now: 10607 / 10607 across 100 suites, SmokeCheck PASS, SceneSpikeCheck PASS, 0
+> `SCRIPT ERROR`, 77 / 77 implemented and tested — the CARD IMPLEMENTATION PHASE is COMPLETE,
+> Phase 6 units 1–4 are COMPLETE, and Phase 7 unit A (the engine session adapter) is COMPLETE —
+> no ObjectDB or thread leak at exit (see §0).** Batch 18 closed **R5** and **R14** and
 > produced `RULES_SPEC.md` **§10.11** (substitution is a THIRD operation on a Chain Link) and
 > **§19** (negation immunity, and an effect activated by the TURN PLAYER). Batch 16 closed **R12** (`The Monarchs Awaken`) and produced `RULES_SPEC.md`
 > **§18** — *"unaffected" gates effect APPLICATION only; targeting, resolution, costs and battle
@@ -2221,10 +2327,11 @@ negation-immunity gate and the turn-player activation route. **77 / 77.** The fu
 
 ---
 
-## PHASE 7 PLAN — a functional local Human-v-Human UI. NOT STARTED.
+## PHASE 7 PLAN — a functional local Human-v-Human UI. Unit A COMPLETE; unit B NEXT (not started).
 
-**Written at the end of Phase 6 unit 4 (2026-09-10). Nothing below is implemented. Do not start
-it without the user's explicit instruction.** Functionality before polish: Phase 7 is a
+**Written at the end of Phase 6 unit 4 (2026-09-10). Unit A is COMPLETE (2026-09-10; the result is
+in §0). Units B–G are NOT implemented. Do not start unit B without the user's explicit
+instruction.** Functionality before polish: Phase 7 is a
 *playable* duel between two humans on one PC, with plain 2D controls. 3D, animation and
 "holographic" presentation are Phase 8 and come only after the Phase 7 gate (unit G below).
 
@@ -2260,7 +2367,8 @@ this checkpoint):
   A Godot UI cannot answer from inside that call on the main thread.
 
 Options, with the recommendation — **unit A must prove or disprove it with a spike before any
-board work, and record the decision as an ADR in `docs/ARCHITECTURE.md`:**
+board work, and record the decision as an ADR in `docs/ARCHITECTURE.md`:** **→ DONE in unit A:
+option 1 was proven and adopted as ADR-0001, with no engine change.**
 
 1. **RECOMMENDED — a worker-thread session adapter.** The engine runs on one dedicated `Thread`.
    A `HumanController` (a `PlayerController`) publishes each `DecisionRequest` to the UI via
@@ -2302,6 +2410,76 @@ scene scripts thin.
 * `run/main_scene` is set; F5 starts a duel with both real decks and the turn player can click an
   offered action (a Normal Summon) and see the engine's result;
 * full regression, SmokeCheck and determinism PASS headless; 0 `SCRIPT ERROR`.
+
+**Unit A — COMPLETE (2026-09-10).** Every acceptance item is met and measured in §0: ADR-0001
+written; the spike answers mid-resolution decisions (targets, yes/no, trigger order, card choices,
+an opponent-side decision) from the owner thread; `EngineSessionTests` plays the six scripted
+real-deck duels through `EngineSession` with `DuelDriver`'s policies and each is identical to the
+`DuelDriver` run (events, board, replay payload); the UI scan exists and passes; `run/main_scene`
+is set and `SceneSpikeCheck` clicks a Normal Summon through a real main loop; full regression,
+SmokeCheck and determinism PASS; 0 `SCRIPT ERROR`. Two things beyond the plan: the privacy of the
+channels is TESTED (a mid-resolution opponent decision and an opponent response window are both
+invisible on the other channel), and repeated / cancelled / dropped sessions leave ObjectDB growth
+at 0. **The one deviation, stated plainly:** "F5 starts a duel" was verified by driving the main
+scene headless through the real main loop, not by a person at a window.
+
+### Unit B — the EXACT continuation (NEXT; NOT STARTED)
+
+**Verify from disk first:** HEAD is the unit A checkpoint recorded in `Reports/TEST_RESULTS.md`,
+`origin/main` synchronized, clean tree; `RunTests` 10607 / 10607 across 100 suites;
+`RunSessionTests` 174 / 174; `RunIntegrationTests` 592 / 592; SmokeCheck, `SceneSpikeCheck` and
+`Tools/check_determinism.*` PASS; 77 / 77.
+
+Do the steps in order. Every new mechanism gets its tests written and passing — and every FIX its
+test written and FAILING — before anything depends on it.
+
+**B0 — gate first: hidden-card identity (unit A finding 3).**
+1. Write the failing test first, `Tests/integration/HiddenIdentityTests.gd` (register it in
+   `RunTests`): *"the Deck-list-order attack identifies no more hidden cards than the best blind
+   guess."* Play the six scripted duels through `EngineSession`. At every prompt, on each channel,
+   for every identifier the viewer is shown for a card hidden from them — a stub in the opponent's
+   hand, an opponent's face-down card, and every projected event naming a card hidden from the
+   viewer at both ends of its move — apply the attack (identifier minus the owner's base → that
+   slot of the owner's public Deck list) and count the hits; count the blind baseline too (always
+   guess the most common name among the cards that viewer cannot see). Assert hits ≤ baseline.
+   It must FAIL before the fix (measured 15 / 15 on opening hands).
+2. Decide WHERE to fix it in a short ADR-0002 in `docs/ARCHITECTURE.md`: (a) at the engine's
+   viewer boundary (`GameState._hidden_card_stub()` / `get_log_for()`), so a future CPU or network
+   client cannot read it either — preferred, **if** no existing assertion needs retargeting; or
+   (b) in `EngineSession`'s projection, as per-viewer opaque aliases applied to views AND events
+   alike. Either way: an identifier shown for a hidden card must not be derived from registration
+   order, and must be re-issued whenever the card passes through a zone where a physical observer
+   loses track of it (Deck, hand); a face-down card on the field may keep one alias from its Set
+   until it leaves the field. An engine change is a finding, gated; never weaken, retarget or delete
+   an existing assertion; re-run determinism and the replay tests.
+3. The unit-A privacy tests (Luna; the response window) stay green and are extended to the new
+   identifiers.
+
+**B1 — the board view model.** A pure `RefCounted` under `Scripts/ui/` (e.g. `BoardViewModel.gd`)
+built ONLY from a channel's messages: both players' 5 Monster Zones and 5 Spell & Trap Zones, Field
+Zone, Deck count, GY and banished lists, the (empty) Extra Deck, hand, LP, turn / phase / step, the
+current Chain with link numbers, positions (ATK / DEF, face-down), counters and Equip links.
+`BoardViewModelTests`: after every prompt of the six scripted duels, on both channels,
+`model.to_dict()` equals the delivered view — nothing added, nothing dropped; the model for one
+viewer holds no identity of the other's hand, Deck or face-down cards (truth from
+`DuelDriver._hidden_from()` via `debug_engine()`, tests only).
+
+**B2 — the 2D board scene**, which becomes `run/main_scene` (keep `DuelSpike` only while a test
+needs it): one widget per zone; face-down cards render as backs to the opponent; a card-detail
+panel whose official text is read from `Data/cards/cards.json` BY NAME, only for cards the view
+names — the UI never reads `CardDef` or the engine. Keep the unit-A prompt buttons as they are
+(unit C replaces them). The UI scan in `EngineSessionTests` must stay green.
+
+**B3 — acceptance and checkpoint.** A coverage test: every zone key in the visible state has a
+widget. `SceneSpikeCheck` extended to drive the BOARD through a real main loop (click a Normal
+Summon, see the card appear in a Monster Zone widget). Full regression, `RunSessionTests`,
+`RunIntegrationTests`, SmokeCheck, `SceneSpikeCheck`, determinism PASS; 0 `SCRIPT ERROR`; no
+ObjectDB / thread / resource leak; a mutation pass on B0 and B1; update this file and
+`Reports/TEST_RESULTS.md`; persist the exact unit C continuation; commit; push; verify
+`origin/main`; **STOP — do not start unit C.**
+
+**Out of scope for unit B — do not start:** prompts for every `ActionKind` / `DecisionKind` (C);
+setup, surrender and game-over flow (D); the handoff screen (E); 3D, animation, VFX, audio, CPU.
 
 **B — hand, field, Deck / GY / banished visualisation.**
 A functional 2D board rendered **only** from `get_visible_state(viewer)`: both players' 5 Monster

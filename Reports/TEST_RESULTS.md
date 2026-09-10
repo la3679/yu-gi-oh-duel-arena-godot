@@ -1,10 +1,10 @@
 # TEST_RESULTS
 
-**Last run:** 2026-09-10 (**Phase 6 COMPLETE — unit 4, the backend cleanup, closes it.** R35 /
-`Mirage Dragon` re-checked under `request_locale=ja` and CLOSED; `Tools/build_matrix.py` reads each
-ruling's status instead of printing `PENDING`; `Spiritual Wind Art - Miyabi` reads the field
-Attribute. **77 / 77 implemented, 77 / 77 tested.** Units 1–3 and the card phase record follow
-below. **Phase 7 (UI) has NOT started.**)
+**Last run:** 2026-09-10 (**Phase 7 unit A COMPLETE — the engine session adapter.** The
+`DuelEngine` runs on its own worker thread behind `EngineSession`; the UI thread receives every
+question on the right player's channel as plain data and answers it; **no engine, rules or card
+code changed. 77 / 77 implemented, 77 / 77 tested.** Phase 6 and the card-phase record follow
+below. **Phase 7 unit B has NOT started.**)
 **Engine:** Godot 4.7.1.stable.official.a13da4feb (headless)
 
 Command:
@@ -44,7 +44,16 @@ authority for every number below.
 | Per-card tests | 69 | 7328 | **7328** | 0 |
 | Interaction tests | 1 | 46 | **46** | 0 |
 | Integration — lifetime, scripted full duels, backend acceptance | 3 | 312 | **312** | 0 |
-| **TOTAL** | **99** | **10433** | **10433** | **0** |
+| UI execution boundary — the engine session adapter (Phase 7 unit A) | 1 | 174 | **174** | 0 |
+| **TOTAL** | **100** | **10607** | **10607** | **0** |
+
+**Phase 7 unit A checkpoint (2026-09-10):** previous clean commit **`aee8c3b`**; the unit A commit
+is recorded under "Phase 7 unit A" below. **10607 / 10607 across 100 suites**, SmokeCheck
+**PASS**, `SceneSpikeCheck` **PASS**, `SCRIPT ERROR` **0**, **no** ObjectDB leak warning, **no**
+"resources still in use", **no** un-joined thread, cross-process determinism **PASS** (6 / 6),
+integration / backend acceptance **592 / 592**, matrix **77 / 77** (regenerated, unchanged),
+matrix-tool tests **16 / 16**. Every one of Phase 6's **10433** assertions passes unchanged;
+10607 − 10433 = **174** = the new `EngineSessionTests`.
 
 **Phase 6 unit 4 checkpoint (2026-09-10):** commit **`17cd990`**; previous clean commit
 **`5d483bc`**. **10433 / 10433 across 99 suites**, SmokeCheck
@@ -64,6 +73,70 @@ the committed CSV is unchanged). **No "ObjectDB instances were leaked at exit" w
 Every one of batch 18's **10087** assertions passes unchanged — none changed, retargeted or
 deleted. 10422 − 10087 = **335** = 23 (`HiddenInfoTests` 224 → 247) + 16 (`LifetimeTests`) + 231
 (`ScriptedDuelTests`) + 65 (`BackendAcceptanceTests`).
+
+## Phase 7 unit A — the engine session adapter COMPLETE
+
+The full record is **`PROJECT_STATE.md` §0**; the decision is **ADR-0001** in
+`docs/ARCHITECTURE.md` ("The UI execution boundary"). Unit A commit: **`PENDING-UNIT-A-HASH`**
+(recorded by the follow-up docs commit, as at every checkpoint).
+
+### The runs
+
+| Command | Result |
+|---|---|
+| `Tools/run_tests.ps1 RunTests 1200` | **10607 / 10607**, 100 suites, `RESULT: PASS` |
+| `Tools/run_tests.ps1 RunSessionTests` | **174 / 174** (`EngineSessionTests`) |
+| `Tools/run_tests.ps1 RunIntegrationTests` | **592 / 592**, 5 suites — unchanged |
+| `Tools/run_tests.ps1 SmokeCheck` | **PASS** |
+| `Tools/run_tests.ps1 SceneSpikeCheck` | **PASS** — 11 frames; "Normal Summon The White Stone of Legend" pressed on the screen, `NORMAL_SUMMON_SUCCEEDED` received |
+| `Tools/check_determinism.ps1` | **PASS** — 6 / 6 duels identical across two processes |
+| `python Tools/build_matrix.py` + `git diff` | 77 / 77; the CSV is unchanged |
+| `python -m unittest discover -s Tools -p "test_*.py"` | 16 / 16 |
+| Scan of every run's stdout + stderr | `SCRIPT ERROR` **0**; "leaked" **0**; "still in use" **0**; un-joined thread **0**; `ERROR:` 17 in the full run = 11 pre-existing deliberate + 6 deliberate thread-guard refusals |
+
+### The six scripted real-deck duels, played through the session
+
+Each answered by `DuelDriver`'s own policy objects from the owner thread, and each **identical** to
+the `DuelDriver` run — every event, the final board, the replay payload, and the number of refused
+policy guesses. Wall-clock time varies with machine load; these are from the second run.
+
+| Duel | Prompts (p0 + p1) | Mid-resolution decisions | ms |
+|---|---:|---:|---:|
+| beatdown mirror | 110 + 74 | 14 | 3264 |
+| control vs beatdown | 42 + 59 | 1 | 1773 |
+| beatdown vs control | 137 + 78 | 21 | 3541 |
+| control mirror | 79 + 62 | 8 | 2429 |
+| passive deck-out | 214 + 209 | 68 | 1688 |
+| surrender | 41 + 46 | 3 | 238 |
+
+Decisions by kind: `CHOOSE_DISCARD` 68, `CHOOSE_POSITION` 17, `YES_NO` 15, `SELECT_EXACTLY` 12,
+`CHOOSE_COST` 1, `CHOOSE_TARGETS` 1, `CHOOSE_TRIBUTES` 1. The synthetic Chain test adds
+`ORDER_TRIGGERS`, `SELECT_UP_TO` and an opponent-side question, and the Luna test a real card's
+opponent-side decision.
+
+### Mutation testing — 8 mutations, 8 caught (M9 and M10 only after a coverage fix)
+
+| # | Mutation of `EngineSession.gd` | Result |
+|---|---|---|
+| M1 | the projection keeps the opponent's `RESPONSE_PASSED` | caught — 166 / 170 |
+| M2 | a DECISION is also delivered to the other channel | caught — 122 / 156 |
+| M3 | one global prompt counter instead of per player | caught — 168 / 170 |
+| M5 | a rejected foreign answer is told who is being asked | caught — 168 / 170 |
+| M6 | every prompt carries player 0's view | caught — 160 / 170 |
+| M7 | the owner-thread guard is disabled | caught — 165 / 170 |
+| M9 | a decision answer skips the engine's `validate()` | **survived** → a wrong-COUNT answer test added → caught (158 / 159) |
+| M10 | any choice field is accepted | **survived** → an unknown int field (`card_id: 99`) test added → caught (150 / 152) |
+
+Every mutation was applied by a script and the file restored byte-exactly (verified).
+
+### Defects and findings
+
+| Finding | Where it lives | Status |
+|---|---|---|
+| `_notification(PREDELETE)` calling a method on `self` fails ("null instance"): every dropped session leaked its thread and core — 4 failures, ObjectDB growth 920 over 8 drops, "Thread object is being destroyed without its completion" | `EngineSession.gd` (new code) | **FIXED** — the shutdown is inlined; the drop and leak tests caught it |
+| The raw engine log reveals whether a player COULD respond (manual pass `{"player","timing"}` vs automatic `{"player","automatic":true}` vs a skipped window with no event) | the engine's event log | **Closed for the UI** by the session's projection; the engine log is unchanged (replay and determinism read it); the control assertion measures the raw difference |
+| A hidden card's stub id identifies it: ids follow the pre-shuffle Deck-list order — 15 / 15 hidden hand cards identified over three seeds (temporary probe, deleted) | `GameState.get_visible_state()` | **OPEN — gated as unit B step B0** (PROJECT_STATE.md §8) |
+| Two expectations of mine were wrong: after a Chain the turn player gets a fast-effect window, so the next prompt was `RESPONSE` | the test | corrected, with the reason beside it; the engine was right |
 
 ## Phase 6 unit 4 — the backend cleanup COMPLETE
 

@@ -22,6 +22,7 @@ See [`../README.md`](../README.md) for the project overview and current status, 
 - [Deterministic replay](#deterministic-replay)
 - [Hidden information](#hidden-information)
 - [Test architecture](#test-architecture)
+- [The UI execution boundary (ADR-0001)](#the-ui-execution-boundary-adr-0001)
 - [The presentation boundary](#the-presentation-boundary)
 - [The future CPU boundary](#the-future-cpu-boundary)
 - [Decisions worth knowing about](#decisions-worth-knowing-about)
@@ -36,7 +37,7 @@ See [`../README.md`](../README.md) for the project overview and current status, 
 Every architectural choice below follows from that. The engine is a set of plain
 `RefCounted` GDScript classes — **no `Node`, no scene tree, no signals into a UI, no `await`,
 no frame dependency**. It can be driven to completion inside a single function call, which is
-what makes a 10,433-assertion headless suite practical and what will keep a future UI from
+what makes a 10,607-assertion headless suite practical and what will keep a future UI from
 being able to corrupt a duel.
 
 ---
@@ -46,7 +47,7 @@ being able to corrupt a duel.
 ```mermaid
 flowchart TB
     subgraph outside["Outside the engine"]
-        UI["Presentation / UI<br/>(Phase 7+, not built)"]
+        UI["Presentation / UI<br/>(Phase 7 unit A: a spike screen<br/>over EngineSession)"]
         CPU["CPU player<br/>(later, not built)"]
         TESTS["Headless test suite<br/>(Tests/, ScriptedController)"]
     end
@@ -443,7 +444,7 @@ The suite drives the engine through the **same public API** a UI will, using
 ```mermaid
 flowchart LR
     RT["RunTests.gd<br/>explicit suite list"] --> TC["TestCase harness"]
-    TC --> SUITES["99 suites"]
+    TC --> SUITES["100 suites"]
     SUITES --> FIX["TestFixtures.gd<br/>new_duel, battle_duel, synthetic cards"]
     FIX --> API["DuelEngine public API"]
     SC["ScriptedController<br/>queued answers"] --> API
@@ -466,16 +467,118 @@ synthetic cards and passing *before* the first real card needs it. See
 
 ---
 
+## The UI execution boundary (ADR-0001)
+
+**Status: ACCEPTED — Phase 7 unit A, 2026-09-10.** Proven by `EngineSessionTests` (174
+assertions, in the full run) and `SceneSpikeCheck` (the project's main scene driven through a real
+main loop). **No engine, rules or card code changed.**
+
+**Context.** The engine asks two kinds of question, and they reach a player differently:
+
+* **timing-window questions are pulled** — `waiting_player()`, `get_pending_decision()`,
+  `get_legal_actions()` / `get_legal_responses()` and `submit_action()` drive open game states and
+  response windows;
+* **mid-resolution questions are pushed, synchronously** — trigger targets, optional-trigger
+  yes/no, trigger order and every choice a card makes while it resolves arrive as a
+  `DecisionRequest` through `PlayerController.decide()`, called from inside the engine's own stack
+  (`DuelEngine._choose_targets_for()`, `TriggerCollector`, `TurnFlow`, and `EffectContext.ask_player()`
+  under `ChainManager.resolve_chain()`).
+
+A Godot UI cannot answer from inside that call on its main thread: blocking it freezes the window,
+and `await` in the engine would break the headless contract above.
+
+**Decision — a worker-thread session adapter** (`Scripts/session/`):
+
+* `EngineSession` (a `RefCounted`) owns one `DuelEngine` and runs it on **one dedicated `Thread`**.
+  The thread that created it — the *owner*, a UI's main thread — only calls `start_duel()`,
+  `poll(viewer)`, `submit(player, prompt_id, value)` and `stop()`.
+* `HumanController` is a `PlayerController` whose `decide()` hands the request to the session and
+  blocks on a `Semaphore` until the owner answers or the session stops.
+* **Exactly one prompt is open at a time**, because the engine is single-threaded: an `ACTION` or
+  `RESPONSE` prompt from `get_pending_decision()`, or a `DECISION` prompt from `decide()`. The
+  worker publishes it and parks.
+* **The UI pulls.** Nothing in `Scripts/session/` emits a signal, defers a call or touches the scene
+  tree; every message is a plain-data deep copy; answers are **indices** (an offer index plus choice
+  fields, or option indices), never engine values. The engine still re-validates every action, and
+  every decision answer goes through the engine's own `DecisionRequest.validate()`.
+* Replay and determinism are untouched: `DuelLog` records every answer exactly as it does for any
+  controller. The six scripted real-deck duels played through the session reproduce the
+  single-threaded `DuelDriver` run **event for event, board for board, payload for payload**.
+
+```mermaid
+sequenceDiagram
+    participant UI as Owner thread (UI)
+    participant S as EngineSession core
+    participant W as Worker thread (DuelEngine)
+    UI->>S: start_duel(decks, seed, first player)
+    S->>W: Thread.start
+    W->>W: setup_duel() … waiting_player()
+    W-->>S: prompt {player 0, ACTION, offers, view, log} — channel 0
+    UI->>S: poll(0), then submit(0, id, {offer, choices})
+    S->>W: inbox + Semaphore.post
+    W->>W: submit_action() → the Chain resolves → decide(request)
+    W-->>S: prompt {player 1, DECISION, request} — channel 1 only
+    Note over W: parked on the Semaphore, inside the engine's call stack
+    UI->>S: poll(1), then submit(1, id, [option indices])
+    S->>W: answer → validate() → returned to the engine
+    W->>W: resolution continues … the next prompt
+```
+
+**Thread discipline, enforced in one class.** Every owner API checks the calling thread and
+refuses (and counts) any other; every engine event is emitted on the worker (asserted); the worker
+cannot do UI work because the code it runs has no way to (scanned); `debug_engine()`, for tests
+only, returns the engine only while the worker is parked. **Cancellation:** `stop()` releases a
+worker blocked mid-resolution with structurally valid neutral answers so the engine's stack
+unwinds, then joins the thread. Dropping the last reference joins it too (inlined in
+`_notification`, because a method called on `self` during `PREDELETE` fails with "null
+instance"). Repeated sessions — stopped mid-resolution, stopped idle, or simply dropped — leave
+ObjectDB growth at **0**.
+
+**The privacy rule — by construction.** A player's channel advances **only at that player's own
+prompts and at the end of the duel.** Prompt ids are numbered per player; the view is taken at the
+player's own prompt; the log is projected per viewer. So whether, when or how often the OTHER
+player was asked anything cannot change what arrives. The projection removes one thing the raw
+engine log leaks: the engine stops in a response window only for a player who has a legal response
+and passes automatically otherwise, and a manual pass (`{"player", "timing"}`), an automatic one
+(`{"player", "automatic": true}`) and a skipped FAST / TP window (no event at all) all look
+different — so the raw `get_log_for()` tells the opponent whether a player *could* have responded.
+The projection drops the other player's `RESPONSE_PASSED` and every event's `sequence`. Proven:
+player 0's channel is byte-identical whether the opponent declined a mid-resolution decision or
+was never asked (`Fairy Tail - Luna`), and whether the opponent had response windows or none —
+while the raw log is shown to differ in the second case.
+
+**Consequences and limits.**
+
+* A channel shows nothing between its own prompts; what the opponent did arrives as the log delta
+  at the viewer's next prompt or at the end. Any future progress stream must pass the same
+  channel-equality tests before a UI uses it.
+* The session does not make a **shared screen** safe. On one monitor, showing the other player's
+  prompt reveals that they were asked; the pass-and-play handoff policy is Phase 7 unit E.
+* **Found, not fixed here:** a hidden card's stub in `get_visible_state()` still carries its
+  instance `id`, and ids are assigned in pre-shuffle Deck-list order — the Deck list is public, so
+  the id identifies the card (measured: 15 of 15 hidden hand cards identified over three seeds).
+  This is an engine-level hidden-information leak older than Phase 7; it is gated as the first
+  item of unit B.
+
+**Rejected.** A *resumable engine* (a pending decision as engine state) is not needed — the spike
+succeeded without touching the Chain paths every assertion sits on. *`await` in the engine*
+breaks the headless backend contract.
+
+---
+
 ## The presentation boundary
 
-**Not built.** `Scenes/`, `Scripts/ui/` and `Scripts/presentation/` are empty scaffolding, and
-`project.godot` deliberately leaves `run/main_scene` unset.
+**Partly built — Phase 7 unit A.** `Scenes/ui/DuelSpike.tscn` is `run/main_scene`: a deliberately
+thin developer screen (the open prompt as text, the offers and answers as buttons, a short log)
+that talks to `EngineSession` and nothing else. The real board is unit B.
 
-The contract it will honour is already fixed by the architecture:
+The contract it honours, now through `EngineSession`:
 
-1. presentation **reads** the `GameEvent` stream and `get_visible_state(viewer_id)`;
-2. presentation **renders** the actions from `get_legal_actions()` / `get_legal_responses()`;
-3. presentation **submits** a `DuelAction`, which the engine re-validates;
+1. presentation **reads** the messages of its viewer's channel — the viewer-filtered state and the
+   projected event log;
+2. presentation **renders** the offers and options exactly as the engine listed them;
+3. presentation **submits** an offer index and choices, or option indices, which the engine
+   re-validates;
 4. presentation **never** computes legality, never mutates state, and never derives a rules
    outcome from anything other than an event the engine emitted.
 
@@ -497,7 +600,7 @@ A CPU player is a `PlayerController` that:
 * answers `DecisionRequest`s.
 
 `ScriptedController` already proves the shape works: the test suite is, in effect, a very
-opinionated CPU player driving 10,433 assertions through this exact interface.
+opinionated CPU player driving 10,607 assertions through this exact interface.
 
 ---
 
@@ -519,3 +622,5 @@ Recorded so they are not silently reversed.
 | Extra Deck and Extra Monster Zone exist in the model but are unused | So they can be enabled later without a state migration. |
 | `restriction_group` and the negation events are separate concepts | Attack prevention, attack negation and a card-class activation lock are three different things and must never become one boolean. |
 | Ambiguous rulings are isolated behind a single predicate | So a later correction is a one-place change that fails loudly. |
+| The engine runs on a worker thread behind `EngineSession` (ADR-0001) | Mid-resolution decisions are synchronous calls inside the engine; a UI cannot answer them on its main thread, and a resumable engine would rewrite the Chain paths every assertion sits on. |
+| A session channel advances only at its own player's prompts | Otherwise the count, ids, views or log of one channel would reveal whether the other player was asked something — or could have responded. |

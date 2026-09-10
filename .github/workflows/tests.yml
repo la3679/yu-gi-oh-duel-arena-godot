@@ -84,9 +84,15 @@ jobs:
         run: bash ./Tools/run_tests.sh SmokeCheck
 
       # Includes the scripted full duels (ScriptedDuelTests), the object-lifetime gate
-      # (LifetimeTests) and the backend acceptance suite (BackendAcceptanceTests).
+      # (LifetimeTests), the backend acceptance suite (BackendAcceptanceTests) and the Phase 7
+      # engine session adapter (EngineSessionTests — the engine on its own worker thread).
       - name: Full regression suite
         run: bash ./Tools/run_tests.sh RunTests
+
+      # Phase 7 unit A: the project's run/main_scene, loaded exactly as F5 would and driven
+      # through a REAL main loop, clicks a Normal Summon and must see the engine's result.
+      - name: Main-scene spike check
+        run: bash ./Tools/run_tests.sh SceneSpikeCheck
 
       # Backend acceptance: the same scripted duels, played in two SEPARATE processes, must
       # produce byte-identical event streams, boards and replay payloads.

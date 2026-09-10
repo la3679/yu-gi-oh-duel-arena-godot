@@ -3,17 +3,19 @@
 [![tests](https://github.com/la3679/yu-gi-oh-duel-arena-godot/actions/workflows/tests.yml/badge.svg)](https://github.com/la3679/yu-gi-oh-duel-arena-godot/actions/workflows/tests.yml)
 [![Godot](https://img.shields.io/badge/Godot-4.7.1-478cbf)](https://godotengine.org/)
 [![cards](https://img.shields.io/badge/cards-77%2F77-brightgreen)](Reports/CARD_IMPLEMENTATION_MATRIX.csv)
-[![assertions](https://img.shields.io/badge/assertions-10433%20passing-brightgreen)](docs/TESTING.md)
+[![assertions](https://img.shields.io/badge/assertions-10607%20passing-brightgreen)](docs/TESTING.md)
 
 A deterministic, rules-aware Yu-Gi-Oh! duel engine written in GDScript for Godot 4, plus the
 local two-player duel arena that will eventually sit on top of it.
 
-> **Status: the backend is complete; the game is not yet playable by a human.**
+> **Status: the backend is complete; the human UI is under way (Phase 7, unit A of A–G).**
 > Phases 0–6 are done. **All 77 cards** in the target pool are implemented and tested, the
 > engine plays **whole duels** between the two real decks from the opening shuffle to a
 > legitimate game over, replays them exactly, and does so identically across processes.
-> **10,433 assertions pass across 99 suites.** There is no player-facing UI yet — that is
-> **Phase 7, which has not started** — and no CPU opponent or 3D presentation.
+> **10,607 assertions pass across 100 suites.** Phase 7 unit A proved the UI/engine execution
+> architecture — the engine runs on its own worker thread behind `EngineSession` — and ships only a
+> thin developer spike screen. The real duel board (unit B) has not started; there is no CPU
+> opponent or 3D presentation.
 
 ---
 
@@ -69,7 +71,8 @@ The order of work is deliberate:
 rules -> card effects -> tests -> interaction coverage -> playable UI -> presentation
 ```
 
-Correctness first. Everything visual is Phase 7 and later, and is not started.
+Correctness first. Phase 7 (the playable UI) has begun with unit A — the engine session adapter;
+everything visual is still to come.
 
 ---
 
@@ -124,20 +127,20 @@ counts come from the last full run of the suite.
 
 | | |
 |---|---|
-| **Phase** | 6 of 11 — integration, scripted full duels, backend acceptance — **COMPLETE** |
-| **Next** | Phase 7, the local Human-v-Human UI — **not started** |
+| **Phase** | 7 of 11 — the local Human-v-Human UI — **IN PROGRESS**: unit A (the engine session adapter) COMPLETE |
+| **Next** | Phase 7 unit B, the 2D board rendered from the viewer's state — **not started** |
 | **Cards implemented** | **77 / 77** |
 | **Cards tested** | **77 / 77** |
 | **Official text verified** | **77 / 77** |
-| **Assertions** | **10,433 passed / 0 failed** |
-| **Suites** | **99** — 26 core-rules, 69 per-card, 1 interaction, 3 integration |
+| **Assertions** | **10,607 passed / 0 failed** |
+| **Suites** | **100** — 26 core-rules, 69 per-card, 1 interaction, 3 integration, 1 UI-boundary |
 | **SmokeCheck** | **PASS** |
 | **`SCRIPT ERROR`** | **0** |
 | **Scripted full duels** | **24** between the two real decks — every one ends legitimately (LP 0, deck-out or surrender) and is rebuilt event for event from its replay payload |
 | **Cross-process determinism** | **PASS** — the same duels in two separate processes are byte-identical |
 | **ObjectDB at exit** | **no leak warning** — the reference cycle was found and fixed in Phase 6 |
 | **Engine** | Godot `4.7.1.stable.official.a13da4feb`, headless |
-| **CI** | the full suite, SmokeCheck, cross-process determinism and the matrix check run on Ubuntu on every push |
+| **CI** | the full suite, SmokeCheck, the main-scene spike check, cross-process determinism and the matrix check run on Ubuntu on every push |
 | **Gate A** — research complete | **MET** |
 | **Gate B** — core rules engine complete | **MET** |
 | **Gate C** — card library complete | **MET** |
@@ -152,7 +155,8 @@ Assertion breakdown:
 | Per-card | 69 | 7,328 | 7,328 | 0 |
 | Interaction | 1 | 46 | 46 | 0 |
 | Integration — lifetime, scripted full duels, backend acceptance | 3 | 312 | 312 | 0 |
-| **Total** | **99** | **10,433** | **10,433** | **0** |
+| UI execution boundary — the engine session adapter (Phase 7) | 1 | 174 | 174 | 0 |
+| **Total** | **100** | **10,607** | **10,607** | **0** |
 
 **Complete engine subsystems:** turn flow, summoning (all kinds in the pool, plus Summon
 negation), the Chain and Fast Effect Timing state machine, activation legality, the Damage
@@ -166,8 +170,9 @@ replay.
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); `Tests/support/DuelDriver.gd` is its reference
 client, playing whole duels using nothing but that API.
 
-**Major remaining work:** Phase 7 — a *functional* local Human-v-Human interface on top of that
-API, before any visual polish. See [Roadmap](#roadmap).
+**Major remaining work:** the rest of Phase 7 — a *functional* local Human-v-Human interface on
+top of that API, through `EngineSession` (unit A, done), before any visual polish. See
+[Roadmap](#roadmap).
 
 The authoritative internal state files, kept in the repository and updated at every
 checkpoint, are [`PROJECT_STATE.md`](PROJECT_STATE.md),
@@ -262,17 +267,20 @@ which is ignored by Git.
 
 ## Running the project
 
-**There is no playable scene yet.** `project.godot` deliberately leaves `run/main_scene`
-unset:
+**F5 opens a developer spike screen, not the game yet.** `run/main_scene` is
+`res://Scenes/ui/DuelSpike.tscn`, Phase 7 unit A's deliberately thin screen: it starts a duel
+between the two real decks on a worker thread (`EngineSession`), and shows the open prompt as
+text, the engine's offers and answers as buttons, and a short log. It exists to prove the
+UI / engine boundary; the real board is Phase 7 unit B. It is **not** safe on a shared screen — it
+shows whichever player's prompt is open (the pass-and-play handoff is unit E). The seed and the
+first player are exported properties of the scene's root node.
 
-```ini
-; run/main_scene is intentionally unset until the Phase 7 playable UI exists. Pointing it
-; at a scene that has not been built yet makes every headless run report a load error.
+The same screen, driven headless through a real main loop (it presses a Normal Summon button and
+waits for the engine's result):
+
+```bash
+godot --headless --path . --script res://Scripts/tests/SceneSpikeCheck.gd
 ```
-
-Pressing **F5** in the editor will therefore ask you to pick a main scene — there is not yet
-one to pick. This is expected, not a broken checkout. Until Phase 7, the way to "run" the
-project is to run the engine headlessly.
 
 The smoke check is the quickest proof that a checkout is healthy. It loads the card database,
 builds both decks, and constructs a duel:
@@ -355,7 +363,7 @@ python Tools/build_card_db.py
 
 ```
 =======================================
-TOTAL: 10433 passed, 0 failed (10433 assertions across 99 suite(s))
+TOTAL: 10607 passed, 0 failed (10607 assertions across 100 suite(s))
 =======================================
 RESULT: PASS
 RUNNER: PASS
@@ -411,7 +419,8 @@ The engine is layered, and each layer only knows about the ones above it:
    Semantic events  ----------------------  GameEvent stream + DuelLog
       |
       v
-   Presentation  -------------------------  (Phase 7+, not built)
+   Presentation  -------------------------  EngineSession (engine on a worker thread)
+                                            + the unit A spike screen (Phase 7)
 ```
 
 ### The public surface
@@ -517,10 +526,14 @@ boundaries — is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 │   │   ├── RunTests.gd            headless entry point; suites registered explicitly
 │   │   ├── SmokeCheck.gd          load card DB, build decks, construct a duel
 │   │   ├── RunIntegrationTests.gd targeted runner for the integration suites
+│   │   ├── RunSessionTests.gd     targeted runner for the engine session adapter
+│   │   ├── SceneSpikeCheck.gd     run/main_scene through a real main loop
 │   │   ├── DumpDuels.gd           per-duel digests for Tools/check_determinism.*
 │   │   ├── TestCase.gd            the assertion harness
 │   │   └── DumpAssertionCounts.gd per-suite assertion reporting
-│   ├── ui/                        empty — Phase 7
+│   ├── session/                   EngineSession, HumanController, DeckLists — the engine on
+│   │                              a worker thread; the UI's only door into a duel (ADR-0001)
+│   ├── ui/                        DuelSpike.gd — the Phase 7 unit A spike screen
 │   ├── presentation/              empty — Phase 8
 │   └── tools/                     empty
 │
@@ -530,7 +543,8 @@ boundaries — is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 │   ├── support/TestFixtures.gd    duel builders; never hand-roll a duel
 │   ├── support/DuelDriver.gd      plays a WHOLE duel through the public API
 │   ├── interactions/              reserved for further cross-card interaction suites
-│   └── integration/               LifetimeTests, ScriptedDuelTests, BackendAcceptanceTests
+│   └── integration/               LifetimeTests, ScriptedDuelTests, BackendAcceptanceTests,
+│                                  EngineSessionTests (Phase 7)
 │
 ├── Data/
 │   ├── cards/cards.json           77 canonical card definitions (verified official text)
@@ -876,7 +890,8 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full expectations.
 
 ## Roadmap
 
-Honest progression. Phases 0–6 are done; nothing from Phase 7 onward is started.
+Honest progression. Phases 0–6 are done; Phase 7 has completed unit A (of A–G), and nothing after
+it is started.
 
 | Phase | Goal | Status |
 |---|---|---|
@@ -887,15 +902,15 @@ Honest progression. Phases 0–6 are done; nothing from Phase 7 onward is starte
 | 4 | Core rules engine | **complete** — Gate B met |
 | 5 | Card effect library — all 77 cards + interaction coverage | **complete — 77 / 77**, Gate C met |
 | 6 | Backend acceptance: full rules/card integration and scripted duel coverage | **complete** — acceptance gate met |
-| **7** | **Local Human vs Human — same-PC / pass-and-play duel UI** | **next — planned in `PROJECT_STATE.md` §8; not started** |
+| **7** | **Local Human vs Human — same-PC / pass-and-play duel UI** | **in progress** — unit A (the engine session adapter, ADR-0001) complete; unit B next, not started — `PROJECT_STATE.md` §8 |
 | 8 | Arena presentation — 3D arena, card movement, holographic / 2.5D monsters, effects, audio | not started |
 | 9 | Privacy UX — the hidden-hand handoff flow | not started |
 | 10 | Asset polish and Windows build / export packaging | not started |
 | 11 | Full acceptance | not started |
 | later | CPU player, built on the same `get_legal_actions()` API | not started |
 
-**None of Phases 7–11 is started, and nothing in this repository should be read as claiming
-otherwise.**
+**Only Phase 7 unit A is done. Units B–G and Phases 8–11 are not started, and nothing in this
+repository should be read as claiming otherwise.**
 
 ---
 
@@ -903,10 +918,15 @@ otherwise.**
 
 Current and honest, taken from the internal checkpoint:
 
-* **No playable UI.** `run/main_scene` is intentionally unset; pressing F5 will not start a
-  game. That is Phase 7.
+* **No playable duel board yet.** F5 opens only the unit A spike screen (prompt text and
+  buttons) — not a board, and not safe on a shared screen. The board is Phase 7 unit B; the
+  pass-and-play handoff is unit E.
+* **Hidden-card ids.** A hidden card's stub in `get_visible_state()` carries its instance id,
+  which follows the public Deck-list order and so identifies the card. Found in Phase 7 unit A;
+  gated as the first step of unit B.
 * **No CPU opponent.** The `PlayerController` abstraction exists for one, but none is written.
-* **No 3D presentation, animation or audio.** `Scenes/` and `Assets/` are empty scaffolding.
+* **No 3D presentation, animation or audio.** `Assets/` is empty scaffolding and `Scenes/` holds
+  only the spike screen.
 * **Unarranged play does not reach every card.** The scripted duels activated 45 distinct
   cards' effects without any board being arranged; a deterministic policy will not find every
   card's window. Each card's own suite remains the authority for its behaviour.

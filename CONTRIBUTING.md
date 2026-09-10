@@ -70,7 +70,7 @@ powershell -ExecutionPolicy Bypass -File Tools\run_tests.ps1 RunTests
 
 If Godot is not on your `PATH`, set `GODOT_BIN` (or pass `-GodotPath` on Windows).
 
-**A clean baseline is `10433 passed, 0 failed` across 99 suites, and `RESULT: PASS`.** If your
+**A clean baseline is `10607 passed, 0 failed` across 100 suites, and `RESULT: PASS`.** If your
 baseline is not green *before* you change anything, stop and open an issue — do not build on
 top of a red suite.
 

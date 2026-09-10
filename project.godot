@@ -8,8 +8,8 @@ config_version=5
 
 config/name="Duel Arena"
 config/description="Local two-player Yu-Gi-Oh! TCG duel with a deterministic, rules-enforced engine."
-; run/main_scene is intentionally unset until the Phase 7 playable UI exists. Pointing it
-; at a scene that has not been built yet makes every headless run report a load error.
+; Phase 7 unit A: the thin session spike. Headless `--script` runs do not load it.
+run/main_scene="res://Scenes/ui/DuelSpike.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
 

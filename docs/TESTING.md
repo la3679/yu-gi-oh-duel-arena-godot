@@ -4,13 +4,14 @@ The test suite is as much the deliverable as the engine is. This document explai
 organised, how to run it, how to add to it correctly, and the harness pitfalls that have cost
 real time.
 
-Measured at the current checkpoint (Phase 6 COMPLETE — the backend is finished; Phase 7 has not
-started):
+Measured at the current checkpoint (Phase 7 unit A COMPLETE — the engine session adapter; unit B
+has not started):
 
 | | |
 |---|---|
-| **Assertions** | **10,433 passed / 0 failed** |
-| **Suites** | **99** — 26 core-rules, 69 per-card, 1 interaction, 3 integration |
+| **Assertions** | **10,607 passed / 0 failed** |
+| **Suites** | **100** — 26 core-rules, 69 per-card, 1 interaction, 3 integration, 1 UI-boundary |
+| **UI execution boundary** | `EngineSessionTests` (174) drives duels through the worker thread; `SceneSpikeCheck` drives `run/main_scene` through a real main loop (`./Tools/run_tests.sh SceneSpikeCheck`) |
 | **SmokeCheck** | **PASS** |
 | **`SCRIPT ERROR`** | **0** in the full run |
 | **Scripted full duels** | **24** between the two real decks, each replayed exactly from its payload |
@@ -25,7 +26,8 @@ started):
 | Per-card | 69 | 7,328 | 7,328 | 0 |
 | Interaction | 1 | 46 | 46 | 0 |
 | Integration — lifetime, scripted full duels, backend acceptance | 3 | 312 | 312 | 0 |
-| **Total** | **99** | **10,433** | **10,433** | **0** |
+| UI execution boundary — the engine session adapter (Phase 7) | 1 | 174 | 174 | 0 |
+| **Total** | **100** | **10,607** | **10,607** | **0** |
 
 The per-suite breakdown, and **every defect the tests have caught**, milestone by milestone,
 is in [`../Reports/TEST_RESULTS.md`](../Reports/TEST_RESULTS.md). That file is the detailed
@@ -110,7 +112,7 @@ python -m unittest discover -s Tools -p "test_*.py"
 
 ```
 =======================================
-TOTAL: 10433 passed, 0 failed (10433 assertions across 99 suite(s))
+TOTAL: 10607 passed, 0 failed (10607 assertions across 100 suite(s))
 =======================================
 RESULT: PASS
 RUNNER: PASS

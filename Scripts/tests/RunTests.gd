@@ -129,6 +129,9 @@ func _initialize() -> void:
 	suites.append(ScriptedDuelTests.run())
 	suites.append(BackendAcceptanceTests.run())
 
+	# --- Phase 7: the UI execution boundary ---
+	suites.append(EngineSessionTests.run())
+
 	var total_passed := 0
 	var total_failed := 0
 	var empty_suites: Array[String] = []

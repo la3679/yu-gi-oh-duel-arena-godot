@@ -3,8 +3,8 @@
 A public-facing summary of where Duel Arena stands, synchronised from the authoritative
 internal checkpoint.
 
-**Checkpoint date:** 2026-09-10 · **Phase 6 COMPLETE — the backend is finished. Phase 7 (the
-playable UI) has NOT started.**
+**Checkpoint date:** 2026-09-10 · **Phase 7 unit A COMPLETE — the engine session adapter proves the
+UI/engine execution architecture. Unit B (the duel board) has NOT started.**
 
 > **Sources of truth.** The numbers below are copied from
 > [`../PROJECT_STATE.md`](../PROJECT_STATE.md),
@@ -20,12 +20,12 @@ playable UI) has NOT started.**
 
 | | |
 |---|---|
-| **Phase** | 6 of 11 — integration, scripted full duels, backend acceptance — **COMPLETE** |
+| **Phase** | 7 of 11 — the local Human-v-Human UI — **IN PROGRESS**: unit A (the engine session adapter) COMPLETE, unit B not started |
 | **Cards implemented** | **77 / 77** |
 | **Cards tested** | **77 / 77** |
 | **Official text verified** | **77 / 77** |
-| **Assertions** | **10,433 passed / 0 failed** |
-| **Suites** | **99** |
+| **Assertions** | **10,607 passed / 0 failed** |
+| **Suites** | **100** |
 | **SmokeCheck** | **PASS** |
 | **`SCRIPT ERROR` in the full run** | **0** |
 | **Scripted full duels** | **24** between the two real 40-card decks, every one to a legitimate game over (LP 0, deck-out, surrender) and rebuilt exactly from its replay payload |
@@ -40,7 +40,8 @@ playable UI) has NOT started.**
 | Per-card | 69 | 7,328 | 7,328 | 0 |
 | Interaction | 1 | 46 | 46 | 0 |
 | Integration — lifetime, scripted full duels, backend acceptance | 3 | 312 | 312 | 0 |
-| **Total** | **99** | **10,433** | **10,433** | **0** |
+| UI execution boundary — the engine session adapter (Phase 7) | 1 | 174 | 174 | 0 |
+| **Total** | **100** | **10,607** | **10,607** | **0** |
 
 ---
 
@@ -55,7 +56,7 @@ playable UI) has NOT started.**
 | 4 | Core rules engine | **complete** |
 | 5 | Card effect library | **complete — 77 / 77** |
 | 6 | Integration, scripted full duels, backend acceptance | **complete — acceptance gate MET** |
-| **7** | **Local Human-v-Human playable UI** | **not started — planned in `PROJECT_STATE.md` §8** |
+| **7** | **Local Human-v-Human playable UI** | **in progress — unit A (the engine session adapter) complete; unit B next, not started — `PROJECT_STATE.md` §8** |
 | 8 | Arena and presentation | not started |
 | 9 | Local privacy UX (pass-and-play handoff) polish | not started |
 | 10 | Asset polish and packaging | not started |
@@ -106,14 +107,27 @@ replay.
   printing `PENDING` for every flagged card; `Spiritual Wind Art - Miyabi` reads the field
   Attribute like its two sibling cards; this file was regenerated.
 
+**Phase 7 unit A — the UI / engine execution architecture, proven:**
+
+* **The engine runs on its own worker thread** behind `EngineSession` (ADR-0001 in
+  `docs/ARCHITECTURE.md`); the UI thread only polls, answers and stops. Decisions a card makes
+  while it resolves — targets, yes / no, trigger order, card choices, and choices put to the
+  opponent — are answered from the UI thread. The six scripted duels played this way are identical
+  to the single-threaded runs, event for event. **No engine code changed.**
+* **Each player's channel is private by construction**, and tested: an opponent's mid-resolution
+  decision, or an opponent's response window, cannot be detected on the other player's channel.
+* Clean stop (even mid-resolution) and shutdown; ObjectDB growth 0 over repeated sessions; a thin
+  spike screen is `run/main_scene`.
+
 ---
 
 ## What remains
 
-**Phase 7 — a functional local Human-v-Human interface, before any visual polish.** It will sit
-on the existing public API — UI → legal-action API → `DuelEngine` → semantic events →
-presentation — and **never** decide legality itself. The unit-by-unit plan, with acceptance
-criteria, is in `PROJECT_STATE.md` §8. **Nothing in Phase 7 is started.**
+**The rest of Phase 7 — a functional local Human-v-Human interface, before any visual polish.**
+It sits on `EngineSession` — UI → legal-action API → `DuelEngine` (on its worker thread) →
+semantic events → presentation — and **never** decides legality itself. The unit-by-unit plan,
+with acceptance criteria, is in `PROJECT_STATE.md` §8. **Unit A is done; unit B (the board,
+starting with the hidden-card-id fix) is next and not started.**
 
 ---
 
@@ -127,6 +141,7 @@ criteria, is in `PROJECT_STATE.md` §8. **Nothing in Phase 7 is started.**
 | **Never-live clauses** | `Apprentice Magician`'s Spell Counter clause, `Fairy Tail - Rella`'s equip clause and `Runick Flashing Fire`'s Extra Deck bullet cannot be live with this pool. All implemented, tested against synthetic cards, and asserted against the real library. |
 | **Unarranged coverage** | The scripted duels activated 45 distinct cards' effects in unarranged play; the rest are proven by their own suites. A deterministic policy will not find every card's window. |
 | **Platform validation** | Windows 11 (development) and Ubuntu (CI) run the full suite to identical results. **macOS is untested.** |
+| **Hidden-card ids** | **OPEN** — a hidden card's stub id in `get_visible_state()` follows the public Deck-list order and identifies the card (found in Phase 7 unit A; 15 of 15 hidden hand cards identified). Gated as Phase 7 unit B step B0. |
 
 ---
 
@@ -134,7 +149,7 @@ criteria, is in `PROJECT_STATE.md` §8. **Nothing in Phase 7 is started.**
 
 To be explicit about what this project does **not** yet have:
 
-* no playable UI — `run/main_scene` is intentionally unset, and F5 will not start a game;
+* no playable duel board — F5 opens only the Phase 7 unit A spike screen;
 * no CPU opponent;
 * no 3D arena, card movement, animation, particles or audio;
 * no packaged build or export;
