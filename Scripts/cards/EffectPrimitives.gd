@@ -1948,6 +1948,111 @@ static func has_name_of(other: CardInstance) -> Callable:
 
 
 # ---------------------------------------------------------------------------
+# Effect SUBSTITUTION — "the activated effect BECOMES '…'".
+# RULES_SPEC.md 10.11, CARD_RULINGS.md R5.
+# ---------------------------------------------------------------------------
+
+## The link directly below this one, when it is the OPPONENT's activation of a NORMAL
+## Spell or Trap card. Null in every other case.
+##
+## Three separate requirements, and each is a real one:
+##
+##   * DIRECTLY below — 「その発動に直接チェーンして発動できます。」 An intervening Chain
+##     Link means the timing was missed, so this asks for `link_number - 1` and nothing
+##     else. `spell_trap_activation_below()` already means exactly that and is reused
+##     rather than re-derived;
+##   * the OPPONENT's — 「相手が…発動した時」. A player's own Normal Spell does not qualify;
+##   * a NORMAL Spell/Trap specifically — not Quick-Play, not Continuous, not Field, not
+##     Equip, not Ritual, not a Counter Trap. `spell_trap_activation_below()` only
+##     establishes "some Spell/Trap card activation", so the kind is checked here.
+static func opponent_normal_spell_trap_activation_below(ctx: EffectContext) -> ChainLink:
+	var link_number := ctx.link.link_number if ctx.link != null else 0
+	var link := spell_trap_activation_below(ctx, link_number)
+	if link == null:
+		return null
+	if link.controller_id == ctx.controller_id:
+		return null
+	var card: CardInstance = link.source_card
+	if card == null or card.definition == null:
+		return null
+	var kind: Enums.STKind = card.definition.st_kind
+	if kind != Enums.STKind.NORMAL_SPELL and kind != Enums.STKind.NORMAL_TRAP:
+		return null
+	return link
+
+
+## Replace what an already-activated link will resolve. Returns success.
+##
+## The `replacement` is an ordinary `EffectDef` and is resolved as the SUBSTITUTED card's
+## effect: under that card's controller, in that card's link position. A replacement whose
+## text says "your opponent" therefore means the opponent OF THE SUBSTITUTED CARD'S
+## CONTROLLER, which for `Fairy Tail - Sleeper` is Sleeper's own controller. R5 Part B —
+## this is the counter-intuitive half of the ruling and it falls out of resolving the
+## replacement as the other card's effect rather than as the substituting card's.
+static func substitute_activated_effect(ctx: EffectContext, link: ChainLink,
+		replacement: EffectDef) -> bool:
+	if link == null:
+		ctx.log_note("there is no activation left to change")
+		return false
+	if ctx.engine == null or ctx.engine.chain == null:
+		push_error("EffectPrimitives.substitute_activated_effect: no chain attached")
+		return false
+	if not ctx.engine.chain.substitute_link_effect(link.link_number, replacement,
+			ctx.source):
+		ctx.log_note("the activated effect could not be changed")
+		return false
+	ctx.log_note("the effect of %s becomes \"%s\"" % [
+		link.card_name(), replacement.clause_text])
+	return true
+
+
+## "Change 1 face-up monster your opponent controls to face-down Defense Position."
+##
+## Built as a standalone `EffectDef` because that is exactly what it is: the text the
+## substituted card now carries. It is resolved by that card's controller, so
+## `opponent_monsters(ctx)` — which reads `ctx.controller_id` — automatically means the
+## right side of the field without this function knowing anything about who substituted it.
+##
+## It CHOOSES at resolution and does not target (R5 Part C): there is no `targeting()` call
+## here, and the choice is made inside `resolve`.
+static func become_change_opponent_monster_face_down(clause_text: String) -> EffectDef:
+	var e := EffectDef.new("becomes_change_1_opponent_monster_face_down", clause_text)
+	e.of_type(Enums.EffectType.TRIGGER)
+	e.mandatory()
+
+	e.resolve = func(ctx: EffectContext) -> void:
+		var candidates := opponent_monsters(ctx)
+		if candidates.is_empty():
+			# 「処理時に、自分フィールドに表側表示のモンスターが存在しない場合でも、この効果は
+			# 適用され…（結果的に…効果処理は何も行われなくなります。）」 The substitution HAPPENED;
+			# it simply has nothing to act on. This branch is a real, official outcome and
+			# not a failure, which is why it is logged rather than pushed as an error.
+			ctx.log_note("there is no face-up monster to change to face-down Defense "
+				+ "Position, so nothing is done")
+			return
+		var chosen: CardInstance = choose_one(ctx, candidates,
+			"Choose 1 face-up monster your opponent controls to change to face-down "
+			+ "Defense Position")
+		if chosen == null:
+			ctx.log_note("no monster was chosen")
+			return
+		# `by_effect = true`: this is a card effect changing the position, so it does NOT
+		# consume the monster's once-per-turn manual change, and it DOES go through the
+		# batch-16 immunity gate inside `set_battle_position()` — a monster that is
+		# unaffected by this effect simply is not flipped. Nothing here special-cases
+		# that; the gate does it, and the outcome is reported either way.
+		ctx.state.set_battle_position(chosen, Enums.Position.FACE_DOWN_DEFENSE, true,
+			ctx.source.id)
+		if chosen.position == Enums.Position.FACE_DOWN_DEFENSE:
+			ctx.log_note("changed %s to face-down Defense Position" % chosen.card_name())
+		else:
+			ctx.log_note("%s was not changed to face-down Defense Position"
+				% chosen.card_name())
+
+	return e
+
+
+# ---------------------------------------------------------------------------
 # ATTACK restriction and ATTACK negation. RULES_SPEC.md 6.1, 6.3.
 # ---------------------------------------------------------------------------
 #

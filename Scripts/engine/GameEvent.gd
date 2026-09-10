@@ -47,6 +47,10 @@ enum Kind {
 	CHAIN_LINK_RESOLVING,
 	EFFECT_NEGATED,
 	ACTIVATION_NEGATED,
+	## "The activated effect BECOMES …" — a link's resolution text was replaced while it
+	## sat on the Chain. This is NEITHER negation: the card still activated, still occupies
+	## its link, and still resolves. RULES_SPEC.md 10.11, CARD_RULINGS.md R5.
+	CHAIN_LINK_EFFECT_SUBSTITUTED,
 	CHAIN_LINK_RESOLVED,
 	CHAIN_RESOLVED,
 

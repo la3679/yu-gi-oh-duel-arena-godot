@@ -1115,6 +1115,70 @@ activates in response rather than by editing the board after the Chain has resol
 
 ---
 
+### 10.11 An effect may REPLACE the text another Chain Link resolves — **DECIDED** (Phase 5 batch 18)
+
+Decided in `CARD_RULINGS.md` **R5**, for `Fairy Tail - Sleeper`'s *"the activated effect becomes
+'Change 1 face-up monster your opponent controls to face-down Defense Position'"*.
+
+**Substitution is a THIRD operation on a Chain Link, beside the two negations, and it is not
+expressible as either.** §4 and master prompt §18 already distinguish *negate the activation*
+from *negate the effect*. This is neither:
+
+| | activation negated | effect negated | **effect SUBSTITUTED** |
+|---|---|---|---|
+| the card counts as activated | no | yes | **yes** |
+| the link resolves | no | no | **yes** |
+| a Normal Spell/Trap reaches the GY as a resolved card | no | no | **yes** |
+| what resolves | — | — | **different text** |
+| whose effect resolves | — | — | **still the substituted card's controller's** |
+
+**Whose effect the replacement is — and therefore whose "opponent" it means.** The replacement
+becomes the text of **the card being substituted**, and is carried out by **that card's
+controller**. Card text is read from its controller's perspective, so a replacement worded "your
+opponent" means the opponent of the player whose card was substituted — which, for
+`Fairy Tail - Sleeper`, is **Sleeper's own controller**. The card flips a monster on its **own**
+side of the field. This is counter-intuitive and it is not an inference: the supplement measures
+the empty case against 「自分フィールド」, and official Q&A fid 9677 says the effect
+「相手プレイヤーにカードをセット…させる」.
+
+**What survives the substitution, and what does not.** This is the part with two official answers
+that point opposite ways, and together they give the rule:
+
+> **Substitution replaces the RESOLVING EFFECT and nothing else. A restriction that resolves as
+> part of that effect goes with it. A restriction that is not treated as a card effect — an
+> inherent restriction applied at activation — survives untouched.**
+
+* **fid 8714** — 「埋葬されし生け褭」's *"after this effect resolves you cannot Special Summon"*
+  is **replaced away**, because it resolves as part of the effect;
+* **fid 19695** — 「強欲で謙虚な壺」's *"the turn you activate this card you cannot Special
+  Summon"* **still applies**, because 「カードの効果の扱いではありません」 — it was never
+  part of the effect to begin with.
+
+**The replacement CHOOSES at resolution and does not target** — 「１体を選んで」, with no
+「対象」 anywhere. Nothing was targeted by it at activation, because it did not exist then.
+
+*Engine:* `ChainLink.substituted_effect` plus `ChainLink.resolving_effect()`, installed by
+`ChainManager.substitute_link_effect()` and emitted as
+`GameEvent.Kind.CHAIN_LINK_EFFECT_SUBSTITUTED`. **`ChainLink.effect` is deliberately left
+intact** rather than overwritten, and that single decision is what makes both halves of the
+survival rule come out right:
+
+* `_resolve_link()` runs the card's `activation_confirmed` clauses off
+  `link.source_card.definition.effects`, gated on **`link.effect`** being a `CARD_ACTIVATION`.
+  Overwriting `effect` with a monster's replacement would change that type and silently skip
+  them — and those clauses are exactly fid 19695's surviving restrictions;
+* the replaced `resolve` simply never runs, which is fid 8714.
+
+`should_resolve()` deliberately does **not** consult substitution: a substituted link resolves as
+normally as any other. `ctx.chosen_target_ids` is emptied for a substituted link, because targets
+belong to the effect that declared them and the replacement declared none.
+
+*Tests:* the gate is `ChainTests`' substitution section, written and green **before**
+`Fairy Tail - Sleeper` existed, against synthetic cards — including both halves of the survival
+rule and the refusal cases. The card's own behaviour is `FairyTailSleeperTests`.
+
+---
+
 ## 11. Once-per-turn tracking (master prompt §47)
 
 | Text form | Key scope | Reset |

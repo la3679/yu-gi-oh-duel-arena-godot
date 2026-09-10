@@ -36,6 +36,29 @@ var resolved: bool = false
 ## Recorded outcome for the duel log / UI.
 var resolution_note: String = ""
 
+# --- Effect SUBSTITUTION. RULES_SPEC.md 10.11, CARD_RULINGS.md R5. ---
+## An effect that has replaced what this link RESOLVES — "the activated effect becomes
+## '…'" (`Fairy Tail - Sleeper`).
+##
+## This is a THIRD thing, distinct from both negations above, and the distinction is the
+## whole ruling. The activation stands, the card is still the card that activated, the
+## link stays on the Chain in its own position, and the card still resolves and is still
+## treated as having resolved. Only the TEXT it resolves is different.
+##
+## `effect` is deliberately LEFT INTACT rather than overwritten. Two things read it that
+## must keep seeing the ORIGINAL card's own effect:
+##
+##   * `ChainManager._resolve_link()` runs the card's `activation_confirmed` clauses when
+##     `effect.effect_type == CARD_ACTIVATION`. Overwriting `effect` with a monster's
+##     replacement would change that type and silently skip them — and those clauses are
+##     exactly the inherent activation restrictions that official Q&A fid 19695 says
+##     SURVIVE the substitution;
+##   * the duel log and replay, which must be able to say what the card was and what it
+##     became.
+var substituted_effect: EffectDef = null
+## Instance id of the card whose effect performed the substitution, for the log/replay.
+var substituted_by_card_id: int = -1
+
 
 func _init(p_source: CardInstance = null, p_effect: EffectDef = null,
 		p_controller: int = 0) -> void:
@@ -57,8 +80,23 @@ func is_negated() -> bool:
 
 
 ## Whether this link should actually resolve.
+##
+## Substitution deliberately does NOT appear here. A substituted link resolves exactly as
+## normally as an unsubstituted one; what changed is only WHICH effect runs.
 func should_resolve() -> bool:
 	return not activation_negated and not effect_negated
+
+
+func is_substituted() -> bool:
+	return substituted_effect != null
+
+
+## The effect this link will actually RESOLVE — the replacement if one was installed,
+## otherwise the card's own. Every read that asks "what runs?" must go through this;
+## every read that asks "what card activated, and what did it activate?" must keep using
+## `effect`. RULES_SPEC.md 10.11.
+func resolving_effect() -> EffectDef:
+	return substituted_effect if substituted_effect != null else effect
 
 
 func add_target(card: CardInstance) -> void:
@@ -90,15 +128,22 @@ func to_visible_dict(viewer_id: int) -> Dictionary:
 		"target_ids": target_ids.duplicate(),
 		"activation_negated": activation_negated,
 		"effect_negated": effect_negated,
+		# What the link will actually resolve, when that is no longer what it activated.
+		# Public: the substitution happens on the Chain in front of both players.
+		"substituted": is_substituted(),
+		"substituted_effect_id": substituted_effect.effect_id if substituted_effect != null else "",
+		"substituted_clause_text": substituted_effect.clause_text if substituted_effect != null else "",
+		"substituted_by_card_id": substituted_by_card_id,
 		"resolved": resolved,
 		"resolution_note": resolution_note,
 	}
 
 
 func _to_string() -> String:
-	return "CL%d %s (%s) SS%d%s" % [
+	return "CL%d %s (%s) SS%d%s%s" % [
 		link_number, card_name(),
 		effect.effect_id if effect != null else "?",
 		spell_speed(),
 		" NEGATED" if is_negated() else "",
+		" SUBSTITUTED->%s" % substituted_effect.effect_id if is_substituted() else "",
 	]

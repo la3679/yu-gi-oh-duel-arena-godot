@@ -157,6 +157,76 @@ func negate_effect(link_number: int, by_source: CardInstance) -> bool:
 	return true
 
 
+# ---------------------------------------------------------------------------
+# Effect SUBSTITUTION. RULES_SPEC.md 10.11, CARD_RULINGS.md R5.
+# ---------------------------------------------------------------------------
+
+## "The activated effect BECOMES '…'" — replace what a link already on the Chain will
+## resolve, without negating anything.
+##
+## This is a THIRD operation beside the two negations above, and collapsing it into either
+## of them gets the official rulings wrong in opposite directions:
+##
+##   * it is NOT `negate_activation()`. The card was activated and stays activated. A
+##     "when this card is activated" trigger already fired and keeps its result, the card
+##     still counts as having resolved, and a Normal Spell/Trap still reaches the Graveyard
+##     as a resolved card rather than as a negated one;
+##   * it is NOT `negate_effect()` plus a new link. The substituted text resolves as THIS
+##     link, in THIS link's position, under THIS link's controller — which matters, because
+##     the replacement's own "your opponent" is read from the perspective of the player who
+##     controls the card being substituted, not the one doing the substituting (R5 Part B).
+##
+## What survives, and what does not, is the whole of R5 Part D and is decided ENTIRELY by
+## which field this writes:
+##
+##   * a restriction that lives inside the replaced effect's own `resolve` is replaced away
+##     with it — official Q&A fid 8714;
+##   * a restriction that is an `ACTIVATION_CONDITION_EFFECT_ID` clause with an
+##     `activation_confirmed` callable is NOT touched, because `_resolve_link()` runs those
+##     off `link.source_card.definition.effects` and gates them on `link.effect`, both of
+##     which this leaves alone — official Q&A fid 19695.
+##
+## Refuses loudly rather than silently for every impossible case: no such link, a link that
+## has already resolved, a link already carrying a substitution, and a null replacement.
+## A link whose ACTIVATION was negated is deliberately still substitutable — the
+## substitution is simply never reached, which is the correct outcome and is asserted.
+func substitute_link_effect(link_number: int, replacement: EffectDef,
+		by_source: CardInstance) -> bool:
+	var link := link_at(link_number)
+	if link == null:
+		push_error("ChainManager.substitute_link_effect: no link %d on the Chain"
+			% link_number)
+		return false
+	if link.resolved:
+		push_error("ChainManager.substitute_link_effect: link %d (%s) has already resolved"
+			% [link_number, link.card_name()])
+		return false
+	if replacement == null:
+		push_error("ChainManager.substitute_link_effect: null replacement for link %d (%s)"
+			% [link_number, link.card_name()])
+		return false
+	if link.is_substituted():
+		# Two substitutions of one link is not a case any official text produces, and
+		# silently letting the second win would hide whichever card lost.
+		push_error("ChainManager.substitute_link_effect: link %d (%s) is already "
+			% [link_number, link.card_name()]
+			+ "substituted with '%s'" % link.substituted_effect.effect_id)
+		return false
+
+	link.substituted_effect = replacement
+	link.substituted_by_card_id = by_source.id if by_source != null else -1
+	state.emit(GameEvent.Kind.CHAIN_LINK_EFFECT_SUBSTITUTED, {
+		"link_number": link_number,
+		"card_id": link.source_card.id if link.source_card != null else -1,
+		"card_name": link.card_name(),
+		"from_effect_id": link.effect.effect_id if link.effect != null else "",
+		"to_effect_id": replacement.effect_id,
+		"to_clause_text": replacement.clause_text,
+		"by_card_id": link.substituted_by_card_id,
+	})
+	return true
+
+
 func link_at(link_number: int) -> ChainLink:
 	for l in state.chain:
 		if l.link_number == link_number:
@@ -218,9 +288,15 @@ func _resolve_link(link: ChainLink, decider, controllers = null) -> void:
 		"card_id": link.source_card.id if link.source_card != null else -1,
 		"card_name": link.card_name(),
 		"negated": link.is_negated(),
+		"substituted": link.is_substituted(),
 	})
 
 	# Activation conditions survive EFFECT negation and source departure. R39 / spec 5.9.
+	# They ALSO survive effect SUBSTITUTION, and that is not an accident of this code: it
+	# is official Q&A fid 19695, and it works because this block reads the card's own
+	# `definition.effects` and gates on `link.effect` — the ORIGINAL — rather than on what
+	# the link now resolves. Do not "tidy" either read into `resolving_effect()`.
+	# RULES_SPEC.md 10.11, CARD_RULINGS.md R5 Part D.
 	# No phase can be conducted while this Chain is unresolved.
 	if not link.activation_negated and link.effect != null and link.source_card != null and link.effect.effect_type == Enums.EffectType.CARD_ACTIVATION:
 		for clause in link.source_card.definition.effects:
@@ -240,7 +316,8 @@ func _resolve_link(link: ChainLink, decider, controllers = null) -> void:
 		})
 		return
 
-	var effect := link.effect
+	# What RESOLVES, which is not always what was activated. RULES_SPEC.md 10.11.
+	var effect := link.resolving_effect()
 	if effect == null or not effect.resolve.is_valid():
 		# Master prompt 67: fail loudly rather than silently skipping an effect.
 		push_error("ChainManager: no resolve() for %s link %d — effect '%s'" % [
@@ -266,7 +343,12 @@ func _resolve_link(link: ChainLink, decider, controllers = null) -> void:
 	if controllers is Array:
 		ctx.deciders = controllers
 	ctx.engine = engine
-	ctx.chosen_target_ids = link.target_ids.duplicate()
+	# Targets belong to the effect that DECLARED them. A substituted link resolves a
+	# different effect, which declared none of its own — R5 Part C: the replacement
+	# 「…１体を選んで…」 chooses at resolution and targets nothing. Handing it the original
+	# card's targets would let `ctx.first_target()` silently return a card the resolving
+	# text never named. `link.target_ids` is left intact as the activation record.
+	ctx.chosen_target_ids = [] if link.is_substituted() else link.target_ids.duplicate()
 	# What the COST actually consumed, carried forward from activation. A clause whose
 	# effect is measured by its own cost — `Wonder Balloons`' "place 1 Balloon Counter on
 	# this card FOR EACH card sent to the GY" — cannot be resolved without it, and a cost is
@@ -280,6 +362,10 @@ func _resolve_link(link: ChainLink, decider, controllers = null) -> void:
 		"link_number": link.link_number,
 		"resolved": true,
 		"note": link.resolution_note,
+		# The card resolved; it resolved something else. Both halves matter to a replay,
+		# and "resolved: true" alone would lose the second one.
+		"substituted": link.is_substituted(),
+		"resolved_effect_id": effect.effect_id,
 	})
 
 
