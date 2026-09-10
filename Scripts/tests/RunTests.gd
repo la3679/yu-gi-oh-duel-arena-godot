@@ -132,6 +132,9 @@ func _initialize() -> void:
 	# --- Phase 7: the UI execution boundary ---
 	suites.append(EngineSessionTests.run())
 
+	# --- Phase 7 unit B: hidden-card identity, the board model, the board scene ---
+	suites.append(HiddenIdentityTests.run())
+
 	var total_passed := 0
 	var total_failed := 0
 	var empty_suites: Array[String] = []

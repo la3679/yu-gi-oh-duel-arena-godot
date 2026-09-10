@@ -30,8 +30,9 @@ const TIMEOUT_MS := 20000
 
 const UI_DIR := "res://Scripts/ui"
 const SESSION_DIR := "res://Scripts/session"
-## The UI may not name the rules layer, the engine, its state, or the test harness.
-const UI_FORBIDDEN := "\\b(GameState|PlayerState|CardInstance|ActivationRules|SummonRules|BattleRules|ChainManager|DuelEngine|TestFixtures|DuelDriver|debug_engine)\\b"
+## The UI may not name the rules layer, the engine, its state or its types, the card library, the
+## test harness, or any of the session's test-only `debug_` accessors (unit B made this stricter).
+const UI_FORBIDDEN := "\\b(GameState|PlayerState|CardInstance|CardDef|CardRegistry|EffectDef|DuelAction|DecisionRequest|GameEvent|ActivationRules|SummonRules|BattleRules|ChainManager|DuelEngine|TestFixtures|DuelDriver|debug_\\w+)\\b"
 ## The session may not reach into the scene tree, signal into it, or defer calls onto it.
 const SESSION_FORBIDDEN := "\\bNode\\b|get_tree\\(|call_deferred|call_thread_safe|^signal\\b|\\.emit\\(|emit_signal|Engine\\.get_main_loop|SceneTree"
 
@@ -158,6 +159,42 @@ static func _action_from_offer(o: Dictionary) -> DuelAction:
 	a.allows_direct_attack = bool(o["allows_direct_attack"])
 	a.legal_positions = (o["legal_positions"] as Array).duplicate()
 	return a
+
+
+## Unit B (ADR-0002): the session names every card by a per-viewer alias. `DuelDriver`'s policy
+## ranks actions against the engine's own state, so the harness translates an offer back to
+## instance ids to rank it, and the pick back to aliases to submit it — through the session's
+## test-only accessors, which the UI scan forbids under Scripts/ui/.
+static func _to_real(session: EngineSession, viewer: int, v):
+	if v is Array:
+		return (v as Array).map(func(x): return _to_real(session, viewer, x))
+	if typeof(v) == TYPE_INT and int(v) > 0:
+		return session.debug_real_id(viewer, int(v))
+	return v
+
+
+static func _to_alias(session: EngineSession, viewer: int, v):
+	if v is Array:
+		return (v as Array).map(func(x): return _to_alias(session, viewer, x))
+	if typeof(v) == TYPE_INT and int(v) > 0:
+		return session.debug_alias(viewer, int(v))
+	return v
+
+
+static func _real_offer(session: EngineSession, viewer: int, o: Dictionary) -> Dictionary:
+	var r := o.duplicate(true)
+	for k in ["card_id", "target_ids", "tribute_ids", "attack_target_id", "target_candidates",
+			"tribute_candidates", "tribute_combinations", "attack_target_candidates"]:
+		r[k] = _to_real(session, viewer, o[k])
+	return r
+
+
+static func _alias_choices(session: EngineSession, viewer: int, choices: Dictionary) -> Dictionary:
+	var c := choices.duplicate(true)
+	for k in ["target_ids", "tribute_ids", "attack_target_id"]:
+		if c.has(k):
+			c[k] = _to_alias(session, viewer, c[k])
+	return c
 
 
 static func _index_of(recon: Array, a: DuelAction) -> int:
@@ -371,7 +408,7 @@ static func _test_a_chain_with_responses_and_nested_decisions(t: TestCase) -> vo
 		session.stop()
 		return
 	modes.append("0:ACTION")
-	var ia := _offer_index(p["offers"], "ACTIVATE_CARD", ta)
+	var ia := _offer_index(p["offers"], "ACTIVATE_CARD", session.debug_alias(0, ta))
 	t.ne(ia, -1, "Trap A is offered")
 
 	# Forged and malformed submissions: each is refused and the prompt is issued again.
@@ -404,12 +441,13 @@ static func _test_a_chain_with_responses_and_nested_decisions(t: TestCase) -> vo
 		"a forged target on a non-targeting card is refused BY THE ENGINE")
 	t.eq(session.debug_engine().state.events.size(), events_before,
 		"and the refusal changed nothing — not one event")
-	t.eq(_offer_index(p["offers"], "ACTIVATE_CARD", ta), ia, "the same offers come back")
+	t.eq(_offer_index(p["offers"], "ACTIVATE_CARD", session.debug_alias(0, ta)), ia,
+		"the same offers come back")
 
 	session.submit(0, int(p["prompt_id"]), {"offer": ia, "choices": {}})
 	p = h.next_for(1, "prompt")
 	modes.append("1:%s" % str(p.get("mode", "")))
-	var ib := _offer_index(p.get("offers", []), "ACTIVATE_CARD", tb)
+	var ib := _offer_index(p.get("offers", []), "ACTIVATE_CARD", session.debug_alias(1, tb))
 	t.ne(ib, -1, "player 1 is offered Trap B as a response to Chain Link 1")
 	session.submit(1, int(p["prompt_id"]), {"offer": ib, "choices": {}})
 	p = h.next_for(0, "prompt")
@@ -428,7 +466,10 @@ static func _test_a_chain_with_responses_and_nested_decisions(t: TestCase) -> vo
 	session.submit(1, int(p["prompt_id"]), true)
 	p = h.next_for(0, "prompt")
 	modes.append("0:%s:%s" % [str(p.get("mode", "")), str(p.get("request", {}).get("kind", ""))])
-	t.eq(p.get("request", {}).get("options", []), [11, 22, 33], "A's question carries its options")
+	# Unit B: selection options are instance ids, so they arrive as player 0's aliases of those ids
+	# (ADR-0002); read back through the test-only accessor, they are still exactly the three.
+	t.eq(_to_real(session, 0, p.get("request", {}).get("options", [])), [11, 22, 33],
+		"A's question carries its options")
 	# Well-formed index lists with the wrong COUNT: only the engine's own validate() refuses them.
 	for wrong in [[], [0, 1]]:
 		session.submit(0, int(p["prompt_id"]), wrong)
@@ -576,10 +617,11 @@ static func _luna_channels(opponent_holds_copy: bool) -> Dictionary:
 	if first.is_empty() or int(first["player"]) != 0:
 		session.stop()
 		return out
-	var i := _offer_index(first["offers"], "ACTIVATE_EFFECT", luna_id,
+	var i := _offer_index(first["offers"], "ACTIVATE_EFFECT", session.debug_alias(0, luna_id),
 		FairyTailLunaTests.EFFECT_BOUNCE)
 	var mark := (h.channels[0] as Array).size()
-	session.submit(0, int(first["prompt_id"]), {"offer": i, "choices": {"target_ids": [target_id]}})
+	session.submit(0, int(first["prompt_id"]), {"offer": i,
+		"choices": {"target_ids": [session.debug_alias(0, target_id)]}})
 	for guard in range(20):
 		var m := h.next()
 		if m.is_empty():
@@ -624,7 +666,10 @@ static func _test_an_opponent_decision_mid_resolution_is_invisible_to_the_other_
 ## Player 1 holds a Set card that either CAN be activated in player 0's windows (a Spell Speed 2
 ## Trap) or cannot (a Normal Spell). Both are the same face-down stub to player 0. Player 0 ends
 ## their turn; player 1 passes whatever they are asked. Stops at player 1's first open state.
-static func _window_channels(opponent_can_respond: bool) -> Dictionary:
+##
+## `extra` (unit B, ADR-0002): "before" / "after" also gives player 1 a hand card, registered before
+## or after the Set card, so the two hidden cards swap instance ids; "" (the unit-A boards) gives none.
+static func _window_channels(opponent_can_respond: bool, extra: String = "") -> Dictionary:
 	var d := TestFixtures.new_duel(8811, 0)
 	var engine: DuelEngine = d["engine"]
 	TestFixtures.advance_to_phase(engine, Enums.Phase.MAIN_1)
@@ -635,7 +680,11 @@ static func _window_channels(opponent_can_respond: bool) -> Dictionary:
 		def = TestFixtures.with_effect(TestFixtures.trap("Session Probe"), e)
 	else:
 		def = TestFixtures.spell("Session Probe")
+	if extra == "before":
+		TestFixtures.give_to_hand(engine, 1, TestFixtures.monster("Session Extra", 4, 1000, 1000))
 	TestFixtures.give_set_spell_trap(engine, 1, def)
+	if extra == "after":
+		TestFixtures.give_to_hand(engine, 1, TestFixtures.monster("Session Extra", 4, 1000, 1000))
 	var session := EngineSession.new()
 	session.start_attached(engine)
 	var h := Harness.new(session)
@@ -692,6 +741,14 @@ static func _test_an_opponent_response_window_is_invisible_to_the_other_channel(
 		"so player 0's channel — every message, view and log entry — is byte-identical")
 	t.eq(can["violations"] + cannot["violations"], [],
 		"every message was plain data on the right channel")
+	# Unit B (ADR-0002): the same channel, with player 1's two hidden cards registered in the
+	# opposite order — every identifier player 0 is shown for them comes from the alias book.
+	var before := _window_channels(true, "before")
+	var after := _window_channels(true, "after")
+	t.is_true(bool(before["reached"]) and bool(after["reached"]),
+		"unit B: both permuted duels reached player 1's own open game state")
+	t.eq(before["ch0"], after["ch0"], "unit B: player 0's channel is byte-identical whatever order "
+		+ "player 1's hidden cards were registered in")
 
 
 ## One scripted duel through the session, answered with `DuelDriver`'s own policy objects.
@@ -751,7 +808,8 @@ static func _answer_like_the_driver(h: Harness, policy: DuelDriver,
 			_as_submission(req, answerer._default_answer(req)))
 		return true
 	policy.engine = h.session.debug_engine()
-	var recon: Array = (prompt["offers"] as Array).map(func(o): return _action_from_offer(o))
+	var recon: Array = (prompt["offers"] as Array).map(
+		func(o): return _action_from_offer(_real_offer(h.session, pid, o)))
 	var current := prompt
 	for c in policy._candidates(pid, recon, str(prompt["mode"]) == EngineSession.MODE_RESPONSE):
 		if c == null:
@@ -759,7 +817,7 @@ static func _answer_like_the_driver(h: Harness, policy: DuelDriver,
 		var a: DuelAction = c
 		policy._note_try(a)
 		h.session.submit(pid, int(current["prompt_id"]),
-			{"offer": _index_of(recon, a), "choices": _choices_of(a)})
+			{"offer": _index_of(recon, a), "choices": _alias_choices(h.session, pid, _choices_of(a))})
 		var reply := h.next()
 		if reply.is_empty():
 			out["outcome"] = "timeout"
@@ -833,10 +891,10 @@ static func _test_stop_while_blocked_mid_resolution(t: TestCase) -> void:
 	var h := Harness.new(session)
 	var p := h.next_for(0, "prompt")
 	session.submit(0, int(p["prompt_id"]), {"offer": _offer_index(p["offers"], "ACTIVATE_CARD",
-		(board["a"] as CardInstance).id), "choices": {}})
+		session.debug_alias(0, (board["a"] as CardInstance).id)), "choices": {}})
 	p = h.next_for(1, "prompt")
 	session.submit(1, int(p["prompt_id"]), {"offer": _offer_index(p["offers"], "ACTIVATE_CARD",
-		(board["b"] as CardInstance).id), "choices": {}})
+		session.debug_alias(1, (board["b"] as CardInstance).id)), "choices": {}})
 	p = h.next_for(0, "prompt")
 	session.submit(0, int(p["prompt_id"]), {"offer": _offer_index(p["offers"], "PASS"),
 		"choices": {}})
@@ -922,10 +980,12 @@ static func _session_cycle(kind: String) -> void:
 			var h := Harness.new(session, false)
 			var p := h.next_for(0, "prompt")
 			session.submit(0, int(p["prompt_id"]), {"offer": _offer_index(p["offers"],
-				"ACTIVATE_CARD", (board["a"] as CardInstance).id), "choices": {}})
+				"ACTIVATE_CARD", session.debug_alias(0, (board["a"] as CardInstance).id)),
+				"choices": {}})
 			p = h.next_for(1, "prompt")
 			session.submit(1, int(p["prompt_id"]), {"offer": _offer_index(p["offers"],
-				"ACTIVATE_CARD", (board["b"] as CardInstance).id), "choices": {}})
+				"ACTIVATE_CARD", session.debug_alias(1, (board["b"] as CardInstance).id)),
+				"choices": {}})
 			p = h.next_for(0, "prompt")
 			session.submit(0, int(p["prompt_id"]), _neutral(p))
 			h.next_for(1, "prompt")
@@ -994,7 +1054,8 @@ static func _test_the_session_never_touches_the_scene_tree(t: TestCase) -> void:
 				continue
 			if re.search(code) != null:
 				hits.append("%s:%d %s" % [path, n, code])
-	t.eq(files.size(), 3, "non-vacuity: the three session scripts were scanned")
+	# Unit B added Scripts/session/CardAliases.gd (ADR-0002), so the scan now covers four scripts.
+	t.eq(files.size(), 4, "non-vacuity: the four session scripts were scanned")
 	t.eq(hits, [], "no scene-tree, signal or deferred-call reference")
 	t.not_null(re.search("node.call_deferred(\"x\")"), "control: the pattern matches call_deferred")
 	t.not_null(re.search("changed.emit()"), "control: and a signal emission")

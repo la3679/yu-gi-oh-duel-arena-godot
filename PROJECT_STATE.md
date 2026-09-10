@@ -3,12 +3,22 @@
 > Persistent resume file. A new Claude Code session should read **this file first**,
 > then read only the targeted files named in §8. Do **not** recursively reread the repository.
 
-**Last updated:** 2026-09-10 (Phase 7 unit A COMPLETE — the engine session adapter)
-**Current phase:** **Phase 7 (the local Human-v-Human UI) — unit A COMPLETE, unit B NOT STARTED.**
+**Last updated:** 2026-09-10 (Phase 7 unit B PARTIAL checkpoint — B0 hidden-card identity fix, green)
+**Current phase:** **Phase 7 (the local Human-v-Human UI) — unit A COMPLETE; unit B PARTIAL
+(B0's core fix done and green; B0's remaining focused tests + mutation pass, and B1–B3, NOT done).**
 Phases 0–6 are complete; Gates A, B, C and the backend acceptance gate are MET.
-**STOP HERE: the next step is Phase 7 unit B, persisted EXACTLY in §8 under "PHASE 7 PLAN" →
-"Unit B — the EXACT continuation". It is not to be started without the user's explicit
-instruction.**
+**RESUME HERE: §8 → "Unit B — PARTIAL checkpoint (read first)", then the rest of "Unit B — the
+EXACT continuation". The session was stopped deliberately for a laptop restart.**
+
+## 0-B. Unit B PARTIAL checkpoint (2026-09-10) — read this before §0
+
+**Measured at this checkpoint:** full regression **10634 / 10634 across 101 suites** (10607 unit-A
+assertions + 25 `HiddenIdentityTests` + 2 new in `EngineSessionTests`); `RunBoardTests` (targeted:
+EngineSessionTests 176 / 176, HiddenIdentityTests 25 / 25) PASS; SmokeCheck PASS; SceneSpikeCheck
+PASS; 0 `SCRIPT ERROR`; the same 17 deliberate `ERROR:` lines; no ObjectDB / resource / thread
+leak lines. **Not re-run at this checkpoint:** `RunIntegrationTests` and cross-process determinism
+(no engine, rules or card file changed — `git diff` is empty under `Scripts/engine`, `Scripts/rules`,
+`Scripts/cards`; both were PASS at the verified baseline f2c652e). Details in §8.
 
 ---
 

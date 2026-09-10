@@ -44,6 +44,12 @@ extends RefCounted
 ##                       every other kind: an Array of option INDICES
 ## The UI never builds an action or echoes an engine value back. The engine re-validates every
 ## action, and every answer goes through the engine's own `DecisionRequest.validate()`.
+##
+## CARD IDENTIFIERS (unit B, ADR-0002). Every card id in a message — views, log entries, offers,
+## requests — is the RECEIVING player's alias for that card (`CardAliases`), never the engine's
+## instance id: instance ids follow the public Deck lists and would name hidden cards. Choice
+## fields in a submission name cards by the submitting player's aliases; the session translates
+## them back, and an alias it cannot honour becomes 0, which the engine refuses.
 
 const MODE_ACTION := "ACTION"
 const MODE_RESPONSE := "RESPONSE"
@@ -62,6 +68,7 @@ var _thread: Thread = null
 var _owner_thread_id: int = -1
 var _started: bool = false
 var _shut_down: bool = false
+var _last_error: String = ""
 
 
 func _init() -> void:
@@ -100,6 +107,7 @@ func start_duel(decks: Array, deck_names: Array, seed_value: int, first_player: 
 	for pid in [0, 1]:
 		controllers.append(HumanController.new(pid, str(player_names[pid]), _core))
 	_core.engine = DuelEngine.new(seed_value)
+	_core.aliases.attach(_core.engine.state)
 	_core.controllers = controllers
 	_core.setup = {"decks": decks, "controllers": controllers, "first": first_player,
 		"names": deck_names}
@@ -122,8 +130,30 @@ func start_attached(engine: DuelEngine) -> bool:
 		engine.controllers[pid] = h
 		controllers.append(h)
 	_core.engine = engine
+	_core.aliases.attach(engine.state)
 	_core.controllers = controllers
 	return _launch()
+
+
+## Start a duel between the two REAL decks (`DeckLists`), so a UI never holds a `CardDef`. False
+## when the decks do not load (`last_error()` says why) or the session cannot start.
+func start_real_duel(seed_value: int, first_player: int,
+		player_names: Array = ["Player 1", "Player 2"]) -> bool:
+	if not _owner_call("start_real_duel"):
+		return false
+	var lists := DeckLists.load_two_real_decks()
+	if not (lists["errors"] as Array).is_empty():
+		_last_error = "the decks did not load: %s" % str(lists["errors"])
+		return false
+	if not start_duel(lists["decks"], lists["names"], seed_value, first_player, player_names):
+		_last_error = "the session could not start"
+		return false
+	_last_error = ""
+	return true
+
+
+func last_error() -> String:
+	return _last_error
 
 
 ## Drain every message addressed to `viewer`. Never blocks.
@@ -195,6 +225,23 @@ func debug_engine() -> DuelEngine:
 	if is_running() and not _core.is_parked():
 		return null
 	return _core.engine
+
+
+## The latest alias `viewer` was shown for instance `real_id` in its current stay — for HEADLESS
+## TESTS that name a card they arranged. -1 when there is none or the worker is not parked. The UI
+## never calls this (scanned).
+func debug_alias(viewer: int, real_id: int) -> int:
+	if not _owner_call("debug_alias") or (is_running() and not _core.is_parked()):
+		return -1
+	return _core.aliases.latest_alias(viewer, real_id)
+
+
+## The instance id `alias` names for `viewer` now — for HEADLESS TESTS. -1 when it names none.
+func debug_real_id(viewer: int, alias: int) -> int:
+	if not _owner_call("debug_real_id") or (is_running() and not _core.is_parked()):
+		return -1
+	var id := _core.aliases.real_id(viewer, alias)
+	return id if id > 0 else -1
 
 
 func _launch() -> bool:
@@ -404,6 +451,8 @@ class Core extends RefCounted:
 	var engine: DuelEngine = null
 	var controllers: Array = []
 	var setup: Dictionary = {}
+	## Worker-owned: every card id that leaves the session goes through it (ADR-0002).
+	var aliases := CardAliases.new()
 
 	# --- shared, guarded by `mutex` ---
 	var _inbox: Array = []
@@ -414,7 +463,7 @@ class Core extends RefCounted:
 	var _stats: Dictionary = {
 		"prompts": [0, 0], "decisions_answered": 0, "rejected": 0, "refused_by_engine": 0,
 		"accepted": 0, "stop_defaults": 0, "decide_threads": {}, "sanitized_objects": 0,
-		"violations": [], "request_player_mismatch": 0,
+		"violations": [], "request_player_mismatch": 0, "unclassified_keys": {},
 	}
 
 	# --- worker only ---
@@ -477,6 +526,7 @@ class Core extends RefCounted:
 	## Break the only reference cycle (core -> engine -> controllers -> core). The engine is kept
 	## so a test can still read a finished duel.
 	func dispose() -> void:
+		aliases.detach()
 		for c in controllers:
 			c.bridge = null
 		controllers = []
@@ -538,7 +588,8 @@ class Core extends RefCounted:
 				or not _addresses_open(msg):
 			_reject(from, id, EngineSession.NOT_YOUR_PROMPT)
 			return
-		var action = EngineSession.action_from(msg.get("value"), _open["offers"])
+		var action = EngineSession.action_from(aliases.choices_to_real(from, msg.get("value")),
+			_open["offers"])
 		if action == null:
 			_reject(from, id, "malformed: name one offer by index, with only choice fields")
 			_reopen()
@@ -619,11 +670,13 @@ class Core extends RefCounted:
 		_over = true
 		var s := engine.state
 		for pid in [0, 1]:
+			var log := _log_delta(pid)
+			var view: Dictionary = aliases.view(pid, _plain_counted(engine.get_visible_state(pid)))
+			_sync_unclassified()
 			_enqueue(pid, {"type": "over", "player": pid,
 				"result": Enums.DuelResult.keys()[s.result],
 				"end_reason": Enums.EndReason.keys()[s.end_reason],
-				"view": _plain_counted(engine.get_visible_state(pid)), "log": _log_delta(pid)},
-				pid == 1)
+				"view": view, "log": log}, pid == 1)
 
 	## Publish a prompt to `pid`'s channel ONLY. The view and the log are taken now, at this
 	## player's own prompt, which is what keeps the other channel independent of it.
@@ -633,16 +686,20 @@ class Core extends RefCounted:
 		var id: int = _prompt_seq[pid]
 		_open = {"player": pid, "id": id, "mode": mode, "text": text, "offers": offers,
 			"request": request}
+		# Log first, then view, then offers: the order a viewer is shown cards in fixes their
+		# aliases, so it is the same at every prompt.
+		var log := _log_delta(pid)
+		var view: Dictionary = aliases.view(pid, _plain_counted(engine.get_visible_state(pid)))
 		var msg := {"type": "prompt", "player": pid, "prompt_id": id, "mode": mode,
-			"prompt": text, "view": _plain_counted(engine.get_visible_state(pid)),
-			"log": _log_delta(pid)}
+			"prompt": text, "view": view, "log": log}
 		if request != null:
-			msg["request"] = _plain_counted(request.to_dict())
+			msg["request"] = aliases.request(pid, _plain_counted(request.to_dict()))
 		else:
 			var views: Array = []
 			for i in range(offers.size()):
-				views.append(EngineSession.offer_view(offers[i], i))
+				views.append(aliases.offer(pid, EngineSession.offer_view(offers[i], i)))
 			msg["offers"] = views
+		_sync_unclassified()
 		mutex.lock()
 		var prompts: Array = _stats["prompts"]
 		prompts[pid] = int(prompts[pid]) + 1
@@ -669,9 +726,16 @@ class Core extends RefCounted:
 		for i in range(int(_log_cursor[pid]), evs.size()):
 			var p = EngineSession.project_event(evs[i], pid)
 			if p != null:
+				p["data"] = aliases.event_data(pid, i, p["data"])
 				out.append(p)
 		_log_cursor[pid] = evs.size()
 		return out
+
+	## Publish the keys the alias book dropped as unclassified, for the tests that require none.
+	func _sync_unclassified() -> void:
+		mutex.lock()
+		_stats["unclassified_keys"] = aliases.unclassified.duplicate()
+		mutex.unlock()
 
 	func _plain_counted(v):
 		var n := [0]
