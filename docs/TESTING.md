@@ -130,16 +130,37 @@ Tests/
 ├── rules/          21 suites — generic rules tests and mechanic gates
 ├── cards/          41 per-card suites + 1 interaction suite
 ├── support/
-│   └── TestFixtures.gd   duel builders and synthetic cards
+│   ├── TestFixtures.gd   duel builders, synthetic cards, the two REAL decks
+│   └── DuelDriver.gd     plays a WHOLE duel through the public API (the reference client)
 ├── interactions/   reserved for further cross-card interaction suites
-└── integration/    reserved for Phase 6 scripted duels
+└── integration/    whole-duel suites: LifetimeTests, ScriptedDuelTests, BackendAcceptanceTests
 
 Scripts/tests/
-├── RunTests.gd            the pass/fail authority; suites registered explicitly
-├── SmokeCheck.gd          card DB loads, decks build, a duel constructs
-├── TestCase.gd            the assertion harness
-└── DumpAssertionCounts.gd per-test assertion reporting (not a test)
+├── RunTests.gd              the pass/fail authority; suites registered explicitly
+├── RunIntegrationTests.gd   targeted runner for the integration suites
+├── SmokeCheck.gd            card DB loads, decks build, a duel constructs
+├── DumpDuels.gd             per-duel digests for Tools/check_determinism.* (not a test)
+├── TestCase.gd              the assertion harness
+└── DumpAssertionCounts.gd   per-test assertion reporting (not a test)
 ```
+
+### Scripted full duels
+
+`ScriptedDuelTests` plays representative duels between the two real 40-card decks from the opening
+shuffle to a legitimate game over — LP 0, deck-out and surrender — and `BackendAcceptanceTests`
+plays a wider battery of 18 more. Each duel is fixed by `(seed, first player, two policy styles)`
+and driven by `DuelDriver` through the public API only: a `PolicyController` answers every
+question deterministically, and a policy only ORDERS what the engine offered. After every step the
+driver checks card conservation, LP against `LP_CHANGED`, both players' views against the truth,
+every move event's privacy and every once-per-turn allowance, and it captures every `push_error`
+and `SCRIPT ERROR` in-process with a Godot `Logger`. Every duel is then rebuilt from its replay
+payload alone and must reproduce every event and the final board.
+
+A clean duel proves nothing about a detector that cannot fire, so
+`_test_the_harness_detectors_fire` feeds each detector one synthetic fault it must flag and one
+legal lookalike it must not. Coverage across the battery — Tribute Summons, Chains of 2+,
+negation, searches, Graveyard departures, the hand-size discard, a once-per-turn reset, each end
+reason — is asserted from the event logs, never assumed.
 
 **There is no third-party test plugin.** The engine is headless-testable by design, so a small
 in-repo harness (`TestCase.gd`) keeps the dependency surface at zero and runs under
@@ -344,7 +365,17 @@ Every test is deterministic:
   flaky test.
 
 `ReplayTests` proves a recorded duel replays to an identical state from its seed and decision
-list.
+list; the scripted duels prove it for whole games, including through a JSON round trip.
+**Cross-process** determinism is a separate check, because nothing inside one process can prove
+it:
+
+```bash
+bash ./Tools/check_determinism.sh
+powershell -ExecutionPolicy Bypass -File Tools\check_determinism.ps1
+```
+
+Both run `DumpDuels.gd` in two separate Godot processes and require identical per-duel SHA-256
+digests. CI runs it after the full suite.
 
 ---
 
@@ -429,23 +460,17 @@ Collected from real time lost. Reading these will save you a cycle.
   explicitly, and should then assert `controller.errors == []` — that is what proves the queued
   answer reached the prompt the test thought it did.
 
-### ObjectDB growth
+### ObjectDB growth — FIXED
 
-Every full run ends with a warning like:
+Through batch 18 every full run ended with `WARNING: 347433 ObjectDB instances were leaked at
+exit`, growing ~187 per duel built. The cause was proven with weakrefs, not inferred: ONE strong
+back-reference, `ChainManager.engine`, made `DuelEngine → ChainManager → DuelEngine` a cycle that
+kept every dropped duel alive — engine, state, all cards and the whole event log. Breaking that
+single edge freed every tracked object; it is now a `WeakRef`. A full run prints **no** leak
+warning at all.
 
-```
-WARNING: 164444 ObjectDB instances were leaked at exit
-```
-
-This is **known, tracked, and not a rules defect.** They are RefCounted reference cycles
-between `GameState`, the `DuelLog` signal and the closures tests capture, and the count grows
-with the number of duels the suite builds.
-
-* It causes **no test failure, hang, memory pressure or unreliable result**, and no rules
-  outcome changes — which is why it has not been allowed to derail card work.
-* It **must be characterised or fixed before Phase 7**, when a UI keeps a single duel alive for
-  a long session.
-* `Reports/TEST_RESULTS.md` records the figure and the per-assertion ratio at **every**
-  checkpoint, deliberately reporting it as measured rather than explaining it away. Where the
-  cause is not known, that file says the reading is inference rather than measurement. Please
-  keep that convention: it is the only reason the trend is still readable.
+`LifetimeTests` guards it: a dropped duel (fresh, played, or between the real decks) must free
+every tracked object, and building and dropping many duels must leave the ObjectDB count exactly
+where it started. **If a new warning appears, look for a new owning back-reference to the engine
+or the state** — a subsystem that stores the engine, or a lambda defined inside an engine
+method (a GDScript lambda holds its RefCounted `self` strongly).

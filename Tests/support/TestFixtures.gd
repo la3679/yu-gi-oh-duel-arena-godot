@@ -669,6 +669,57 @@ static func filler_deck(prefix: String) -> Array:
 	return out
 
 
+## The two REAL physical decks, in the order `Data/decks/` lists them.
+const REAL_DECK_PATHS := ["res://Data/decks/deck1.json", "res://Data/decks/deck2.json"]
+
+## The canonical card library (`cards.json` with the registry attached), loaded once per
+## process. The CardDefs are shared read-only definitions, exactly as the game shares them,
+## so caching them changes no duel — and it keeps ObjectDB measurements about DUELS rather
+## than about re-reading 77 registry scripts.
+static var _real_library: Dictionary = {}
+
+
+static func real_library() -> Dictionary:
+	if _real_library.is_empty():
+		_real_library = CardRegistry.load_library()
+	return _real_library
+
+
+## One real deck as an ordered Array[CardDef], expanded from its `quantity` entries, plus
+## its name and any load errors: {"name", "cards", "errors"}. A name the library does not
+## know is an error, never a silent skip.
+static func real_deck(index: int) -> Dictionary:
+	var out := {"name": "", "cards": [], "errors": []}
+	var lib := real_library()
+	out["errors"].append_array(lib["errors"])
+	var parsed = JSON.parse_string(FileAccess.get_file_as_string(REAL_DECK_PATHS[index]))
+	if not (parsed is Dictionary):
+		out["errors"].append("%s did not parse" % REAL_DECK_PATHS[index])
+		return out
+	out["name"] = str(parsed.get("deck_name", ""))
+	var defs: Dictionary = lib["cards"]
+	for entry in parsed.get("main_deck", []):
+		var card_name := str(entry["name"])
+		if not defs.has(card_name):
+			out["errors"].append("%s names unknown card '%s'" % [REAL_DECK_PATHS[index], card_name])
+			continue
+		for i in range(int(entry["quantity"])):
+			out["cards"].append(defs[card_name])
+	return out
+
+
+## A duel between the two REAL decks, sitting in its first open game state.
+static func real_duel(seed_value: int, first_player: int = 0) -> Dictionary:
+	var d0 := real_deck(0)
+	var d1 := real_deck(1)
+	var c0 := ScriptedController.new(0, "Player 1")
+	var c1 := ScriptedController.new(1, "Player 2")
+	var engine := DuelEngine.new(seed_value)
+	engine.setup_duel([d0["cards"], d1["cards"]], [c0, c1], first_player,
+		[d0["name"], d1["name"]])
+	return {"engine": engine, "p0": c0, "p1": c1}
+
+
 ## A duel that has been set up and is sitting in its first open game state.
 ## Returns {"engine": DuelEngine, "p0": ScriptedController, "p1": ScriptedController}.
 static func new_duel(seed_value: int = 1234, first_player: int = 0,

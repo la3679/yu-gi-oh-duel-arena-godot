@@ -1,10 +1,9 @@
 # TEST_RESULTS
 
-**Last run:** 2026-09-09 (Phase 5 **batch 18 COMPLETE** — and with it the **CARD
-IMPLEMENTATION PHASE**. `Fairy Tail - Sleeper` (unit A) and `Hidden Springs of the Far East`
-(unit B) were the last two cards. **R5 and R14 are CLOSED, and no ruling that blocks a card
-remains open.** `RULES_SPEC.md` gains **§10.11** and **§19**. **77 / 77 implemented, 77 / 77
-tested.**)
+**Last run:** 2026-09-10 (**Phase 6 — the post-card phase — units 1, 2 and 3 COMPLETE.** The
+ObjectDB reference cycle is FIXED; whole duels between the two real decks are played, checked and
+replayed; the backend acceptance gate is MET. `RULES_SPEC.md` gains **§12.5**. **77 / 77
+implemented, 77 / 77 tested.** The card phase record — batch 18 — follows below.)
 **Engine:** Godot 4.7.1.stable.official.a13da4feb (headless)
 
 Command:
@@ -40,13 +39,85 @@ authority for every number below.
 
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
-| Core rules tests | 26 | 2724 | **2724** | 0 |
+| Core rules tests | 26 | 2747 | **2747** | 0 |
 | Per-card tests | 69 | 7317 | **7317** | 0 |
 | Interaction tests | 1 | 46 | **46** | 0 |
-| Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **96** | **10087** | **10087** | **0** |
+| Integration — lifetime, scripted full duels, backend acceptance | 3 | 312 | **312** | 0 |
+| **TOTAL** | **99** | **10422** | **10422** | **0** |
 
-Previous clean commit: **`01fe26f`** (batch 18 unit A). SmokeCheck: **PASS**.
+**Phase 6 checkpoint (2026-09-10):** previous clean commit **`58d4d1a`**. SmokeCheck **PASS**.
+`SCRIPT ERROR` in the full run: **0**. Matrix: **77 / 77 implemented, 77 / 77 tested** (recomputed;
+the committed CSV is unchanged). **No "ObjectDB instances were leaked at exit" warning** (was
+**347433**) and **no "resources still in use at exit" error** (was 123). Cross-process determinism:
+**PASS**, 6 / 6 duels byte-identical across two processes. Targeted runner:
+`./Tools/run_tests.sh RunIntegrationTests` (592 across 5 suites).
+
+Every one of batch 18's **10087** assertions passes unchanged — none changed, retargeted or
+deleted. 10422 − 10087 = **335** = 23 (`HiddenInfoTests` 224 → 247) + 16 (`LifetimeTests`) + 231
+(`ScriptedDuelTests`) + 65 (`BackendAcceptanceTests`).
+
+## Phase 6 — units 1, 2 and 3 COMPLETE: ObjectDB fix, scripted full duels, backend acceptance
+
+The full record — the proof of the cycle, the per-duel table, the coverage list, the acceptance
+criteria with their results, the defects and the mutation table — is **`PROJECT_STATE.md` §0**.
+The measured core of it:
+
+### ObjectDB — before and after
+
+| Measurement | Before | After |
+|---|---:|---:|
+| warning at exit, full run | 347433 | **none** |
+| "resources still in use at exit" | 123 | **none** |
+| growth per fresh filler duel (12 built) | 188 | **0** |
+| growth per played duel (Chain, attack, turn change) | 242 | **0** |
+| growth per real-deck duel, four turns in | 135 | **0** |
+| tracked objects alive after the drop | 16 / 16 | **0 / 16** |
+
+Cause, proven with weakrefs: the single strong back-reference `ChainManager.engine`. Fix: it is
+backed by a `WeakRef`. `LifetimeTests` (16) was written first and failed 6 / 16 before the fix.
+
+### New suites
+
+| Suite | Assertions | What it proves |
+|---|---:|---|
+| `LifetimeTests` | 16 | a dropped duel (fresh, played, real-deck) frees every tracked object; ObjectDB growth over 12 duels of each kind is exactly 0; the back-pointer still works |
+| `ScriptedDuelTests` | 231 | a harness self-test; deck initialisation; six whole duels between the real decks (LP 0, deck-out, surrender) — each clean, invariant-checked, hidden-info-checked and replayed exactly; battery coverage from the event logs; same inputs → same duel; different seed → different duel |
+| `BackendAcceptanceTests` | 65 | every card resolves through an implemented path; no stub marker and no headless hazard in the code; 18 more unarranged duels; the payload survives JSON; "asked and declined" ≡ "nothing to ask" at the API boundary |
+| `HiddenInfoTests` | 224 → 247 | four move-event privacy regressions (RULES_SPEC.md §12.5), each with a public control |
+
+### Scripted-duel coverage (asserted, not assumed)
+
+Draw / Standby / Main 1 / Battle / Main 2 / End; Normal and Tribute Summons; monster and
+Spell/Trap Sets; activations; Chains to link 2+; response windows offered and declined; activations
+in a response window; opponent Chain Links; attacks, the Damage Step and battle damage; LP changes;
+destruction; searches; Graveyard departures; Special Summons; negation; the hand-size discard; a
+once-per-turn reset; hidden information every step; games ending by LP 0, deck-out and surrender.
+Acceptance battery: 18 duels, 222 turns, 2305 actions, all ending by LP 0; 70 distinct cards played,
+45 distinct cards' effects activated.
+
+### Defects found
+
+* **Engine — hidden information (FIXED):** a Set card was named in the opponent's log and the
+  public log by the public `CARD_MOVED` preceding the private `CARD_SET`. Fixed in
+  `GameState.move_card()`; RULES_SPEC.md §12.5; four regressions.
+* **Backend — replay storage (FIXED):** a JSON-stored payload reads back with floats and diverged
+  (84 / 100 actions accepted, first divergence at event 166). `DuelLog.payload_from_json()`.
+* **Harness (mine):** the once-per-turn key ignored zone changes (the engine was right about
+  `Fairy Tail - Luna`, proven from the trace); the opening-hand draws were counted as turn-1 draws.
+
+### Mutation testing — 11 mutations, 11 caught (M10 only after a coverage fix)
+
+M1 ObjectDB cycle · M2 move privacy unset · M3 hand visible to both · M4 JSON floats kept · M5 leak
+detector blind · M6 stay counter frozen · M7 replay drops an action · M8 view check skipped · M9
+opponent's hand shown · M10 control never responds · M11 first player draws on turn 1. **M10
+survived the first pass**: nothing asserted a player ever answered the opponent, because Chains of 2+
+also come from simultaneous triggers. Two coverage assertions were added and M10 is now caught.
+
+---
+
+## Batch 18 — the card-phase checkpoint (kept for the record)
+
+Previous clean commit at that time: **`01fe26f`** (batch 18 unit A). SmokeCheck: **PASS**.
 `SCRIPT ERROR` occurrences in the full run: **0**. Matrix: **77 / 77 implemented, 77 / 77 tested,
 0 remaining** (computed by `python Tools/build_matrix.py`, not written by hand). ObjectDB at exit:
 **347433** — +13093 over batch 17's 334340, for roughly 70 new duels across the three new suites,

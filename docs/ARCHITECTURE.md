@@ -183,6 +183,34 @@ The re-validation on submit is not redundant. It means a consumer that builds a 
 by hand — a buggy UI, a malicious client, a test doing something unusual — cannot get an
 illegal action executed. **Legality is asserted twice and enforced in the engine.**
 
+### The headless backend contract
+
+Nothing in the engine, rules or card code needs the Godot scene tree: every type is a
+`RefCounted`, and `BackendAcceptanceTests` scans that code for `get_tree()`, `extends Node`,
+`await`, the clock and unseeded randomness and requires none. A backend drives a whole duel with:
+
+1. `CardRegistry.load_library()` → the 77 `CardDef`s with their effects attached (read-only,
+   shareable across duels);
+2. `DuelEngine.new(seed)` then `setup_duel([deck0, deck1], [controller0, controller1],
+   first_player, deck_names)` — each deck an ordered `Array[CardDef]`, each controller a
+   `PlayerController` that answers `decide(DecisionRequest)`;
+3. a loop: `waiting_player()` → `get_legal_actions(pid)` in an open game state or
+   `get_legal_responses(pid)` in a window → `submit_action(one of them)`, until
+   `is_duel_over()`. `waiting_player() == -1` while the duel is not over never happens in a
+   correct engine; `DuelDriver` fails loudly on it;
+4. per player, only `get_visible_state(pid)` and `state.get_log_for(pid)` — never the raw state;
+5. `log.to_json()` to store the duel, `DuelLog.payload_from_json(text)` to read it back.
+
+`Tests/support/DuelDriver.gd` is the reference client: it plays whole duels between the two real
+decks through exactly this contract, and is what `ScriptedDuelTests` and
+`BackendAcceptanceTests` are built on.
+
+**Lifetime.** A duel's objects are freed when the last outside reference to its `DuelEngine` is
+dropped. Every subsystem holds the `GameState`; the one back-pointer to the engine
+(`ChainManager.engine`) is a `WeakRef`, because a strong one made a cycle that kept every duel
+alive — ~187 ObjectDB instances per duel until the post-card phase fixed it. `LifetimeTests`
+asserts that a dropped duel frees everything and that ObjectDB does not grow per duel.
+
 ---
 
 ## Chain and timing architecture
@@ -371,6 +399,14 @@ flowchart LR
 * Nothing in the engine reads the clock, the frame counter or unseeded randomness.
 * `DuelLog` records the seed plus every submitted action and decision answer, in order.
 * `ReplayTests` proves a recorded duel replays to an identical state.
+* `ScriptedDuelTests` and `BackendAcceptanceTests` prove it for **whole games** between the real
+  decks: every scripted duel is rebuilt from its payload alone and must reproduce every event and
+  the final board. The payload also survives being stored as JSON — through
+  `DuelLog.payload_from_json()`, which restores the ints JSON turns into floats (without it a
+  recorded answer `[12]` comes back as `[12.0]` and no longer matches the option `12`; the test's
+  control proves the raw parse diverges).
+* `Tools/check_determinism.*` plays the scripted duels in **two separate processes** and requires
+  byte-identical digests of their event streams, boards and payloads.
 
 This is a debugging tool before it is a feature. A wrong rules interaction becomes a
 **reproducible artefact** rather than an anecdote — re-run the seed and the decision list and
@@ -386,6 +422,13 @@ becoming a flaky test.
 board. Implemented: per-viewer hand/Deck/face-down visibility, `revealed_to` tracking so a
 reveal is recorded *to a specific player*, shuffling clearing known Deck information, and known
 top/bottom placement surviving where it should.
+
+The **event stream** is filtered too: an event is public unless it carries `private_to`, and
+`get_log_for(pid)` returns only what `pid` may read. A move event names its card only to the
+players who could see that card at one end of the move (`RULES_SPEC.md` §12.5) — the rule the
+first full scripted duel forced, because a Set card was being named in the opponent's log by the
+`CARD_MOVED` emitted just before the private `CARD_SET`. `DuelDriver` checks both the view and
+every move event, from both sides, after every step of every scripted duel.
 
 **The pass-and-play privacy UI is Phase 9 and does not exist.** The engine-side model exists so
 that UI will have correct data to render — nothing more is claimed.

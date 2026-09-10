@@ -83,8 +83,15 @@ jobs:
       - name: SmokeCheck
         run: bash ./Tools/run_tests.sh SmokeCheck
 
+      # Includes the scripted full duels (ScriptedDuelTests), the object-lifetime gate
+      # (LifetimeTests) and the backend acceptance suite (BackendAcceptanceTests).
       - name: Full regression suite
         run: bash ./Tools/run_tests.sh RunTests
+
+      # Backend acceptance: the same scripted duels, played in two SEPARATE processes, must
+      # produce byte-identical event streams, boards and replay payloads.
+      - name: Cross-process determinism
+        run: bash ./Tools/check_determinism.sh
 
       # The runner writes Godot's stdout/stderr to files rather than piping them, because
       # piping can block on a full pipe. Publish them so a CI failure is diagnosable

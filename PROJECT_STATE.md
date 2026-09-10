@@ -3,13 +3,194 @@
 > Persistent resume file. A new Claude Code session should read **this file first**,
 > then read only the targeted files named in §8. Do **not** recursively reread the repository.
 
-**Last updated:** 2026-09-09 (batch 16 complete)
-**Current phase:** **Phase 5 — the card effect library.** Phases 0–4 are complete and
-Gate B (the generic rules engine) is MET; nothing in Phase 4 needs revisiting.
+**Last updated:** 2026-09-10 (Phase 6 — the post-card phase — units 1, 2 and 3 COMPLETE)
+**Current phase:** **Phase 6 — integration, scripted full duels, backend acceptance.** Units 1–3
+are COMPLETE and the backend acceptance gate is MET; unit 4 (cleanups) is not started. Phases 0–5
+are complete and Gates A, B and C are MET. **STOP HERE: the next phase is Phase 7 (UI), and it is
+not to be started without the user's explicit instruction.**
 
 ---
 
-## 0. READ THIS FIRST — the CARD IMPLEMENTATION PHASE is COMPLETE (77 / 77)
+## 0. READ THIS FIRST — Phase 6 units 1–3 are COMPLETE, and the backend acceptance gate is MET
+
+**The card library was already complete (77 / 77, §0b). This phase proved the GAME works: the
+ObjectDB reference cycle is fixed, the engine plays whole duels between the two real 40-card decks
+from the opening shuffle to a legitimate game over, and the backend acceptance gate is MET.
+Nothing in units 1–3 is partial or unverified. STOP HERE — Phase 7 (UI) is not to be started
+without the user's explicit instruction.**
+
+| Phase 6 unit | Status |
+|---|---|
+| 1 — the ObjectDB reference-cycle FIX, with `LifetimeTests` (**16**) written and FAILING before the fix | **COMPLETE** |
+| 2 — scripted full duels: `DuelDriver` + `ScriptedDuelTests` (**231**) | **COMPLETE** |
+| 3 — backend acceptance: `BackendAcceptanceTests` (**65**) + `Tools/check_determinism.*` + CI | **COMPLETE — gate MET** |
+| 4 — cleanups (R35 `ja` re-check, `build_matrix.py` PENDING column, stale `docs/PROJECT_STATUS.md`, `Miyabi` attribute) | NOT STARTED |
+
+**Measured at this checkpoint: 10422 passed / 0 failed across 99 suites; SmokeCheck PASS; 0
+`SCRIPT ERROR`; 77 / 77 implemented and tested (matrix recomputed, committed CSV unchanged);
+NO "ObjectDB instances were leaked at exit" warning (was 347433) and NO "resources still in use
+at exit" error (was 123); cross-process determinism PASS (6 / 6 duels byte-identical across two
+processes).** Previous clean HEAD: `58d4d1a`.
+
+**Every one of the previous checkpoint's 10087 assertions passes unchanged — none changed,
+retargeted or deleted.** 10422 − 10087 = **335** = 23 (`HiddenInfoTests`, 224 → 247, four new
+tests) + 16 (`LifetimeTests`, new) + 231 (`ScriptedDuelTests`, new) + 65
+(`BackendAcceptanceTests`, new).
+
+### Unit 1 — the ObjectDB cycle: PROVEN, then fixed at the ownership level
+
+Not re-characterised: a weakref probe built duels, dropped every outside reference and asked which
+objects survived. **All 16 tracked objects survived** — engine, state, every subsystem, both
+controllers, a Deck card, a hand card. Breaking ONE edge, `ChainManager.engine`, freed every one
+of them and took the per-duel growth to **exactly 0**. The cycle was `DuelEngine.chain →
+ChainManager.engine → DuelEngine`; since the engine holds the `GameState`, it kept every card and
+the whole event log alive, which is also why growth rose per turn. The signal connections
+(`state.event_emitted → log.record_event` / `_queue_continuous_event_response`) were **not**
+part of it — a method `Callable` holds only an object id, and the probe showed everything freed
+with them still connected.
+
+**The fix:** `ChainManager.engine` is now a property backed by a `WeakRef` — owner → owned stays
+strong, owned → owner is non-owning. It reads exactly as before while the engine lives
+(`LifetimeTests` asserts `engine.chain.engine == engine`), reads null once the owner is gone, and
+a `ChainManager` built without an engine still reads null. No other code changed; replay and every
+existing assertion are unaffected.
+
+| Measurement | Before | After |
+|---|---:|---:|
+| ObjectDB warning at exit, full run | **347433** | **none** |
+| "resources still in use at exit" | 123 | **none** |
+| growth per fresh filler duel (12 built, `LifetimeTests`) | **188** (2256 / 12) | **0** |
+| growth per played duel (Chain resolved, attack, turn change) | **242** (2904 / 12) | **0** |
+| growth per real-deck duel, four turns in | **135** (1620 / 12) | **0** |
+| tracked objects alive after the drop | 16 / 16 | **0 / 16** |
+
+### Unit 2 — scripted full duels
+
+`Tests/support/DuelDriver.gd` plays a WHOLE duel through the public API only — every action from
+`get_legal_actions()` / `get_legal_responses()`, back through `submit_action()`; nothing arranges
+the board. Deterministic `PolicyController`s answer every question; three styles (beatdown,
+control, passive) only ORDER what the engine offered. After **every step** it checks: every card in
+exactly one zone and the one it believes it is in; LP accounted for by `LP_CHANGED`; both players'
+views against the independently computed truth; every move event's privacy from both sides; every
+once-per-turn allowance (keyed per card STAY, RULES_SPEC.md §11). Every `push_error` and `SCRIPT
+ERROR` raised during a duel is captured **in-process** with a Godot `Logger`. Each duel is then
+rebuilt from its replay payload alone and must reproduce every event and the final board.
+
+| Scripted duel (seed, first) | Styles | Ended | Turns | Events |
+|---|---|---|---:|---:|
+| beatdown mirror (1001, P0) | beatdown / beatdown | legitimately (asserted) | 11 | 633 |
+| control vs beatdown (2002, P1) | control / beatdown | LP 0 | 8 | 348 |
+| beatdown vs control (3003, P0) | beatdown / control | legitimately (asserted) | 14 | 670 |
+| control mirror (4004, P1) | control / control | legitimately (asserted) | 16 | 518 |
+| passive deck-out (5005, P0) | passive / passive | **DECK_OUT** in the loser's Draw Phase | 72 | 584 |
+| surrender (6006, P1) | beatdown / beatdown | **SURRENDER** on the scripted turn | 4 | 184 |
+
+**Coverage — every item asserted from the event logs, never assumed:** deck initialisation (80
+instances, 77 unique, 40 owned each, pre-shuffle lists equal to the JSON), 5-card opening hands, no
+first-turn draw, a Draw-Phase draw on every later turn, every phase entered (Draw, Standby, Main 1,
+Battle, Main 2, End), Normal Summon, **Tribute Summon of a Level 5+**, monster Set, Spell/Trap Set,
+card and effect activations, **a Chain reaching link 2+**, a response window really offered and
+declined, **an activation made IN a response window**, **a Chain Link added by the player who did
+not start that Chain**, attack declarations, the Damage Step sub-steps, damage calculation, battle
+damage, LP changes, destruction, sending to the GY, **a search (Deck → hand)**, **a card leaving the
+Graveyard**, Special Summons, **negation**, the End Phase hand-size discard, **a once-per-turn effect
+reused on a later turn in the same stay (the reset)**, and games ending by **LP 0, deck-out and
+surrender**. 32 distinct cards activated an effect across the six.
+
+### Unit 3 — the backend acceptance gate: criteria and measured results
+
+| Criterion | Result |
+|---|---|
+| both 40-card physical decks instantiate | **PASS** — 80 instances, names equal to `deck1.json` / `deck2.json` |
+| all 80 deck slots usable | **PASS** — every slot has an implementation; 70 distinct cards were summoned, Set or activated in the battery |
+| all 77 unique cards resolve through implemented paths | **PASS** — registry validates with 0 errors; no chain-starting clause lacks `resolve`, no continuous clause answers nothing; `unimplemented == []` |
+| no TODO / NotImplemented path for the playable pool | **PASS** — engine, rules and card code scanned (≥80 files): 0 markers; and 0 scene-tree / `await` / clock / unseeded-randomness dependencies |
+| full regression | **PASS** — 10422 / 10422, 99 suites |
+| scripted full duels | **PASS** — 6 in `ScriptedDuelTests`, 18 more in `BackendAcceptanceTests` (222 turns, 2305 actions) |
+| deterministic replay | **PASS** — all 24 rebuilt from their payloads, event for event; also through a **JSON round trip** |
+| cross-process determinism | **PASS** — `Tools/check_determinism.*`, 6 / 6 identical; wired into CI |
+| hidden information over a whole game | **PASS** — both views and every move event, every step of every duel; plus the batch-17 case: "asked and declined" is indistinguishable from "nothing to be asked about" at the API boundary |
+| no SCRIPT ERROR | **PASS** — 0 in the full run, and 0 captured in-process in every duel |
+| no major ObjectDB regression | **PASS** — no leak warning at all; `LifetimeTests` guards it |
+| a complete duel reaches a legitimate game over | **PASS** — LP 0, deck-out and surrender each reached and checked |
+
+**The headless entry point and its contract** are the public `DuelEngine` API itself, documented as
+"The headless backend contract" in `docs/ARCHITECTURE.md`; `DuelDriver` is the reference client.
+
+### Defects the whole-duel harness found
+
+1. **ENGINE, hidden information — FIXED.** Setting a card went through `move_card()`, which emitted
+   a **public** `CARD_MOVED` carrying the card's name before the deliberately private `CARD_SET`,
+   so every Set card was named in the opponent's log and the public log. Found in 5 of the first 6
+   duels (the passive duel never Sets). Fixed at the right layer, `GameState.move_card()`: a move
+   event is readable only by players who could see the card at one end of the move
+   (`RULES_SPEC.md` **§12.5**, `GameState.identity_visible_to()`, `GameEvent.NOBODY` for a move
+   nobody can see). Four focused `HiddenInfoTests` regressions, each paired with a control that must
+   stay public (a face-up Summon, a discard, a search revealed on the way, a face-down card
+   destroyed).
+2. **BACKEND, replay storage — FIXED.** A payload stored as JSON reads back with every number a
+   float, and a recorded answer `[12.0]` no longer matches the option `12`: the raw round trip
+   accepted 84 of 100 actions and diverged at event 166 (measured by mutation M4).
+   `DuelLog.payload_from_json()` restores whole-number floats to ints; its test carries the control
+   proving the raw parse diverges.
+3. **HARNESS (mine), not engine — FIXED.** The once-per-turn check keyed on the card id alone. The
+   battery flagged `Fairy Tail - Luna` bouncing twice on one turn; the event trace proved she
+   bounced HERSELF, was Normal Summoned again — a new card, §11 — and legally bounced again. The
+   key is now per stay. A second harness bug (counting opening-hand draws as turn-1 draws) was also
+   mine.
+
+**No card defect was found.** The engine was right about Luna, and every other duel was clean.
+
+### Mutation testing: 11 mutations, 10 caught first pass, the survivor was a real COVERAGE gap
+
+| # | Mutation | Result |
+|---|---|---|
+| M1 | `ChainManager.engine` a strong reference again (the cycle) | caught — 6 `LifetimeTests` |
+| M2 | `move_card()` never marks `private_to` | caught — 16 (HiddenInfo + scripted + acceptance) |
+| M3 | a hand card's identity visible to both | caught — 13 |
+| M4 | `payload_from_json()` keeps floats | caught — 3 (JSON round trip) |
+| M5 | driver: a hand is never hidden (leak detector blind) | caught — harness self-test |
+| M6 | driver: the stay counter never advances | caught — self-test + battery |
+| M7 | driver: the replay drops the last action | caught — 39 |
+| M8 | driver: the visible-state check skipped | caught — the hidden-check non-vacuity counts |
+| M9 | engine: the opponent's hand shown in the view | caught — 21 |
+| M10 | driver: control never responds | **SURVIVED first pass** → coverage gap closed → **caught** |
+| M11 | engine: the first player draws on turn 1 | caught — deck initialisation |
+
+**M10 is the finding:** Chains of 2+ and negations also arise from simultaneous triggers, so nothing
+asserted that a player ever ANSWERED the opponent. Two coverage assertions now do (an activation in
+a response window; a Chain Link by the player who did not start the Chain). **Fifth batch running in
+which the mutation pass found the weakness in the TESTS.** A harness self-test
+(`_test_the_harness_detectors_fire`) feeds each detector one synthetic fault and one legal
+lookalike, so a detector that can never fire in a clean duel is still proven to work.
+
+### Honest limits
+
+* "all 77 cards resolve through implemented paths" is proven STRUCTURALLY (registry validation,
+  per-card suites) — not by all 77 activating in unarranged play: the battery activated 45
+  distinct cards' effects, the scripted six 32. A deterministic policy will not find every card's
+  window; the per-card suites remain the authority for each card's behaviour.
+* `GameEvent.Kind.DECISION_REQUESTED` / `DECISION_SUBMITTED` are declared and **never emitted**.
+  That is what makes "not asked" invisible to the other player today; if they are ever emitted, the
+  batch-17 boundary test in `BackendAcceptanceTests` must stay green.
+* The four control/beatdown scripted duels assert a legitimate end, whatever its reason; the
+  battery's 18 all ended by LP 0.
+
+### Files
+
+New: `Tests/support/DuelDriver.gd`; `Tests/integration/LifetimeTests.gd`,
+`ScriptedDuelTests.gd`, `BackendAcceptanceTests.gd`; `Scripts/tests/RunIntegrationTests.gd`,
+`DumpDuels.gd`; `Tools/check_determinism.ps1` / `.sh`. Changed: `ChainManager.gd` (WeakRef
+back-pointer), `GameState.gd` (move-event privacy, `identity_visible_to()`), `GameEvent.gd`
+(`NOBODY`), `DuelLog.gd` (`payload_from_json()`), `TestFixtures.gd` (`real_library()` /
+`real_deck()` / `real_duel()`), `HiddenInfoTests.gd`, `RunTests.gd`, `.github/workflows/tests.yml`
+(determinism step), `RULES_SPEC.md` §12.5, `docs/ARCHITECTURE.md`, `docs/TESTING.md`.
+
+**Targeted runner:** `./Tools/run_tests.sh RunIntegrationTests` (592 across 5 suites).
+
+---
+
+## 0b. The record of batch 18 — the CARD IMPLEMENTATION PHASE is COMPLETE (77 / 77)
 
 **Batches 1–18 are complete. Nothing in batch 18 is partial or unverified. There is no card
 left to implement.**
@@ -459,8 +640,8 @@ Key research outputs:
 
 ## 4. Build/verification status
 
-> **The current measured numbers are in §0 above: 10087 / 10087 across 96 suites, SmokeCheck
-> PASS, 0 `SCRIPT ERROR`, 77 / 77.** The batch-4 run reproduced below is kept only as a historical record of the format;
+> **The current measured numbers are in §0 above: 10422 / 10422 across 99 suites, SmokeCheck
+> PASS, 0 `SCRIPT ERROR`, 77 / 77, no ObjectDB leak at exit.** The batch-4 run reproduced below is kept only as a historical record of the format;
 > `Reports/TEST_RESULTS.md` is the authoritative per-suite breakdown.
 
 Historical run (2026-08-13, at commit `565ae0c` plus the Phase 5 batch-4 work):
@@ -669,6 +850,9 @@ the pool that needs the behaviour. Full write-up in `Reports/TEST_RESULTS.md`.
 
 ### Known harness issues (not rules defects)
 
+* **FIXED in Phase 6 unit 1 — a full run now prints NO ObjectDB leak warning** (347433 before the
+  fix). The cause was proven with weakrefs: one strong back-reference, `ChainManager.engine`. See
+  §0 and `docs/TESTING.md`. The history below is kept for the record only.
 * The run reports **`164444 ObjectDB instances were leaked at exit`** (measured at this
   batch-9-unit-A checkpoint; 154223 at batch-8-COMPLETE, 135266 at the partial batch-8
   checkpoint, 123104 before it, 113897 at batch 7, 97559 at units A+B, 85668 at batch 6, 74049 at
@@ -708,7 +892,7 @@ the pool that needs the behaviour. Full write-up in `Reports/TEST_RESULTS.md`.
 | 3 | Architecture / scaffolding + Graphify index | **COMPLETE** |
 | 4 | Core rules engine | **COMPLETE** — 4b-1/4b-2/4b-3/4c done+tested |
 | 5 | Card effect library (77 cards) | **COMPLETE** — **77 / 77** implemented and tested (batches 1-18 all complete). The next phase is integration / scripted duels / backend acceptance, specified in §8. |
-| 6 | Automated tests | NOT STARTED |
+| 6 | Automated tests — integration, scripted full duels, backend acceptance | **Units 1–3 COMPLETE** — the ObjectDB cycle is fixed, whole duels between the real decks are played, replayed and checked, and the backend acceptance gate is MET. Unit 4 (cleanups) remains. See §0 and §8. |
 | 7 | Basic playable UI | NOT STARTED |
 | 8 | Arena / presentation | NOT STARTED |
 | 9 | Local privacy UX | NOT STARTED |
@@ -720,6 +904,7 @@ the pool that needs the behaviour. Full write-up in `Reports/TEST_RESULTS.md`.
 | A — Research complete | **MET** |
 | B — Core engine complete | **MET** — every subsystem in §6a is DONE+TESTED; 630 assertions, 0 failures |
 | C — Card library complete | **MET** — 77 / 77 implemented and tested, 10087 assertions across 96 suites, 0 failures, SmokeCheck PASS, 0 `SCRIPT ERROR` |
+| Backend acceptance (Phase 6 unit 3) | **MET** — 10422 / 10422 across 99 suites; 24 real-deck duels played to a legitimate game over and replayed exactly; cross-process determinism PASS; 0 `SCRIPT ERROR`; no ObjectDB leak at exit. Criteria and measurements in §0 and `Reports/TEST_RESULTS.md` |
 | D — Playable prototype | NOT MET |
 | E — Presentation complete | NOT MET |
 | F — Final acceptance | NOT MET |
@@ -751,6 +936,13 @@ the pool that needs the behaviour. Full write-up in `Reports/TEST_RESULTS.md`.
 > `Tests/cards/` gained the matching per-card suites including **`HonestTests.gd`** (125),
 > **`WitchcrafterGolemAruruTests.gd`** (312) and **`AHeroEmergesTests.gd`** (197). `Scripts/tests/`
 > holds the targeted runners `RunBatch12Tests.gd`, `RunBatch14Tests.gd` and **`RunBatch15Tests.gd`**.
+>
+> **Phase 6 (the post-card phase):** `Tests/integration/` now holds **`LifetimeTests.gd`**,
+> **`ScriptedDuelTests.gd`** and **`BackendAcceptanceTests.gd`**; `Tests/support/` gained
+> **`DuelDriver.gd`**, the whole-duel reference client every scripted duel runs through, and
+> `TestFixtures.real_library()` / `real_deck()` / `real_duel()`; `Scripts/tests/` gained
+> `RunIntegrationTests.gd` (targeted runner) and `DumpDuels.gd` (per-duel digests); `Tools/` gained
+> `check_determinism.ps1` / `check_determinism.sh` (two-process determinism check, run by CI).
 
 ```
 DuelArenaGame/
@@ -1515,9 +1707,10 @@ re-run research, or re-derive rules.
 > resume" paragraph is historical. The current state is §0; the next thing to do is
 > **"NEXT PHASE — integration, scripted duels, backend acceptance"** further down this section.
 >
-> **Measured now: 10087 / 10087 across 96 suites, SmokeCheck PASS, 0 `SCRIPT ERROR`, 77 / 77
-> implemented and tested, NONE remaining — the CARD IMPLEMENTATION PHASE is COMPLETE — ObjectDB
-> 347433 (the known linear per-duel behaviour — see §0).** Batch 18 closed **R5** and **R14** and
+> **Measured now: 10422 / 10422 across 99 suites, SmokeCheck PASS, 0 `SCRIPT ERROR`, 77 / 77
+> implemented and tested — the CARD IMPLEMENTATION PHASE is COMPLETE, and Phase 6 units 1–3
+> (the ObjectDB fix, scripted full duels, backend acceptance) are COMPLETE — no ObjectDB leak at
+> exit (see §0).** Batch 18 closed **R5** and **R14** and
 > produced `RULES_SPEC.md` **§10.11** (substitution is a THIRD operation on a Chain Link) and
 > **§19** (negation immunity, and an effect activated by the TURN PLAYER). Batch 16 closed **R12** (`The Monarchs Awaken`) and produced `RULES_SPEC.md`
 > **§18** — *"unaffected" gates effect APPLICATION only; targeting, resolution, costs and battle
@@ -1976,27 +2169,29 @@ negation-immunity gate and the turn-player activation route. **77 / 77.** The fu
 
 ## NEXT PHASE — integration, scripted duels, backend acceptance
 
-**Read §0 first. The card implementation phase is COMPLETE and this is what follows it.**
-Nothing below is started. **Do not begin it in the same session that finished batch 18.**
+**Read §0 first.** **Units 1, 2 and 3 are COMPLETE (2026-09-10); unit 4 is not started.** The plan
+below is kept as it was written, each unit marked with what actually happened. **The phase after
+this one is Phase 7 (UI); do not start it without the user's explicit instruction.**
 
 ### What is TRUE right now, so the next session does not re-derive it
 
 | Fact | Value |
 |---|---|
 | Cards implemented / tested | **77 / 77** |
-| Full suite | **10087 / 10087 across 96 suites**, 0 failed |
+| Full suite | **10422 / 10422 across 99 suites**, 0 failed |
 | SmokeCheck | **PASS** |
 | `SCRIPT ERROR` occurrences | **0** |
-| Scripted duel tests | **0** — the row has been zero in every checkpoint since Phase 5 began |
+| Scripted duel tests | **24 whole duels** between the real decks (6 in `ScriptedDuelTests`, 18 in `BackendAcceptanceTests`), every one to a legitimate game over and replayed exactly |
+| Cross-process determinism | **PASS** — `Tools/check_determinism.*` |
 | Rulings blocking a card | **none** |
-| ObjectDB at exit | **347433**, ~187 per duel, linear for four batches |
-| Targeted runner | `./Tools/run_tests.sh RunBatch18Tests` (1692 across 16 suites) |
+| ObjectDB at exit | **no leak warning** (was 347433, ~187 per duel) — fixed in unit 1 |
+| Targeted runner | `./Tools/run_tests.sh RunIntegrationTests` (592 across 5 suites) |
 
-**The engine has never played a whole duel end to end in a test.** Every one of the 96 suites
-builds a board, exercises a mechanism and stops. That is the gap this phase exists to close, and
+**Until this phase the engine had never played a whole duel end to end in a test** — every one of
+the 96 suites built a board, exercised a mechanism and stopped. **It now has, 24 times.** That is the gap this phase exists to close, and
 it is the reason "the card library is finished" is **not** the same as "the game works".
 
-### Unit 1 — the ObjectDB reference-cycle FIX. Do this FIRST.
+### Unit 1 — the ObjectDB reference-cycle FIX. Do this FIRST. — **COMPLETE** (result in §0)
 
 **This is the highest non-card priority and it has been carried, unclaimed, since batch 15.**
 
@@ -2013,7 +2208,7 @@ it is the reason "the card library is finished" is **not** the same as "the game
   count returns to its baseline. Write that test **before** the fix, the way every gate in this
   project has been written.
 
-### Unit 2 — scripted duels: the row that has always read zero
+### Unit 2 — scripted duels: the row that has always read zero — **COMPLETE** (result in §0)
 
 A **scripted duel** is a full duel driven end to end by seeded `ScriptedController`s, asserted on
 its final state and on its `DuelLog` replay payload. The infrastructure already exists and is
@@ -2040,7 +2235,7 @@ test arranging the board.
 exercised in an unarranged sequence. Cards that pass in isolation can still interact wrongly, and
 that is what this unit is for.
 
-### Unit 3 — backend acceptance
+### Unit 3 — backend acceptance — **COMPLETE, gate MET** (criteria and results in §0)
 
 The `DuelEngine` API is already the only way anything reaches the rules, which is what makes this
 tractable. What is owed:
@@ -2056,7 +2251,7 @@ tractable. What is owed:
 * the **CI wiring** in `.github/` extended to run the scripted duels, with the runner's exit code
   authoritative (`Tools/run_tests.sh` already guarantees that).
 
-### Unit 4 — the cleanup items, none of which is now blocked by anything
+### Unit 4 — the cleanup items, none of which is now blocked by anything — **NOT STARTED**
 
 With no card unit left to derail, these are cheap and should simply be done:
 

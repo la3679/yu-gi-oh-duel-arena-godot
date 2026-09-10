@@ -17,7 +17,20 @@ extends RefCounted
 var state: GameState = null
 ## The DuelEngine, passed through to each EffectContext so effects can reach the timing
 ## machine. Null in the pure-chain unit tests, which do not need it.
-var engine = null
+##
+## NON-OWNING, and that is load-bearing. The engine OWNS this ChainManager
+## (`DuelEngine.chain`), so a strong reference back made `DuelEngine -> ChainManager ->
+## DuelEngine` a RefCounted cycle that kept every dropped duel alive — the engine, the
+## state, every card, both players and the whole event log, ~187 ObjectDB instances per duel
+## from batch 15 to batch 18. The back-pointer is therefore held through a WeakRef: while the
+## engine lives it reads exactly as before, and once its owner is gone it reads null instead
+## of keeping the owner alive. `LifetimeTests` asserts both halves.
+var engine:
+	get:
+		return _engine_ref.get_ref() if _engine_ref != null else null
+	set(value):
+		_engine_ref = weakref(value) if value != null else null
+var _engine_ref: WeakRef = null
 ## The links of the most recently resolved Chain, kept after state.chain is cleared so
 ## the caller can apply post-resolution rules (a Normal Spell/Trap going to the GY).
 var last_resolved_links: Array = []

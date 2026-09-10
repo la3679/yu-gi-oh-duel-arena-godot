@@ -1408,6 +1408,46 @@ switches off. `ChainManager._resolve_link()` and `DuelEngine` hand the table dow
 already hand down `decider`.
 *Tests:* `HiddenInfoTests` — the gate, written and green before `Fairy Tail - Luna` existed.
 
+### 12.5 A MOVE event names its card only to a player who could see it at one end — **DECIDED** (post-card phase, scripted duels)
+
+Found by the first full scripted duel (`ScriptedDuelTests`), not by any per-operation test.
+`get_visible_state()` was never wrong; the leak was in the EVENT stream. Setting a card went
+through `move_card()`, which emitted a **public** `CARD_MOVED` carrying `card_name`, and only
+then the deliberately private `CARD_SET` — so every Set card was named in the opponent's log and
+in the public log.
+
+**Rule: a move event is readable by exactly the players who may know the card's identity at
+the ORIGIN or at the DESTINATION of the move.** If that is both players, the event is public.
+
+Identity is known where §12's table says it is, extended to the zones the viewer-filtered state
+never shows: nobody sees into a Deck [S1 p.5, p.28]; the hand and a face-down card are known to
+their controller; the field face-up, the Graveyard, banishment, a card in transit (being
+Summoned or activated) and an excavated card are known to both. `revealed_to` overrides all of
+it — which is exactly why a SEARCH stays public: §8.4 reveals the chosen card to both players
+**before** it is added, so both know it at the origin.
+
+| Move | Readable by |
+|---|---|
+| hand → field, **Set** | its controller only |
+| hand → Graveyard (discard, cost) | both — public |
+| Deck → hand, **searched** (revealed first, §8.4) | both — public |
+| face-down on the field → Graveyard | both — it is face-up where it lands |
+| hand → Deck (shuffled in) | its owner only — they held it |
+| Deck → Deck (no reveal) | **nobody** |
+
+An EMPTY `private_to` means public, so the "nobody" case is marked `[GameEvent.NOBODY]`. Such an
+event is still in `GameState.events` and the `DuelLog`, because triggers and the replay read the
+engine's own record — privacy filters what a PLAYER is given, never what the engine knows.
+
+The privacy is computed once, in `move_card()`, on the payload that the follow-up semantic
+events (`CARD_ADDED_TO_HAND`, `CARD_SENT_TO_GY`, `CARD_RETURNED_TO_DECK`, …) share, so they can
+never disagree with the `CARD_MOVED` they accompany.
+
+*Engine:* `GameState.identity_visible_to()`, `GameState.move_card()`, `GameEvent.NOBODY`.
+*Tests:* `HiddenInfoTests` (four focused regressions, each case paired with a control that must
+stay public) and `ScriptedDuelTests`, whose `DuelDriver` checks every move event of every full
+duel for a player who could see the card at neither end.
+
 ---
 
 ## 13. Victory conditions [S1 p.33]

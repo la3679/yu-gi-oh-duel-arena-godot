@@ -96,6 +96,39 @@ func to_json() -> String:
 	return JSON.stringify(to_replay(), "  ")
 
 
+## Read back a payload stored with `to_json()`, ready to replay.
+##
+## JSON has one number type, so every id, index and enum value comes back as a FLOAT, and the
+## engine compares decision answers against the offered options by value AND type — a
+## recorded answer `[12]` read back as `[12.0]` is not one of the options `[12]`. A whole-number
+## float is therefore restored to an int, recursively. The payload never records a genuinely
+## fractional number, so nothing is lost. Returns {} when the text is not a payload.
+static func payload_from_json(text: String) -> Dictionary:
+	var parsed = JSON.parse_string(text)
+	if not (parsed is Dictionary):
+		return {}
+	return _restore_ints(parsed)
+
+
+static func _restore_ints(value):
+	match typeof(value):
+		TYPE_FLOAT:
+			var f: float = value
+			return int(f) if f == floorf(f) else f
+		TYPE_ARRAY:
+			var out: Array = []
+			for v in value:
+				out.append(_restore_ints(v))
+			return out
+		TYPE_DICTIONARY:
+			var out := {}
+			for k in value.keys():
+				out[k] = _restore_ints(value[k])
+			return out
+		_:
+			return value
+
+
 ## Human-readable trace for debugging a failing test.
 func format_trace() -> String:
 	var lines := ["DuelLog seed=%d first_player=%d" % [seed_value, first_player_id]]

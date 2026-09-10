@@ -30,6 +30,11 @@ static func run() -> TestCase:
 	_test_chain_information_is_public(t)
 	_test_owner_is_reported_separately_from_controller(t)
 	_test_no_hidden_field_leaks_the_card_name(t)
+	# Move events — RULES_SPEC.md 12.5, found by the first full scripted duel.
+	_test_a_set_monster_is_named_only_to_its_controller(t)
+	_test_a_set_spell_trap_is_named_only_to_its_controller(t)
+	_test_a_move_either_player_could_see_stays_public(t)
+	_test_a_move_nobody_could_see_reaches_no_players_log(t)
 	# The `look_at_hand` gate — batch 12 unit B, written before `Aoi`.
 	_test_looking_at_a_hand_reveals_it_to_one_player_only(t)
 	_test_looking_at_a_hand_moves_nothing(t)
@@ -61,6 +66,145 @@ static func run() -> TestCase:
 	_test_negating_your_own_effect_records_it_without_undoing_anything(t)
 	_test_has_name_of_matches_by_name_only(t)
 	return t
+
+
+# ---------------------------------------------------------------------------
+# Move events name a card only to a player who could see it at one end of the move.
+# RULES_SPEC.md 12.5.
+#
+# Found by the first full scripted duel, not by any per-operation test: `CARD_SET` was already
+# private to the setter, but the `CARD_MOVED` that `move_card()` emitted a moment earlier was
+# PUBLIC and carried the card's name, so every Set card was named in the opponent's log and in
+# the public log. `get_visible_state()` was never wrong — the leak was in the event stream.
+# Each case below is paired with a control that must stay public, so a fix that simply hid
+# every move event would fail here too.
+# ---------------------------------------------------------------------------
+
+## Events at or after sequence `mark` that name `card_name`.
+static func _naming_since(events: Array, card_name: String, mark: int) -> int:
+	var n := 0
+	for e in events:
+		var ev: GameEvent = e
+		if ev.sequence >= mark and str(ev.data.get("card_name", "")) == card_name:
+			n += 1
+	return n
+
+
+static func _test_a_set_monster_is_named_only_to_its_controller(t: TestCase) -> void:
+	t.start("Setting a monster names it to its controller and to nobody else — not in the "
+		+ "opponent's log, not in the public log")
+	var d := TestFixtures.new_duel(1101, 0)
+	var engine: DuelEngine = d["engine"]
+	TestFixtures.advance_to_phase(engine, Enums.Phase.MAIN_1)
+	var card := TestFixtures.give_to_hand(engine, 0,
+		TestFixtures.monster("Secret Setter", 4, 1000, 1000))
+	var mark := engine.state.events.size()
+	t.is_true(engine.submit_action(TestFixtures.find_action(engine.get_legal_actions(0),
+		Enums.ActionKind.NORMAL_SET, card.id)), "the Set is accepted")
+	TestFixtures.pass_until_open(engine)
+	t.eq(card.position, Enums.Position.FACE_DOWN_DEFENSE, "the monster is face-down")
+	t.is_true(_naming_since(engine.state.events, "Secret Setter", mark) >= 2,
+		"non-vacuity: the engine recorded the move and the Set by name")
+	t.is_true(_naming_since(engine.state.get_log_for(0), "Secret Setter", mark) >= 2,
+		"the controller's own log names it")
+	t.eq(_naming_since(engine.state.get_log_for(1), "Secret Setter", mark), 0,
+		"the opponent's log does not")
+	t.eq(_naming_since(engine.get_public_log(), "Secret Setter", mark), 0,
+		"and neither does the public log")
+
+
+static func _test_a_set_spell_trap_is_named_only_to_its_controller(t: TestCase) -> void:
+	t.start("Setting a Spell/Trap names it to its controller and to nobody else")
+	var d := TestFixtures.new_duel(1102, 0)
+	var engine: DuelEngine = d["engine"]
+	TestFixtures.advance_to_phase(engine, Enums.Phase.MAIN_1)
+	var card := TestFixtures.give_to_hand(engine, 0, TestFixtures.trap("Secret Trap"))
+	var mark := engine.state.events.size()
+	t.is_true(engine.submit_action(TestFixtures.find_action(engine.get_legal_actions(0),
+		Enums.ActionKind.SET_SPELL_TRAP, card.id)), "the Set is accepted")
+	TestFixtures.pass_until_open(engine)
+	t.eq(card.zone, Enums.Zone.SPELL_TRAP_ZONE, "the card is Set in a Spell & Trap Zone")
+	t.is_true(_naming_since(engine.state.events, "Secret Trap", mark) >= 2,
+		"non-vacuity: the engine recorded the move and the Set by name")
+	t.is_true(_naming_since(engine.state.get_log_for(0), "Secret Trap", mark) >= 2,
+		"the controller's own log names it")
+	t.eq(_naming_since(engine.state.get_log_for(1), "Secret Trap", mark), 0,
+		"the opponent's log does not")
+	t.eq(_naming_since(engine.get_public_log(), "Secret Trap", mark), 0,
+		"and neither does the public log")
+
+
+static func _test_a_move_either_player_could_see_stays_public(t: TestCase) -> void:
+	t.start("controls: a move that shows the card to both players at one end stays PUBLIC")
+	var d := TestFixtures.new_duel(1103, 0)
+	var engine: DuelEngine = d["engine"]
+	TestFixtures.advance_to_phase(engine, Enums.Phase.MAIN_1)
+
+	var summoned := TestFixtures.give_to_hand(engine, 0,
+		TestFixtures.monster("Open Summon", 4, 1000, 1000))
+	var mark := engine.state.events.size()
+	engine.submit_action(TestFixtures.find_action(engine.get_legal_actions(0),
+		Enums.ActionKind.NORMAL_SUMMON, summoned.id))
+	TestFixtures.pass_until_open(engine)
+	t.is_true(_naming_since(engine.get_public_log(), "Open Summon", mark) >= 1,
+		"a face-up Normal Summon is named in the public log")
+
+	var discarded := TestFixtures.give_to_hand(engine, 1,
+		TestFixtures.monster("Open Discard", 4, 1000, 1000))
+	mark = engine.state.events.size()
+	engine.state.move_card(discarded, Enums.Zone.GRAVEYARD, Enums.MoveReason.DISCARDED)
+	t.is_true(_naming_since(engine.get_public_log(), "Open Discard", mark) >= 1,
+		"a card discarded from the hand is public — the Graveyard is [S1 p.50]")
+
+	var searched := TestFixtures.give_to_deck(engine, 1,
+		TestFixtures.monster("Open Search", 4, 1000, 1000))
+	mark = engine.state.events.size()
+	engine.state.reveal(searched, [0, 1])
+	engine.state.move_card(searched, Enums.Zone.HAND, Enums.MoveReason.ADDED_TO_HAND)
+	t.is_true(_naming_since(engine.state.get_log_for(0), "Open Search", mark) >= 2,
+		"a searched card revealed to both on the way is named to the opponent too (RULES_SPEC.md 8.4)")
+
+	var victim := TestFixtures.give_monster_on_field(engine, 1,
+		TestFixtures.monster("Face-down Victim", 4, 1000, 1000), Enums.Position.FACE_DOWN_DEFENSE)
+	mark = engine.state.events.size()
+	engine.state.move_card(victim, Enums.Zone.GRAVEYARD, Enums.MoveReason.DESTROYED_BY_EFFECT)
+	t.is_true(_naming_since(engine.get_public_log(), "Face-down Victim", mark) >= 1,
+		"a face-down card destroyed to the Graveyard is public — it is face-up where it lands")
+
+
+static func _test_a_move_nobody_could_see_reaches_no_players_log(t: TestCase) -> void:
+	t.start("a card moved where no player sees it at either end reaches neither log, and is "
+		+ "still recorded for triggers and the replay")
+	var d := TestFixtures.new_duel(1104, 0)
+	var engine: DuelEngine = d["engine"]
+	var buried := TestFixtures.give_to_deck(engine, 0,
+		TestFixtures.monster("Deck Shuffler", 4, 1000, 1000), false)
+	var mark := engine.state.events.size()
+	engine.state.move_card(buried, Enums.Zone.DECK, Enums.MoveReason.RETURNED_TO_DECK_BOTTOM)
+	var recorded := engine.state.events.filter(func(e): return e.sequence >= mark \
+		and str(e.data.get("card_name", "")) == "Deck Shuffler")
+	t.is_true(recorded.size() >= 1, "non-vacuity: the engine recorded the move")
+	t.is_true(recorded.size() >= 1 and GameEvent.NOBODY in (recorded[0] as GameEvent).private_to(),
+		"marked private to NOBODY — an empty list would have meant public")
+	t.eq(_naming_since(engine.state.get_log_for(0), "Deck Shuffler", mark), 0,
+		"not even the owner's log — nobody sees into a Deck [S1 p.5]")
+	t.eq(_naming_since(engine.state.get_log_for(1), "Deck Shuffler", mark), 0,
+		"nor the opponent's")
+	var in_replay := 0
+	for entry in engine.log.entries:
+		if str(entry["data"].get("card_name", "")) == "Deck Shuffler" \
+				and str(entry["kind"]) == "CARD_MOVED":
+			in_replay += 1
+	t.is_true(in_replay >= 1, "the replay log still records it")
+
+	var returned := TestFixtures.give_to_hand(engine, 1,
+		TestFixtures.monster("Hand Returner", 4, 1000, 1000))
+	mark = engine.state.events.size()
+	engine.state.move_card(returned, Enums.Zone.DECK, Enums.MoveReason.SHUFFLED_INTO_DECK)
+	t.is_true(_naming_since(engine.state.get_log_for(1), "Hand Returner", mark) >= 1,
+		"a hand card shuffled into the Deck is named to its owner, who held it")
+	t.eq(_naming_since(engine.state.get_log_for(0), "Hand Returner", mark), 0,
+		"and to nobody else")
 
 
 # ---------------------------------------------------------------------------

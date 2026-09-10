@@ -410,6 +410,9 @@ func move_card(card: CardInstance, to_zone: Enums.Zone, reason: Enums.MoveReason
 	# becomes FACE_DOWN), so asking afterwards answers about the destination rather than
 	# about where the card came from. RULES_SPEC.md 15.
 	var was_face_up := card.is_face_up()
+	# Who may know this card's identity where it is NOW — the half of the move event's
+	# privacy that cannot be asked afterwards. RULES_SPEC.md 12.5.
+	var seen_before := identity_visible_to(card)
 
 	# "If Summoned this way, banish this card when it leaves the field."
 	# [`The Phantom Knights of Shadow Veil`]
@@ -530,6 +533,17 @@ func move_card(card: CardInstance, to_zone: Enums.Zone, reason: Enums.MoveReason
 		"reason": reason,
 		"source_id": source_id,
 	}
+	# The payload NAMES the card, so it may only reach a player who could see that card at one
+	# end of the move or the other. A Set from the hand is the case the first full scripted duel
+	# caught: CARD_SET was already private, but the CARD_MOVED emitted just before it was public
+	# and carried the name. The same payload feeds every follow-up event below, so they inherit
+	# it. RULES_SPEC.md 12.5.
+	var knowers := seen_before.duplicate()
+	for pid in identity_visible_to(card):
+		if not knowers.has(pid):
+			knowers.append(pid)
+	if knowers.size() < PLAYER_COUNT:
+		payload["private_to"] = knowers if not knowers.is_empty() else [GameEvent.NOBODY]
 	emit(GameEvent.Kind.CARD_MOVED, payload)
 
 	# Specific semantic events so presentation can use distinct animations
@@ -1478,6 +1492,36 @@ func reveal(card: CardInstance, viewers: Array, source_id: int = -1) -> void:
 	if card.revealed_to.size() < PLAYER_COUNT:
 		payload["private_to"] = card.revealed_to.duplicate()
 	emit(GameEvent.Kind.CARD_REVEALED, payload)
+
+
+## The players who may know `card`'s identity where it is right now. RULES_SPEC.md 12.5.
+##
+## The same rule `get_visible_state()` applies to a card it shows (`_visible_card()`), extended
+## to the zones that view never exposes: nobody sees into a Deck [S1 p.5, p.28], and a card
+## in transit or excavated is being shown to both players. `revealed_to` overrides all of it.
+func identity_visible_to(card: CardInstance) -> Array:
+	var out: Array = []
+	for pid in range(PLAYER_COUNT):
+		if _identity_visible(card, pid):
+			out.append(pid)
+	return out
+
+
+func _identity_visible(card: CardInstance, pid: int) -> bool:
+	if pid in card.revealed_to:
+		return true
+	match card.zone:
+		Enums.Zone.DECK:
+			return false
+		Enums.Zone.HAND, Enums.Zone.EXTRA_DECK:
+			return card.controller_id == pid
+		Enums.Zone.MONSTER_ZONE, Enums.Zone.SPELL_TRAP_ZONE, Enums.Zone.FIELD_ZONE, \
+		Enums.Zone.EXTRA_MONSTER_ZONE:
+			return card.is_face_up() or card.controller_id == pid
+		_:
+			# Graveyard and banishment are public [S1 p.50]; IN_TRANSIT is a card being
+			# Summoned or activated; EXCAVATED is revealed to both. RULES_SPEC.md 8.2.
+			return true
 
 
 ## The cards `pid` currently has excavated, top of the Deck first.

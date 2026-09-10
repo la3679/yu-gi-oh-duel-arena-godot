@@ -91,6 +91,12 @@ enum Kind {
 	DUEL_ENDED,
 }
 
+## A `private_to` naming no real player. An EMPTY `private_to` means public, so an event about
+## a card NO player may see — one moved within a Deck — is marked `[NOBODY]` instead: it stays
+## in `GameState.events` and the replay log, where triggers and replays read it, and out of
+## both players' logs. RULES_SPEC.md 12.5.
+const NOBODY := -1
+
 var kind: Kind
 ## Arbitrary structured payload. Keys used per kind are documented at emit sites.
 var data: Dictionary = {}

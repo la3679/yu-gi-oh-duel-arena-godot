@@ -124,6 +124,11 @@ func _initialize() -> void:
 	suites.append(FairyTailSleeperTests.run())
 	suites.append(HiddenSpringsOfTheFarEastTests.run())
 
+	# --- Post-card phase: integration ---
+	suites.append(LifetimeTests.run())
+	suites.append(ScriptedDuelTests.run())
+	suites.append(BackendAcceptanceTests.run())
+
 	var total_passed := 0
 	var total_failed := 0
 	var empty_suites: Array[String] = []
