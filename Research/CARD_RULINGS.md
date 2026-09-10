@@ -153,7 +153,7 @@ in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`. **No effect may be approximated.**
 | R2 | `Judge of the Ice Barrier` | All three effects reference "Ice Barrier" monsters. Judge is the only "Ice Barrier" card in either deck, so the first (continuous) and third (GY) effects can essentially never be live. Both must still be implemented exactly. Confirm whether Judge in the **GY** counts for "If you control an 'Ice Barrier' monster" — it does not (GY is not "control"). |
 | R3 | `Maiden with Eyes of Blue` | **CLOSED — see R37.** "You can only use 1 'Maiden with Eyes of Blue' effect per turn, and only once that turn." — one allowance shared across **both** clauses, per player, per name: both carry `opt_named_effect()` and the same `in_group()` key, so using either locks out the other for the turn. Contrast `Judge of the Ice Barrier`, whose "each of the following effects … once per turn" gives one use per clause. |
 | R4 | `Chain Detonation` / `Chain Healing` | Behaviour depends on the **Chain Link number at which the card was activated**. Chain Link position must be recorded on the Chain Link and readable at resolution. |
-| R5 | `Fairy Tail - Sleeper` | "the activated effect **becomes** …" — this replaces the opponent's already-activated Normal Spell/Trap effect on the Chain. Needs an effect-substitution mechanism on the Chain Link, not a negate-then-add. |
+| R5 | `Fairy Tail - Sleeper` | **RESOLVED — see "R5 — `Fairy Tail - Sleeper`" below.** The original note was right that this is substitution and not negate-then-add. What it could not know: the substituted effect belongs to the **opponent's** card and is carried out by the **opponent**, so its 「相手フィールド」 means **Sleeper's own controller's field** — the card flips its own side's monster face-down, which is the point, because Sleeper is a FLIP monster. ① **can** be activated during the Damage Step (the first supplement in eight batches to GRANT rather than withhold), ② cannot and must chain **directly** to the Normal Spell/Trap. fid 8714 and fid 19695 together settle what survives substitution; fid 9677 and fid 24272 are recorded and never live in the V1 pool. |
 | R6 | `Swords of Revealing Light` | **CLOSED — see R36.** "you must destroy it during the End Phase of your opponent's 3rd turn" — requires a per-card turn counter. The three counted turns are the opponent's three turns after activation, and the card is destroyed in the End Phase of the third; the controller's own turns never count, because a Normal Spell is only ever activated on its controller's turn [S1 p.31]. |
 | R7 | `Soul Exchange` | **CLOSED — see R39.** "this turn, if you Tribute a monster, you must Tribute that target, as if you controlled it" — a turn-scoped lingering **material-choice constraint**, not a control change and not an extra Tribute: it binds *which* monster is chosen on both the Tribute Summon/Set route and the Tribute-**cost** route; it drops when the target leaves its Monster Zone, on a control change, on a face-up→face-down reset and at the exact end of the turn; and a still-affected target that becomes unsuitable **blocks** the Tribute rather than releasing the obligation. The Battle Phase sentence is an activation **condition**, confirmed when the Chain Link is processed — it survives EFFECT negation but not ACTIVATION negation. |
 | R8 | `Kaiser Sea Horse` | **CLOSED — see R38.** "can be treated as 2 Tributes for the Tribute Summon of a LIGHT monster" — a rules QUERY on the Attribute of the monster being SUMMONED, not on this card; permission rather than compulsion; the Tribute Summon path only, never a Tribute paid as a cost; and worth 1 while face-down or negated. |
@@ -162,7 +162,7 @@ in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`. **No effect may be approximated.**
 | R11 | `Fairy Tail - Luna` | **RESOLVED — see "R11 — `Fairy Tail - Luna`" below.** The original note (an opponent-side decision during resolution) was right but far from complete: cid 12952 also forbids activation **during the Damage Step**, makes the resolution-time re-check **both-or-nothing** over the MONSTER ZONE with no control re-check, offers the negation only while the target is **face-up** (a face-down target is still returned), returns each card to its **OWNER's** hand, and states that an **unaffected** target costs only itself. Q&A fid 20472 makes the send a **resolution process** whose legality is checked when reached, fid 11022 confirms ② is an ordinary Chain activation, and fid 262 permits a **Token** target. §8's claim that the negation branch is unreachable from the printed decks is **wrong** — both decks hold a duplicate. |
 | R12 | `The Monarchs Awaken` | **RESOLVED — see "R12 — `The Monarchs Awaken`" below.** The original note (an Extra Deck activation condition; a broad immunity belonging in the rules layer) was right but far from complete: cid 10963 also forbids activation **during the Damage Step**, states the whole effect **does nothing** if the target is face-down at resolution, fixes the duration at **"as long as it is face-up in the Monster Zone"**, and permits a **Normal Monster** target. The general 「効果を受けない」 Q&A narrow the immunity to **application only** — targeting, resolution, costs, Tributes and battle are all untouched — and Q&A fid 20548 / 20533 overturn the engine's guess that a **Tribute Set** monster is not "Tribute Summoned". |
 | R13 | `Witchcrafter Golem Aruru` | **RESOLVED — see "R13 — `Witchcrafter Golem Aruru`" below.** The original note (both trigger branches; the "Witchcrafter" Spell branch is never live) was right but far from complete: cid 14483 also forbids activation **during the Damage Step**, narrows the Spellcaster to **face-up in your Monster Zone**, restricts the targeting trigger to the **opponent's** activation, and states that a target that has left the field costs the bounce but **not** the Special Summon. |
-| R14 | `Hidden Springs of the Far East` | Field Spell whose once-per-turn effect may be activated by **the turn player**, i.e. by either player depending on whose turn it is, including the opponent of its controller. |
+| R14 | `Hidden Springs of the Far East` | **RESOLVED — see "R14 — `Hidden Springs of the Far East`" below.** The original note was right and is confirmed verbatim: 「お互いのプレイヤーは、自身のメインフェイズ２にこの効果を発動できます」. Added: the effect **creates a Chain Block**, and the LP gain and all three ● effects are applied **simultaneously** in one resolution. **This card has NO Q&A entries**, so the supplement is the entire authority and there is no second source to cross-check against. §8's claim that it needs a new Field Spell Zone is **wrong** — the zone, Main Phase 2 and the LP gain all already exist. |
 | R15 | `A Hero Emerges` | **RESOLVED — see "R15 — `A Hero Emerges`" below.** The original note (a **random** choice from your hand, through the seeded RNG, leaking nothing) was right but far from complete: cid 5915 also forbids the activation entirely when your hand is empty **or holds no monster**, Q&A fid 12566 narrows that to "a monster this effect could actually Special Summon **right now**", and Q&A fid 8193 states that if the Special Summon has become impossible by resolution the effect is **not applied at all** — the random choice is not even made. |
 | R16 | `Five Brothers Explosion` | Second effect triggers only when the face-up card **you control** is sent to **your** GY **by your opponent's card effect** — a precise movement-reason + agent check. |
 | R17 | `Nefarious Archfiend Eater of Nefariousness` | GY effect during the **opponent's** End Phase; destroys your own face-up monster as part of the effect ("destroy it, and if you do, Special Summon this card"). |
@@ -2835,6 +2835,241 @@ the **Extra Deck** half of the payment (both Extra Decks are empty) and a **Mons
 against a synthetic negator, with the never-live claim itself asserted behaviourally —
 `Champion's Vigilance` does listen to `EFFECT_ACTIVATED`, so only its refusal to be *offered* proves
 it.
+
+---
+
+### R5 — `Fairy Tail - Sleeper` — RESOLVED and CLOSED in Phase 5 batch 18
+
+**Opened** in §4 as *"the activated effect **becomes** … — this replaces the opponent's
+already-activated Normal Spell/Trap effect on the Chain. Needs an effect-substitution mechanism
+on the Chain Link, not a negate-then-add."* That was right about the mechanism and silent on
+every question that decides how the card actually behaves.
+
+#### Sources — all PRIMARY (official Konami), all fetched for this batch under `request_locale=ja`
+
+| Source | What it gives | Date on the page |
+|---|---|---|
+| `card_search.action?ope=2&cid=12625&request_locale=en` — the live **English** text | re-fetched and diffed **character for character** against `Data/cards/cards.json`: **identical, 336 characters**, no drift | fetched 2026-09-09 |
+| `card_search.action?ope=2&cid=12625&request_locale=ja` — the live **Japanese** text | 「このカード名の②の効果は１ターンに１度しか使用できない。①：このカードがリバースした場合に発動できる。手札からモンスター１体を特殊召喚する。②：相手が通常魔法・通常罠カードを発動した時、自分フィールドの他のモンスター１体をリリースして発動できる。その効果は「相手フィールドの表側表示モンスター１体を裏側守備表示にする」となる。」 | fetched 2026-09-09 |
+| `faq_search.action?ope=4&cid=12625&request_locale=ja` — 補足情報, **six** bullets across the two clauses | the effect kinds; ①'s Damage Step **permission**; ②'s Damage Step ban; ②'s direct-chain requirement; the empty-field resolution case | **2020-07-04** |
+| `faq_search.action?ope=5&fid=8714&request_locale=ja` | 「埋葬されし生け褭」 — a restriction **inside the resolving effect** is replaced away | 2017-03-24 |
+| `faq_search.action?ope=5&fid=19695&request_locale=ja` | 「強欲で謙虚な壺」 — a restriction that is 「カードの効果の扱いではありません」 **survives** | 2017-03-24 |
+| `faq_search.action?ope=5&fid=9677&request_locale=ja` | 「ダーク・シムルグ」 — ② cannot be activated at all when the opponent is forbidden to Set; the replacement 「相手プレイヤーにカードをセット…させる」 | 2017-03-24 |
+| `faq_search.action?ope=5&fid=24272&request_locale=ja` | ② does **not** itself count as an effect 「カードをセットする効果を含む」 for another card's trigger condition | **2026-01-23** |
+
+The card's Japanese name is 「妖精伝姫－ターリア」. All four Q&A entries name it in their own text, so
+none is the `en` boilerplate R40's methodology note warns about.
+
+#### Part A — the Damage Step, and the pattern BREAKING
+
+①: 「モンスターゾーンで発動できる誘発効果です。」 and
+「**ダメージステップ中に条件を満たした場合でも発動できます。**」
+
+②: 「モンスターゾーンで発動できる誘発即時効果です。」,
+「相手が通常魔法・通常罠カードを発動した時、**その発動に直接チェーンして**発動できます。」,
+「ダメージステップ中には発動できません。」
+
+**This is the first card in eight batches whose supplement GRANTS Damage Step permission rather
+than withholding it.** ① is a FLIP effect, and the ordinary way a monster is flipped face-up is
+by being attacked, so the permission is not a quirk — it is the clause's main line of play. The
+engine default (`DamageStepPermission.NONE`) would be **wrong** here, which is the exact inverse
+of `The Monarchs Awaken` (R12) and `Fairy Tail - Luna` (R11), where the default happened to be
+right. Confidence **HIGH** — stated directly, per clause, in the card's own supplement.
+
+#### Part B — whose effect the substituted text is, and therefore whose "opponent" it means
+
+**This is the question §8 flagged as unsettled by the English text. It is settled, and the answer
+is the counter-intuitive one.**
+
+The substituted effect **belongs to the opponent's Normal Spell/Trap card** and is **carried out
+by the opponent**. Card text is written from the perspective of the card's controller, and the
+replacement text is now that card's text — so 「相手フィールドの表側表示モンスター１体」 means
+**`Fairy Tail - Sleeper`'s own controller's field.** Sleeper flips **its own side's** monster
+face-down.
+
+Three independent confirmations, which is why this is **HIGH** confidence and not an inference:
+
+1. **the supplement measures the empty case against 自分's field.**
+   「処理時に、**自分**フィールドに表側表示のモンスターが存在しない場合でも、この効果は適用され…」
+   The supplement is written from Sleeper's controller's perspective, and it asks about
+   **自分**'s field — which is only the relevant field if that is where the replacement looks;
+2. **fid 9677 says the OPPONENT is the one doing it.**
+   「相手プレイヤーにカードをセット（＝この場合、モンスターを裏側守備表示に）**させる**」;
+3. **the card is a FLIP monster.** Re-arming its own ① — and any other Flip monster on its
+   controller's side — is the design intent. It is not a drawback bolted onto a negation.
+
+**Consequence, and it must be tested rather than assumed:** when Sleeper's controller has no
+face-up monster at resolution the effect **still applies**, and the opponent's card simply does
+nothing: 「この効果は適用され…（結果的に、発動した相手の通常魔法・通常罠カードの効果処理は
+何も行われなくなります。）」 That is a **vacuous path**: an implementation that silently did
+nothing at all would pass a careless test. The substitution must be asserted to have **happened**,
+separately from its having had any visible board effect.
+
+#### Part C — the replacement CHOOSES at resolution; it does not target
+
+The Q&A wording is 「相手フィールドの表側表示モンスター１体を**選んで**裏側守備表示にする」, with
+no 「対象」 anywhere. Nothing is targeted: not by the opponent's original card (which had already
+been activated, possibly with its own targets, before Sleeper ever resolved), and not by Sleeper.
+The choice is made when the substituted effect resolves. Confidence **HIGH**.
+
+#### Part D — what survives the substitution. The general rule, from a Q&A PAIR
+
+Two Q&A entries with **opposite outcomes** and one shared principle. This is the part of R5 most
+likely to be implemented wrongly, because the two natural implementations get it wrong in
+opposite directions.
+
+| Q&A | Original card | Its restriction | Applied after substitution? |
+|---|---|---|---|
+| **fid 8714** | 「埋葬されし生け褭」 | 「この効果の発動後、ターン終了時まで自分はモンスターを特殊召喚できない」 — part of the resolving effect | **NO.** 「処理は適用されません。したがって、このターン相手はモンスターを特殊召喚する事ができます。」 |
+| **fid 19695** | 「強欲で謙虚な壺」 | 「このカードを発動するターン、自分はモンスターを特殊召喚できない」 | **YES.** 「カードの効果の扱いではありませんので、この場合も適用される事になります。」 |
+
+> **The general rule: substitution replaces the RESOLVING EFFECT and nothing else. A restriction
+> that resolves as part of that effect is replaced away with it. A restriction that is not
+> treated as a card effect — an inherent restriction applied on activation — survives untouched.**
+
+This goes into `RULES_SPEC.md` beside §10.6, §10.8, §10.9 and §10.10. Note precisely why the two
+obvious implementations fail:
+
+* **swapping the `resolve` callable** gets fid 8714 right by construction, and gets fid 19695
+  right **only if** the engine already applies inherent activation restrictions at activation
+  time rather than during resolution. That must be **verified in this engine**, not assumed;
+* **negate-then-add-a-new-effect** gets **both** wrong: it would stop the original card counting
+  as having resolved, and ② is not a negation at all.
+
+Confidence **HIGH** — two official Q&A entries stating both halves explicitly.
+
+#### Part E — two facts recorded and NOT implemented, because they are never live in the V1 pool
+
+* **fid 9677.** With one's own 「ダーク・シムルグ」 applying 「相手はカードをセットできない」,
+  Sleeper's ② **cannot be activated at all** — changing a monster to face-down Defense Position
+  counts as the opponent **Setting** a card for this purpose, and a continuous restriction that
+  would make the resolution impossible blocks the activation. **No card in the V1 pool applies
+  any such restriction**, so this is recorded rather than implemented as a branch that can never
+  run — the R1 / R21 / R23 shape;
+* **fid 24272.** Sleeper's ② does **not** itself count as an effect 「カードをセットする効果を
+  含む」 for another card's trigger condition, because it is an effect that *changes* an effect and
+  is classified by what it does rather than by what the replacement text says. **This sits in
+  deliberate tension with fid 9677 and the two must not be collapsed:** 9677 reads a continuous
+  restriction against what the **resolution** would do; 24272 reads a trigger condition against
+  what the **activation** is. Both are recorded. No V1 pool card has such a trigger condition.
+
+#### What R5 leaves OPEN
+
+**Nothing about `Fairy Tail - Sleeper` itself.** Two adjacent facts are recorded rather than
+settled because no official source was found and none is needed for the V1 pool:
+
+* whether the substituted effect's 「選んで」 choice is made by the opponent (who resolves it) is
+  **not stated anywhere**; it follows from the effect being theirs, and the V1 pool contains no
+  case where the distinction is observable, because whoever chooses is choosing among the same
+  set of Sleeper's controller's face-up monsters;
+* whether ②'s 「直接チェーンして」 requirement makes an intervening Chain Link a *legality*
+  failure or merely a missed timing is not stated. In this engine a "when … you can" that must
+  chain directly is the missed-timing shape, and it is implemented that way and asserted; no V1
+  pool card can produce the intervening link, so the distinction is never live.
+
+---
+
+### R14 — `Hidden Springs of the Far East` — RESOLVED and CLOSED in Phase 5 batch 18
+
+**Opened** in §4 as *"Field Spell whose once-per-turn effect may be activated by **the turn
+player**, i.e. by either player depending on whose turn it is, including the opponent of its
+controller."* **That note was right**, and the supplement confirms it verbatim rather than
+qualifying it — the first time in Phase 5 that an opened ruling's original guess survived
+contact with the source unamended.
+
+#### Sources — PRIMARY (official Konami), fetched for this batch under `request_locale=ja`
+
+| Source | What it gives | Date on the page |
+|---|---|---|
+| `card_search.action?ope=2&cid=16027&request_locale=en` — the live **English** text | re-fetched and diffed **character for character** against `Data/cards/cards.json`: **identical, 573 characters**, no drift | fetched 2026-09-09 |
+| `card_search.action?ope=2&cid=16027&request_locale=ja` — the live **Japanese** text | 「このカード名のカードは１ターンに１枚しか発動できない。①：お互いのプレイヤーは１ターンに１度、自分メインフェイズ２に発動できる。自分は５００LP回復し、このターン中、以下の効果を適用する。●自分のモンスターの召喚・特殊召喚は無効化されない。●モンスターを特殊召喚する効果を含む、モンスターの効果・魔法・罠カードを自分が発動した場合、その発動は無効化されない。●自分フィールドにセットされた魔法・罠カードは相手の効果の対象にならず、相手の効果では破壊されない。」 | fetched 2026-09-09 |
+| `faq_search.action?ope=4&cid=16027&request_locale=ja` — 補足情報, **three** bullets | the effect creates a Chain Block; **either** player activates it in **their own** Main Phase 2; the LP gain and all three ● effects apply **simultaneously** | **2021-01-16** |
+| the same page's Q&A list | 「このカードに関連するＱ＆Ａはありません。」 — **there are none** | fetched 2026-09-09 |
+
+The card's Japanese name is 「極東秘泉郷」.
+
+**A note on CONFIDENCE that must not be glossed.** This card has **no Q&A entries at all**, so the
+supplement is the entire authority and there is **no second source to cross-check it against**.
+Every other ruling closed in batches 13–18 had at least one Q&A entry, and in batches 13, 15 and
+16 the Q&A entries carried facts the supplement did not. R40's methodology note treats the
+「関連するＱ＆Ａはありません」 shape as a real absence rather than a fetch failure, and that is what
+this is — but an absent Q&A list is a fact about how much corroboration exists, **not** evidence
+that nothing is subtle. Anything this card does that the three bullets do not cover is an
+inference and must be labelled as one.
+
+#### Part A — the activator is the TURN PLAYER, and that may be the opponent of the controller
+
+「このカードがフィールドゾーンに表側表示で存在する場合、**お互いのプレイヤーは、自身のメインフェイズ２に**
+この効果を発動できます。」
+
+Each player may activate it **once per turn**, during **their own** Main Phase 2 — which, since a
+player only has a Main Phase 2 on their own turn, makes the eligible activator exactly the **turn
+player**. The English 「The turn player can activate this effect」 and the Japanese
+「お互いのプレイヤーは…自分メインフェイズ２に」 say the same thing by two routes.
+
+**The opponent of the card's controller can therefore use it, and gets the LP gain and all three
+protections.** 「自分」 throughout ① means **the player who activated the effect**, not the
+player who controls the Field Spell. Confidence **HIGH** — stated directly.
+
+Note the two different once-per-turn clauses, which are **not** the same restriction:
+
+* 「このカード名のカードは１ターンに１枚しか発動できない。」 — a **hard** once-per-turn on activating
+  the **card** (playing the Field Spell), by name;
+* 「お互いのプレイヤーは１ターンに１度…発動できる。」 — once per turn **per player** on the ①
+  effect. This is a per-player counter, not a per-card one, and the engine's existing
+  `opt_instance()` / named-OPT shapes do not express it.
+
+#### Part B — it creates a Chain Block, and everything resolves SIMULTANEOUSLY
+
+「フィールドで発動できるチェーンブロックの作られる効果です。」 — ① is an ordinary activation. It goes on
+the Chain, it can be responded to, and it can itself be negated (by an activation negation; note
+that its **own** second bullet does not protect it, because ① does not include a Special Summon).
+
+「この効果の処理時に、『自分は５００ＬＰ回復し』の処理と、３つの『●』の効果の適用を行います。
+（これらは**同時に**行われます。）」 — one resolution, four things, no ordering between them.
+There is no state in which the LP has been gained but a protection is not yet applying, and no
+state in which one protection applies and another does not. Confidence **HIGH**.
+
+The duration is 「このターン中」 — until the end of the turn in which it resolved, which is the
+turn of the player who activated it.
+
+#### Part C — the three lingering rules, and who they are relative to
+
+All three are relative to **the activating player** (「自分」), and the third is additionally
+relative to **the opponent** as the source of the blocked effect:
+
+1. 「自分のモンスターの召喚・特殊召喚は無効化されない。」 — the activating player's Normal **and**
+   Special Summons cannot be negated. Note it says 「召喚・特殊召喚」 and **not** 「反転召喚」: a
+   **Flip Summon is not covered**. The engine distinguishes all three routes already, so this is
+   a real distinction and not a technicality — assert the Flip Summon **is** still negatable;
+2. 「モンスターを特殊召喚する効果を含む、モンスターの効果・魔法・罠カードを自分が発動した場合、
+   その発動は無効化されない。」 — only activations whose effect **includes** a Special Summon, and
+   only against negation of **the activation**. An effect negation that leaves the activation
+   intact is **not** blocked, and neither is an activation that does not Special Summon;
+3. 「自分フィールドにセットされた魔法・罠カードは相手の効果の対象にならず、相手の効果では破壊されない。」 —
+   **SET** Spell/Traps only, so a face-up Continuous or Field card is **not** protected; and only
+   against the **opponent's** effects, so the activating player's own effects and **battle** and
+   **rules** destruction are all untouched.
+
+Each of these is a **vacuous-path hazard**: none is observable except when something is trying to
+do the thing it prevents. Every one needs a paired control proving the same action **is** negated
+or destroyed without the protection. Confidence **HIGH** on all three readings; they are literal.
+
+#### What R14 leaves OPEN
+
+* **whether a Flip Summon is covered by the first bullet is an inference from omission**, not a
+  statement. The Japanese names 「召喚・特殊召喚」 and the English "The Normal and Special
+  Summons", and neither mentions a Flip Summon; the OCG treats 「反転召喚」 as its own route. With
+  no Q&A to confirm it, this is recorded at **MEDIUM** confidence and implemented as written —
+  and it is asserted, so a later correction has one place to land;
+* **whether the second bullet's "includes an effect that Special Summons" is judged on the
+  printed text or on what the effect would actually do** is not stated. It is implemented as a
+  **declarative property of the `EffectDef`** (the printed-text reading), because the alternative
+  requires inspecting a `resolve` callable, and because a card whose Special Summon turns out to
+  be impossible at resolution still "includes" one by its text. **MEDIUM** confidence, recorded;
+* the interaction with `Fairy Tail - Sleeper` is **not** covered by any official source and is an
+  inference from fid 24272: Sleeper substitutes rather than negates, so the second bullet does
+  not stop it. Recorded at **MEDIUM** confidence and asserted in both directions.
 
 ---
 
