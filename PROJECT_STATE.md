@@ -33,8 +33,8 @@ explicit instruction.**
 **Measured at this checkpoint: 10433 passed / 0 failed across 99 suites; SmokeCheck PASS; 0
 `SCRIPT ERROR`; 77 / 77 implemented and tested (matrix recomputed); NO ObjectDB leak warning and
 NO "resources still in use at exit"; cross-process determinism PASS; the matrix tool's own tests
-16 / 16.** Previous clean HEAD: `5d483bc`. The unit-4 commit hash is recorded in the follow-up
-docs commit, the way every checkpoint in this file has been.
+16 / 16.** Previous clean HEAD: `5d483bc`. **Unit-4 commit: `17cd990`** (pushed; local HEAD ==
+`origin/main` verified).
 
 **Every one of the 10422 assertions of units 1–3 passes unchanged — none changed, retargeted or
 deleted.** 10433 − 10422 = **11** = the one new `SpiritualWindArtMiyabiTests` test (150 → 161).

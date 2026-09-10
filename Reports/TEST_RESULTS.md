@@ -46,8 +46,8 @@ authority for every number below.
 | Integration — lifetime, scripted full duels, backend acceptance | 3 | 312 | **312** | 0 |
 | **TOTAL** | **99** | **10433** | **10433** | **0** |
 
-**Phase 6 unit 4 checkpoint (2026-09-10):** previous clean commit **`5d483bc`** (the unit-4 commit
-hash is recorded in the follow-up docs commit). **10433 / 10433 across 99 suites**, SmokeCheck
+**Phase 6 unit 4 checkpoint (2026-09-10):** commit **`17cd990`**; previous clean commit
+**`5d483bc`**. **10433 / 10433 across 99 suites**, SmokeCheck
 **PASS**, `SCRIPT ERROR` **0**, **no** ObjectDB leak warning and **no** "resources still in use",
 cross-process determinism **PASS**, matrix **77 / 77 implemented, 77 / 77 tested** (recomputed),
 matrix-tool tests **16 / 16**. Every one of units 1–3's **10422** assertions passes unchanged;
