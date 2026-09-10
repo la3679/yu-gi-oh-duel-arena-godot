@@ -77,8 +77,8 @@ deleted. 10422 − 10087 = **335** = 23 (`HiddenInfoTests` 224 → 247) + 16 (`L
 ## Phase 7 unit A — the engine session adapter COMPLETE
 
 The full record is **`PROJECT_STATE.md` §0**; the decision is **ADR-0001** in
-`docs/ARCHITECTURE.md` ("The UI execution boundary"). Unit A commit: **`PENDING-UNIT-A-HASH`**
-(recorded by the follow-up docs commit, as at every checkpoint).
+`docs/ARCHITECTURE.md` ("The UI execution boundary"). Unit A commit: **`ff7326c`** (pushed;
+recorded by this follow-up docs commit, as at every checkpoint).
 
 ### The runs
 

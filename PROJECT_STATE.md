@@ -22,8 +22,9 @@ No engine, rules or card code changed. Nothing in unit A is partial or unverifie
 unit B is persisted exactly in §8 ("PHASE 7 PLAN" → "Unit B — the EXACT continuation") and is not
 to be started without the user's explicit instruction.**
 
-**Measured at this checkpoint (2026-09-10).** Previous clean HEAD: `aee8c3b`. The unit A commit
-hash is recorded in `Reports/TEST_RESULTS.md` ("Phase 7 unit A").
+**Measured at this checkpoint (2026-09-10).** Previous clean HEAD: `aee8c3b`. **Unit A commit:
+`ff7326c`** (pushed), followed by a docs commit recording that hash — also in
+`Reports/TEST_RESULTS.md` ("Phase 7 unit A").
 
 | Gate | Result |
 |---|---|
