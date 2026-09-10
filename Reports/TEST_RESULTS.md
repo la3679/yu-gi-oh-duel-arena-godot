@@ -45,7 +45,8 @@ authority for every number below.
 | Integration — lifetime, scripted full duels, backend acceptance | 3 | 312 | **312** | 0 |
 | **TOTAL** | **99** | **10422** | **10422** | **0** |
 
-**Phase 6 checkpoint (2026-09-10):** previous clean commit **`58d4d1a`**. SmokeCheck **PASS**.
+**Phase 6 checkpoint (2026-09-10):** commit **`7fe817f`**; previous clean commit **`58d4d1a`**.
+SmokeCheck **PASS**.
 `SCRIPT ERROR` in the full run: **0**. Matrix: **77 / 77 implemented, 77 / 77 tested** (recomputed;
 the committed CSV is unchanged). **No "ObjectDB instances were leaked at exit" warning** (was
 **347433**) and **no "resources still in use at exit" error** (was 123). Cross-process determinism:

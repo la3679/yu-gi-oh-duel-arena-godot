@@ -30,7 +30,8 @@ without the user's explicit instruction.**
 `SCRIPT ERROR`; 77 / 77 implemented and tested (matrix recomputed, committed CSV unchanged);
 NO "ObjectDB instances were leaked at exit" warning (was 347433) and NO "resources still in use
 at exit" error (was 123); cross-process determinism PASS (6 / 6 duels byte-identical across two
-processes).** Previous clean HEAD: `58d4d1a`.
+processes).** Previous clean HEAD: `58d4d1a`. **Phase 6 checkpoint commit: `7fe817f`** (units 1–3,
+pushed; local HEAD == `origin/main` verified).
 
 **Every one of the previous checkpoint's 10087 assertions passes unchanged — none changed,
 retargeted or deleted.** 10422 − 10087 = **335** = 23 (`HiddenInfoTests`, 224 → 247, four new
