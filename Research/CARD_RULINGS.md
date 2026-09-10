@@ -159,7 +159,7 @@ in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`. **No effect may be approximated.**
 | R8 | `Kaiser Sea Horse` | **CLOSED — see R38.** "can be treated as 2 Tributes for the Tribute Summon of a LIGHT monster" — a rules QUERY on the Attribute of the monster being SUMMONED, not on this card; permission rather than compulsion; the Tribute Summon path only, never a Tribute paid as a cost; and worth 1 while face-down or negated. |
 | R9 | `Rider of the Storm Winds` | Equips **itself** from hand or field; grants piercing; is a destruction **replacement** effect for the equipped monster. Also interacts with the rule that Equip Cards are destroyed when the equipped monster leaves the field. |
 | R10 | `Gagagashield` | "Twice per turn, it cannot be destroyed by battle or card effects" — a counted prevention effect, resetting each turn. |
-| R11 | `Fairy Tail - Luna` | Opponent may send a card with the targeted monster's name from Deck/Extra Deck to the GY **to negate this effect** — an opponent-side decision **during resolution**. |
+| R11 | `Fairy Tail - Luna` | **RESOLVED — see "R11 — `Fairy Tail - Luna`" below.** The original note (an opponent-side decision during resolution) was right but far from complete: cid 12952 also forbids activation **during the Damage Step**, makes the resolution-time re-check **both-or-nothing** over the MONSTER ZONE with no control re-check, offers the negation only while the target is **face-up** (a face-down target is still returned), returns each card to its **OWNER's** hand, and states that an **unaffected** target costs only itself. Q&A fid 20472 makes the send a **resolution process** whose legality is checked when reached, fid 11022 confirms ② is an ordinary Chain activation, and fid 262 permits a **Token** target. §8's claim that the negation branch is unreachable from the printed decks is **wrong** — both decks hold a duplicate. |
 | R12 | `The Monarchs Awaken` | **RESOLVED — see "R12 — `The Monarchs Awaken`" below.** The original note (an Extra Deck activation condition; a broad immunity belonging in the rules layer) was right but far from complete: cid 10963 also forbids activation **during the Damage Step**, states the whole effect **does nothing** if the target is face-down at resolution, fixes the duration at **"as long as it is face-up in the Monster Zone"**, and permits a **Normal Monster** target. The general 「効果を受けない」 Q&A narrow the immunity to **application only** — targeting, resolution, costs, Tributes and battle are all untouched — and Q&A fid 20548 / 20533 overturn the engine's guess that a **Tribute Set** monster is not "Tribute Summoned". |
 | R13 | `Witchcrafter Golem Aruru` | **RESOLVED — see "R13 — `Witchcrafter Golem Aruru`" below.** The original note (both trigger branches; the "Witchcrafter" Spell branch is never live) was right but far from complete: cid 14483 also forbids activation **during the Damage Step**, narrows the Spellcaster to **face-up in your Monster Zone**, restricts the targeting trigger to the **opponent's** activation, and states that a target that has left the field costs the bounce but **not** the Special Summon. |
 | R14 | `Hidden Springs of the Far East` | Field Spell whose once-per-turn effect may be activated by **the turn player**, i.e. by either player depending on whose turn it is, including the opponent of its controller. |
@@ -2624,6 +2624,217 @@ from vacuous.
 **Nothing that blocks the card.** One item is recorded as MEDIUM rather than HIGH and is named
 above: whether the Extra Deck condition is re-checked at resolution. It cannot be reached in the V1
 pool from either deck.
+
+---
+
+### R11 — `Fairy Tail - Luna` — RESOLVED and CLOSED in Phase 5 batch 17
+
+**Opened** in §4 as *"Opponent may send a card with the targeted monster's name from Deck/Extra
+Deck to the GY **to negate this effect** — an opponent-side decision **during resolution**."* That
+was right about the shape and, as usual, nowhere near complete.
+
+#### Sources — all PRIMARY (official Konami), all fetched for this batch under `request_locale=ja`
+
+| Source | What it gives | Date on the page |
+|---|---|---|
+| `card_search.action?ope=2&cid=12952&request_locale=en` — the live **English** text | re-fetched and diffed **character for character** against `Data/cards/cards.json` and `Data/generated/konami_cards.json`: **identical, 378 characters**, no drift | fetched 2026-09-09 |
+| `card_search.action?ope=2&cid=12952&request_locale=ja` — the live **Japanese** text | 「①：このカードが召喚した時に発動できる。デッキから攻撃力１８５０の魔法使い族モンスター１体を手札に加える。②：自分・相手ターンに１度、相手フィールドの表側表示モンスター１体を対象として発動できる。相手はそのモンスターの同名カード１枚を自身のデッキ・EXデッキから墓地へ送ってこの効果を無効にできる。墓地へ送らなかった場合、このカードと対象のモンスターを手札に戻す。」 | fetched 2026-09-09 |
+| `faq_search.action?ope=4&cid=12952&request_locale=ja` — 補足情報, **eight** bullets | effect kinds; the Damage Step ban; the both-or-nothing resolution re-check; the face-up requirement for the offer; the face-down case; the unaffected case | **2022-03-26** |
+| `faq_search.action?ope=5&fid=11022&request_locale=ja` | 「灰流うらら」 may be chained to clause ②'s activation — ② is an ordinary activation on the Chain and the opponent's send is **not** a Chain Link | 2017-09-28 |
+| `faq_search.action?ope=5&fid=20472&request_locale=ja` | under 「マクロコスモス」 the opponent **cannot perform** the send at all — 「同名カードが存在していたとしても、その同名カードをデッキから選ぶこと自体ができません」 — and the return then happens | **2024-06-23** |
+| `faq_search.action?ope=5&fid=262&request_locale=ja` | a **Monster Token** is a legal target; it ceases to exist on leaving the field and Luna 「自身は通常通り持ち主の手札に戻る」 | 2017-03-24 |
+
+None is the `en` boilerplate R40's methodology note warns about; each response is card-specific and
+names 「妖精伝姫－カグヤ」 in its own text. The card has three related Q&A entries and all three were
+read, so the 「このカードに関連するＱ＆Ａはありません」 absence shape R40 records does not apply.
+
+#### Part A — clause ② CANNOT be activated during the Damage Step. Confidence: HIGH.
+
+「■ダメージステップ中には発動できません。」 **The printed English text says nothing about the Damage
+Step.** That is now **seven batches running** in which the official supplement carried an activation
+restriction the English print does not (`Burst Stream of Destruction`, `Damage Condenser`, `Honest`,
+`Witchcrafter Golem Aruru`, `A Hero Emerges`, `The Monarchs Awaken`, and now this).
+
+As with `The Monarchs Awaken`, the restriction is satisfied by the engine's **default**
+(`DamageStepPermission.NONE`), so it needed no machinery. It is written out on the clause anyway and
+asserted directly against `ActivationRules.damage_step_ok()` at all five Damage Step sub-steps, with
+a control clause that IS permitted in one of them — a default that happens to be right is
+indistinguishable from a default nobody checked.
+
+Both clauses' effect kinds come from the same source: 「■モンスターゾーンで発動できる誘発効果です。」
+for ①, 「■モンスターゾーンで発動できる誘発即時効果です。」 for ②. So ① is a Trigger Effect and ② a
+Quick Effect, both activated **face-up in the Monster Zone** and nowhere else.
+
+#### Part B — "from their Deck or Extra Deck". Confidence: HIGH; the Extra Deck half is NEVER LIVE.
+
+Two zones and only two — not the hand, not the Graveyard. Both are private to the deciding player,
+which is what makes this a hidden-information operation and not merely a routing one.
+
+**Both V1 Extra Decks are empty**, asserted directly from `Data/decks/deck1.json` and `deck2.json`,
+so the Extra Deck half can never be live in a real duel between these decks. It is implemented in
+full and exercised against a synthetic Extra Deck card, and the test says so out loud — the
+R1 / R21 / R23 treatment.
+
+**§8's prediction that the whole negation branch is unreachable is WRONG, and this is the
+correction.** §8 reasoned that "deck 2 holds one copy of each card, so a card with the same name as
+a monster on the field cannot also be in the Deck". Both decks do in fact hold a duplicate:
+`Blue-Eyes Dragon Guard` runs **two `Mirage Dragon`** and `Fairy-Tail Tribute Guard` runs **two
+`Metaphys Armed Dragon`**. A deck-2 `Fairy Tail - Luna` targeting a deck-1 `Mirage Dragon` therefore
+faces an opponent who really can send the second copy, and the negation is tested on exactly that
+board with the duplicate count asserted against `Data/cards/cards.json`.
+
+#### Part C — "1 card with that monster's name" is the CURRENT name. Confidence: HIGH; never live.
+
+Implemented as `EffectPrimitives.has_name_of()`, reading `CardInstance.card_name()`. **Nothing in
+the V1 pool is ever treated as having another card's name**, so the current name and the printed
+name coincide here; the coincidence is asserted against the real pool so it cannot rot silently.
+This is the same treatment R40 Part F gives "non-Effect Monster" and the same reading R40 Part G
+took for `Dragon Shrine` — the test is applied to the card **as it is now**, not to its print.
+
+The check is on the NAME and on nothing else: a different copy with different Level and ATK matches,
+and the targeted monster's own instance is not special.
+
+#### Part D — the offer exists only while the target is FACE-UP; a face-down target is still returned. Confidence: HIGH.
+
+Two bullets, from both directions:
+
+> ■処理時に、このモンスターと対象のモンスターがモンスターゾーンに存在する場合、『このカードと対象の
+> モンスターを持ち主の手札に戻す』処理を行います。**ただし、対象のモンスターがモンスターゾーンに表側
+> 表示で存在する場合**、相手はその同名カード１枚を自身のデッキやエクストラデッキから墓地へ送ることで
+> この効果を無効にできます。
+
+> ■処理時に、**対象のモンスターが裏側守備表示になった場合**、相手は対象の同名カードを墓地へ送ること
+> ができず、『このカードと対象のモンスターを持ち主の手札に戻す』処理を行います。
+
+So a target flipped face-down between activation and resolution **is still returned** — it is still
+in the Monster Zone — and its controller simply loses the chance to stop it. The obvious
+implementation, `surviving_target()` plus "is it still face-up", would have been wrong in **both**
+directions: it would have dropped a return the card performs, and it would have offered a negation
+the card does not.
+
+#### Part E — the resolution-time re-check is BOTH-OR-NOTHING and names the MONSTER ZONE. Confidence: HIGH for the zone, MEDIUM for the absence of a control re-check.
+
+> ■処理時に、このカードと対象のモンスターのうち**少なくとも片方**がモンスターゾーンに存在しなくなった
+> 場合、**処理は行われません**（相手は対象の同名カードを墓地へ送ることもできません）。
+
+If **either** card has left the Monster Zone, **nothing happens at all**: no partial return of the
+survivor, and the opponent is not even offered the negation. Both directions are asserted, and each
+is driven by a real **Chain Link 2** the opponent activates in response rather than by poking the
+board after the Chain has already resolved — the vacuous shape batch 16's mutation M15 exposed.
+
+This is the case `RULES_SPEC.md` **§10.6** does not cover, and it sits alongside §10.8 and §10.9 as
+a fourth answer to "what does a failure at resolution cost?":
+
+* **§10.6** — a dead **TARGET** costs only the sentences that name it;
+* **§10.8** — a failed **ACTIVATION REQUIREMENT** costs the **entire** resolution;
+* **§10.9** — a **property of the target the text names**, failing at resolution, costs exactly the
+  clauses the card's own supplement says it costs;
+* **§10.10** (new) — a clause worded **"both X and Y"** is ONE process over two cards, and a card's
+  own supplement may make it **all or none**. "Both … and …" is not two sentences.
+
+**This card does NOT inherit R29, and that is the one MEDIUM item here.** R29 decided that "1 card
+your opponent controls" is re-checked for **control** at resolution. It is MEDIUM confidence and
+rests mostly on `Spiritual Wind Art - Miyabi`'s own resolution sentence ("place that **opponent's**
+card…"). Luna's resolution sentence names no controller — 「このカードと対象のモンスターを持ち主の
+手札に戻す」 — and its supplement **enumerates the resolution-time cases in full** and names only
+presence in a Monster Zone. Card-specific official guidance outranks a general inference, which is
+the precedent **R40 Part C** already made load-bearing.
+
+Recorded at MEDIUM because the evidence is an exhaustive-looking enumeration that is *silent* on
+control rather than a sentence that *denies* a control re-check. It is live in the V1 pool
+(`Enemy Controller` and the three Charmers can move control mid-Chain), it is asserted in both
+directions, and the mutation that makes Luna inherit R29 is caught. **R29 itself is NOT reopened and
+is unchanged for the two cards it was written for.**
+
+#### Part F — the send is a RESOLUTION PROCESS, not a cost, and it can be legally impossible. Confidence: HIGH.
+
+fid 20472 settles it. Under a 「墓地へ送られるカードは墓地へは行かず除外される」 effect the opponent
+cannot perform the send **at all**, and 「自身のデッキやエクストラデッキに同名カードが存在していたと
+しても、その同名カードをデッキから選ぶこと自体ができません」 — they cannot even *choose* it. The
+return then happens.
+
+Three consequences, each implemented and asserted:
+
+* it is **not a cost**. Nothing is paid at activation, nothing is refunded, and no `COST_PAID` event
+  names this card. It is a step inside the resolving effect whose legality is checked when reached;
+* it is an **ordinary send to the Graveyard** (`MoveReason.SENT_TO_GY_BY_EFFECT`), so a "when this
+  card is sent to the GY" trigger sees it;
+* the official wording is 「**墓地へ送らなかった場合**」 — *if they did not send it*. So declining,
+  having nothing to send, and a send that cannot be carried out are **the same case**, and all three
+  reach the return. The engine must never distinguish "refused" from "could not".
+
+`Macro Cosmos` is not in the V1 pool, so the third bullet's dramatic case is not live; the rule it
+establishes is, and it is what makes "did not send" the right thing to measure.
+
+#### Part G — an UNAFFECTED target costs only itself. Confidence: HIGH.
+
+> ■『このカードと対象のモンスターを持ち主の手札に戻す』処理を行う際に、**対象のカードがこの効果を
+> 受けない場合、このカードだけが手札に戻ります。**
+
+This is batch 16's `EffectImmunity` gate seen from a second card, and it needed **no code in this
+card at all**: the gate lives inside `GameState.move_card()`, so the target's return is refused and
+Luna's is not. It is asserted directly, with a control board that has no immunity and returns both —
+a behaviour that falls out of a shipped gate is exactly the kind that looks tested and is not.
+
+It also confirms §18's central claim from a new angle: the effect still **activated**, still
+**targeted** the immune monster, still **resolved**, and the half aimed at another card still
+applied. One effect half-applies.
+
+#### Part H — clause ①: an Advance Summon IS a Normal Summon, and the empty-search rule applies. Confidence: HIGH.
+
+「①：このカードが**召喚**した時に発動できる」. 召喚 covers a Normal Summon with or without Tributes
+[S1 p.22-23]; a Flip Summon and a Special Summon are different words and different events. The
+engine already gets this right for free — `SummonRules._complete_summon()` emits
+`NORMAL_SUMMON_SUCCEEDED` for both `SummonKind.NORMAL` and `SummonKind.TRIBUTE`, splitting only FLIP
+and SPECIAL off — and both halves are asserted rather than assumed: that a real Tribute Summon emits
+that event, and that clause ①'s own condition accepts it (evaluated directly with a
+TRIBUTE-flavoured trigger event, so a condition that started filtering on `summon_kind` would fail
+even though the event kind still matched).
+
+The supplement is **silent** on whether the clause may be activated with no qualifying card in the
+Deck, so the general rule applies: [S1 p.53] forbids activating an effect **in order to search** the
+Deck when nothing in it meets the requirement. This clause exists to search and does nothing else,
+so `EffectPrimitives.can_search_deck()` gates it — **R40 Part B**. (`The White Stone of Legend` is
+the exception R40 Part C records, and it is an exception because its **own** supplement says so.)
+
+**Clause ① is LIVE on real pool cards, which is rare.** Exactly three Spellcaster monsters with
+exactly 1850 ATK exist in the pool — `Fairy Tail - Luna`, `Fairy Tail - Rella` and
+`Fairy Tail - Sleeper` — and all three are in `Fairy-Tail Tribute Guard`. The filter is an **exact**
+ATK and a race, so `monster_filter()`'s `max_atk` cap would have matched 1800 and 100 and
+`monster_with_stats()` would have added a DEF requirement the text does not print;
+`monster_with_exact_atk()` is the new sibling and the mutation that turns it back into a cap is
+caught.
+
+#### Part I — the decision-routing mechanism itself. Confidence: N/A (engineering, not a ruling).
+
+Recorded here because the ruling is what forced it. Before batch 17, `EffectContext` had exactly one
+`decider` and it was always the resolving link's controller. The generic answer is
+`EffectContext.ask_player(pid, request)` over the engine's controller **table**, with
+`ask()` redefined as `ask_player(controller_id, …)` — so every existing card is unchanged, which the
+9459 preserved assertions demonstrate. `RULES_SPEC.md` **§12.4** is the normative statement, and the
+gate is the opponent-decision section of `HiddenInfoTests`, written and green before this card
+existed.
+
+The hidden-information half is the part that is easy to get wrong twice:
+
+* a player with **no legal payment is not asked at all**. A prompt with zero options would announce
+  that their Deck holds no copy — and so, equally, would a "declined" written into the replay
+  payload on behalf of somebody who was never offered anything. Both are asserted absent;
+* the deciding player's Deck is **shuffled either way** [S1 p.5], whether or not they had a copy and
+  whether or not they sent it. Shuffling only when a candidate existed would leak the same fact
+  through a public event, and the mutation that does exactly that is caught.
+
+#### What R11 leaves OPEN
+
+**Nothing that blocks the card.** One item is MEDIUM and is named in Part E: the absence of a
+resolution-time control re-check, taken from a supplement that enumerates the other cases and is
+silent on this one. Two branches are never live in the V1 pool and are recorded rather than hidden —
+the **Extra Deck** half of the payment (both Extra Decks are empty) and a **Monster Token** target
+(the pool has no Tokens). A third is unreachable for an ENGINE-adjacent reason and is also recorded:
+**no card in the V1 pool can negate a monster effect's ACTIVATION**, so that branch is exercised
+against a synthetic negator, with the never-live claim itself asserted behaviourally —
+`Champion's Vigilance` does listen to `EFFECT_ACTIVATED`, so only its refusal to be *offered* proves
+it.
 
 ---
 

@@ -101,6 +101,11 @@ static func _zone_list(player: PlayerState, zone: Enums.Zone) -> Array:
 			return player.graveyard
 		Enums.Zone.BANISHED:
 			return player.banished
+		Enums.Zone.EXTRA_DECK:
+			# Private like the Deck, and read for the same reason: "from their Deck or
+			# Extra Deck" is one look-through over both. CARD_RULINGS.md R11. Both V1 Extra
+			# Decks are empty, so in this pool it always answers with an empty list.
+			return player.extra_deck
 		Enums.Zone.MONSTER_ZONE:
 			return player.monsters()
 		_:
@@ -208,6 +213,22 @@ static func monster_with_stats(atk: int, def_value: int,
 		return except_name == "" or d.name != except_name
 
 
+## "1 Spellcaster monster with 1850 ATK" — an EXACT printed ATK, optionally of one race.
+##
+## Not `monster_filter()`, whose `max_atk` is a CAP and would also match 1800 and 100; and
+## not `monster_with_stats()`, which pins ATK *and* DEF and would silently add a DEF
+## requirement the text does not print. Reads the PRINTED ATK, because a search clause looks
+## through a Deck where no continuous modifier applies (master prompt 35).
+static func monster_with_exact_atk(atk: int, race: String = "") -> Callable:
+	return func(card: CardInstance) -> bool:
+		if not card.is_monster():
+			return false
+		var d := card.definition
+		if d.base_atk != atk:
+			return false
+		return race == "" or d.race == race
+
+
 ## "1 Level 1 monster", "1 Level 8 Dragon monster" — an exact Level rather than a cap.
 static func monster_of_level(level: int, race: String = "") -> Callable:
 	return func(card: CardInstance) -> bool:
@@ -262,14 +283,34 @@ static func revivable_monster() -> Callable:
 ## cannot answer is treated as declining, because the step is optional and doing nothing is
 ## always a legal outcome of a "you can".
 static func may(ctx: EffectContext, prompt: String) -> bool:
-	var request := DecisionRequest.yes_no(ctx.controller_id, prompt, ctx.source, ctx.effect)
-	var answer = ctx.ask(request)
+	return player_may(ctx, ctx.controller_id, prompt)
+
+
+## The same yes/no question, put to a NAMED player. `may()` is this with the controller.
+## CARD_RULINGS.md R11.
+##
+## A player who cannot be asked (no controller attached, i.e. a pure-legality evaluation)
+## declines, exactly as `may()` has always treated its own controller: the step is
+## optional, so "nothing happened" is a legal outcome and never a silent yes.
+static func player_may(ctx: EffectContext, pid: int, prompt: String) -> bool:
+	var request := DecisionRequest.yes_no(pid, prompt, ctx.source, ctx.effect)
+	var answer = ctx.ask_player(pid, request)
 	if not request.validate(answer):
 		return false
 	return bool(answer)
 
 
 static func choose_one(ctx: EffectContext, candidates: Array,
+		prompt: String) -> CardInstance:
+	return player_chooses_one(ctx, ctx.controller_id, candidates, prompt)
+
+
+## "That player chooses 1 of them" — a MANDATORY pick of exactly one, put to a NAMED
+## player. `choose_one()` is this with the controller. CARD_RULINGS.md R11.
+##
+## One candidate is not a decision and asks nothing, the same as `choose_one()`; that is
+## what keeps a forced pick out of the replay payload and out of the prompt log.
+static func player_chooses_one(ctx: EffectContext, pid: int, candidates: Array,
 		prompt: String) -> CardInstance:
 	if candidates.is_empty():
 		return null
@@ -280,14 +321,49 @@ static func choose_one(ctx: EffectContext, candidates: Array,
 		var card: CardInstance = entry
 		options.append(card.id)
 	var request := DecisionRequest.select(Enums.DecisionKind.SELECT_EXACTLY,
-		ctx.controller_id, prompt, options, 1, 1, ctx.source, ctx.effect)
-	var answer = ctx.ask(request)
+		pid, prompt, options, 1, 1, ctx.source, ctx.effect)
+	var answer = ctx.ask_player(pid, request)
 	if not request.validate(answer):
 		# A controller that cannot answer must not silently change which card is picked.
 		push_error("EffectPrimitives.choose_one: invalid selection for %s"
 			% ctx.source.card_name())
 		return candidates[0]
 	return ctx.state.instance((answer as Array)[0])
+
+
+## "That player CAN choose 1 of them" — an OPTIONAL pick of at most one, put to a NAMED
+## player. Returns null when they declined or when there was nothing to offer.
+## CARD_RULINGS.md R11.
+##
+## One request, not a yes/no followed by a selection. Two prompts would be two entries in
+## the replay payload for one official 「処理」, and — worse — a "would you like to?" asked
+## before the list exists is a question a player cannot answer honestly. `SELECT_UP_TO`
+## with a minimum of 0 says exactly what the rule says: here are your legal choices, take
+## one or none.
+##
+## An EMPTY candidate list asks NOTHING. That is the hidden-information half of R11 and it
+## is not an optimisation: the candidates come out of that player's Deck and Extra Deck,
+## so a prompt that appeared with zero options — or a "declined" recorded against a player
+## who was never offered anything — would tell the other player what is in there.
+static func player_chooses_up_to_one(ctx: EffectContext, pid: int, candidates: Array,
+		prompt: String) -> CardInstance:
+	if candidates.is_empty():
+		return null
+	var options: Array = []
+	for entry in candidates:
+		var card: CardInstance = entry
+		options.append(card.id)
+	var request := DecisionRequest.select(Enums.DecisionKind.SELECT_UP_TO,
+		pid, prompt, options, 0, 1, ctx.source, ctx.effect)
+	var answer = ctx.ask_player(pid, request)
+	if not request.validate(answer):
+		# Not an error: a player with no controller attached has not been asked, and an
+		# optional step nobody took is the correct outcome rather than a defect.
+		return null
+	var picked := answer as Array
+	if picked.is_empty():
+		return null
+	return ctx.state.instance(int(picked[0]))
 
 
 ## Ask for exactly `n` of `candidates`. Used by costs that consume several cards
@@ -1828,6 +1904,49 @@ static func negate_activation_and_destroy(ctx: EffectContext) -> bool:
 	return ctx.state.destroy(card, Enums.MoveReason.DESTROYED_BY_EFFECT, ctx.source.id)
 
 
+## "…to NEGATE THIS EFFECT" — a resolving effect that is switched off part-way through its
+## own resolution, by something the card's own text allows a player to do. R11.
+##
+## This is neither of the two negations above. Those act on ANOTHER link that has not
+## resolved yet, and they work by refusing to run its `resolve` at all. Here the link is
+## already running: the only thing left to decide is whether the REST of the effect
+## applies, and the fact that it did not has to be recorded rather than merely implied by
+## an absence of events.
+##
+## What it deliberately does NOT do:
+##   * it does not undo anything that already happened — the activation stands, the cost
+##     stays paid, and a once-per-turn allowance spent at activation stays spent
+##     (RULES_SPEC.md 10). "Negate this effect" is not "negate the activation";
+##   * it does not stop the resolution. The caller returns normally; this records the fact
+##     and the caller then skips the clauses the negation covers, so a clause aimed at some
+##     OTHER card can still apply if the card says it does.
+static func negate_own_effect(ctx: EffectContext, by_player: int, note: String) -> void:
+	if ctx.link != null:
+		ctx.link.effect_negated = true
+	ctx.state.emit(GameEvent.Kind.EFFECT_NEGATED, {
+		"link_number": ctx.link.link_number if ctx.link != null else 0,
+		"card_id": ctx.source.id if ctx.source != null else -1,
+		"card_name": ctx.source.card_name() if ctx.source != null else "",
+		"by_card_id": -1,
+		"by_player": by_player,
+		"during_resolution": true,
+	})
+	ctx.log_note(note)
+
+
+## "1 card with THAT MONSTER'S NAME" — the predicate for a same-name lookup. R11 Part C.
+##
+## Reads `card_name()`, which is the name the card has now. In the V1 pool nothing is ever
+## treated as having a different name, so "current name" and "printed name" coincide here
+## and `FairyTailLunaTests` asserts that coincidence against the real pool so it cannot rot
+## silently — the R40 Part F treatment. The reading is still the correct one: the rules
+## question is about the card as it is, not about its print.
+static func has_name_of(other: CardInstance) -> Callable:
+	var wanted := other.card_name() if other != null else ""
+	return func(card: CardInstance) -> bool:
+		return wanted != "" and card.card_name() == wanted
+
+
 # ---------------------------------------------------------------------------
 # ATTACK restriction and ATTACK negation. RULES_SPEC.md 6.1, 6.3.
 # ---------------------------------------------------------------------------
@@ -2303,8 +2422,15 @@ static func can_draw(ctx: EffectContext, pid: int, count: int) -> bool:
 ## "an effect looked through a Deck" has exactly one spelling in the card layer, and so the
 ## shuffle obligation below can never be attached to the wrong call site.
 static func deck_search_candidates(ctx: EffectContext, pid: int,
-		predicate: Callable) -> Array:
-	return cards_in(ctx, pid, Enums.Zone.DECK, predicate)
+		predicate: Callable, include_extra_deck: bool = false) -> Array:
+	var out := cards_in(ctx, pid, Enums.Zone.DECK, predicate)
+	# "from their Deck **or Extra Deck**" (`Fairy Tail - Luna`). Off by default because it
+	# is the rarer wording, and additive rather than a second primitive because the two are
+	# one look-through: the player checks both and picks one card out of the union.
+	# CARD_RULINGS.md R11.
+	if include_extra_deck:
+		out.append_array(cards_in(ctx, pid, Enums.Zone.EXTRA_DECK, predicate))
+	return out
 
 
 ## [S1 p.53] "You cannot activate an effect to search your Deck for a card if there are no
@@ -2365,11 +2491,14 @@ static func search_deck_to_hand(ctx: EffectContext, pid: int, predicate: Callabl
 ## It can NEVER deck a player out: decking out is a failure to DRAW [S1 p.35]. An empty
 ## candidate list sends nothing and is not a loss.
 static func send_from_deck_to_gy(ctx: EffectContext, pid: int, predicate: Callable,
-		prompt: String) -> CardInstance:
-	var candidates := deck_search_candidates(ctx, pid, predicate)
+		prompt: String, include_extra_deck: bool = false) -> CardInstance:
+	var candidates := deck_search_candidates(ctx, pid, predicate, include_extra_deck)
 	var chosen: CardInstance = null
 	if not candidates.is_empty():
-		chosen = choose_one(ctx, candidates, prompt)
+		# Asked of the player whose Deck this is, which is `pid` and not necessarily the
+		# effect's controller. Every caller before R11 passed its own controller, so this
+		# changes nothing for them and stops being a latent defect for the next one.
+		chosen = player_chooses_one(ctx, pid, candidates, prompt)
 	if chosen != null:
 		if not ctx.state.move_card(chosen, Enums.Zone.GRAVEYARD,
 				Enums.MoveReason.SENT_TO_GY_BY_EFFECT, {"source_id": ctx.source.id}):
@@ -2377,6 +2506,42 @@ static func send_from_deck_to_gy(ctx: EffectContext, pid: int, predicate: Callab
 				% chosen.card_name())
 			chosen = null
 	ctx.state.shuffle_deck(pid)
+	return chosen
+
+
+## "That player CAN send 1 <qualifying card> from their Deck or Extra Deck to the GY."
+##
+## The optional twin of `send_from_deck_to_gy()`, put to a NAMED player — which for every
+## card that has this wording so far is the one who does NOT control the effect. Returns the
+## card that was sent, or null when they declined, could not, or had nothing to send.
+## CARD_RULINGS.md R11.
+##
+## Three things it gets right that a hand-rolled version in a card script would not:
+##
+##   * **an empty candidate list asks nothing** (`player_chooses_up_to_one()`), so a player
+##     with no copy is never handed a zero-option prompt;
+##   * **the Deck is shuffled whether or not anything was sent, and whether or not anything
+##     COULD have been** [S1 p.5], R40 part A. Shuffling only when a candidate existed would
+##     leak the answer by another route: the shuffle is public, so its presence would tell
+##     the other player that the Deck held a qualifying card;
+##   * the send is an ordinary `SENT_TO_GY_BY_EFFECT` to that player's own Graveyard, so a
+##     "when this card is sent to the GY" trigger sees it. It is **not** a cost: officially
+##     it is a step inside the resolving effect whose legality is checked when it is reached
+##     (Q&A fid 20472), and a step that cannot be performed is simply not performed.
+static func player_may_send_from_deck_to_gy(ctx: EffectContext, pid: int,
+		predicate: Callable, prompt: String,
+		include_extra_deck: bool = false) -> CardInstance:
+	var candidates := deck_search_candidates(ctx, pid, predicate, include_extra_deck)
+	var chosen := player_chooses_up_to_one(ctx, pid, candidates, prompt)
+	# Unconditional, and BEFORE the early return below, for the leak reason above.
+	ctx.state.shuffle_deck(pid)
+	if chosen == null:
+		return null
+	if not ctx.state.move_card(chosen, Enums.Zone.GRAVEYARD,
+			Enums.MoveReason.SENT_TO_GY_BY_EFFECT, {"source_id": ctx.source.id}):
+		# It really could not be sent. The caller must treat that as "did not send",
+		# because that is what the official wording measures.
+		return null
 	return chosen
 
 

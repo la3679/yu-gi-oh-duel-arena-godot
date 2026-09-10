@@ -193,7 +193,7 @@ func resolve_chain(controllers = null) -> Array:
 		if state.is_duel_over():
 			break
 		var link: ChainLink = state.chain[i]
-		_resolve_link(link, _controller_for(controllers, link.controller_id))
+		_resolve_link(link, _controller_for(controllers, link.controller_id), controllers)
 
 	state.chain_is_resolving = false
 
@@ -212,7 +212,7 @@ static func _controller_for(controllers, pid: int):
 	return null
 
 
-func _resolve_link(link: ChainLink, decider) -> void:
+func _resolve_link(link: ChainLink, decider, controllers = null) -> void:
 	state.emit(GameEvent.Kind.CHAIN_LINK_RESOLVING, {
 		"link_number": link.link_number,
 		"card_id": link.source_card.id if link.source_card != null else -1,
@@ -260,6 +260,11 @@ func _resolve_link(link: ChainLink, decider) -> void:
 	ctx.controller_id = link.controller_id
 	ctx.link = link
 	ctx.decider = decider
+	# The whole controller table, not just this link's own controller: a clause whose text
+	# puts a decision to the OTHER player resolves through `ctx.ask_player()`, and that
+	# needs somebody to ask. CARD_RULINGS.md R11.
+	if controllers is Array:
+		ctx.deciders = controllers
 	ctx.engine = engine
 	ctx.chosen_target_ids = link.target_ids.duplicate()
 	# What the COST actually consumed, carried forward from activation. A clause whose

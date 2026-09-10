@@ -1,10 +1,9 @@
 # TEST_RESULTS
 
-**Last run:** 2026-09-09 (Phase 5 **batch 16 COMPLETE**: `The Monarchs Awaken`, the pool's first
-card that makes a monster **unaffected by the effects of cards other than itself** — a gate over
-effect APPLICATION that touches every mutation entry point in the engine — together with an
-**authoritative correction** to what the engine believed "Tribute Summoned" meant. **R12** is now
-CLOSED.)
+**Last run:** 2026-09-09 (Phase 5 **batch 17 COMPLETE**: `Fairy Tail - Luna`, the pool's first
+card whose effect the **OPPONENT may pay to negate during its resolution** — a decision routed to
+a player who does not control the resolving Chain Link, over that player's own **private** Deck
+and Extra Deck. **R11** is now CLOSED, and `RULES_SPEC.md` gains **§12.4** and **§10.10**.)
 **Engine:** Godot 4.7.1.stable.official.a13da4feb (headless)
 
 Command:
@@ -40,20 +39,101 @@ authority for every number below.
 
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
-| Core rules tests | 25 | 2539 | **2539** | 0 |
-| Per-card tests | 66 | 6874 | **6874** | 0 |
+| Core rules tests | 25 | 2607 | **2607** | 0 |
+| Per-card tests | 67 | 7099 | **7099** | 0 |
 | Interaction tests | 1 | 46 | **46** | 0 |
 | Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **92** | **9459** | **9459** | **0** |
+| **TOTAL** | **93** | **9752** | **9752** | **0** |
 
-Commit: **`440390e`**. Previous clean commit: **`2a97206`**. SmokeCheck: **PASS**. `SCRIPT ERROR`
-occurrences in the full run: **0**. Matrix: **74 / 77 implemented, 74 / 77 tested, 3 remaining**
-(computed by `python Tools/build_matrix.py`, not written by hand). ObjectDB at exit: **322751** —
-+13841 over batch 15, which is ~187 per duel built against the 188 batch 15 measured, i.e. the
-known linear behaviour and not a regression; see the batch-16 ObjectDB note below.
+Previous clean commit: **`6083e48`** (batch 16). SmokeCheck: **PASS**. `SCRIPT ERROR`
+occurrences in the full run: **0**. Matrix: **75 / 77 implemented, 75 / 77 tested, 2 remaining**
+(computed by `python Tools/build_matrix.py`, not written by hand). ObjectDB at exit: **334340** —
++11589 over batch 16's 322751, for roughly 62 new duels between the two changed suites, i.e.
+**~187 per duel** against the 187 batch 16 measured and the 188 batch 15 measured. The linear
+per-duel model now holds for a **third** consecutive batch; nothing new is leaking, and the
+underlying reference-cycle **fix** is still owed before Phase 7.
 
-The targeted runner for this batch is `./Tools/run_tests.sh RunBatch16Tests` (1294 assertions
-across 11 suites). The full suite remains the authority for every number above.
+The targeted runner for this batch is `./Tools/run_tests.sh RunBatch17Tests` (1838 assertions
+across 14 suites). The full suite remains the authority for every number above.
+
+## Batch 17 — COMPLETE. Nothing in it is partial or unverified.
+
+One card, one unit, **one genuinely new rules subsystem**: a decision taken **during resolution by
+the player who does not control the resolving Chain Link**, over that player's own **private** Deck
+and Extra Deck. Every one of the previous checkpoint's **9459** assertions passes unchanged — no
+existing assertion was retired, weakened or retargeted. 9752 − 9459 = **293** = 225
+(`FairyTailLunaTests`, new) + 68 (`HiddenInfoTests`, the opponent-decision gate, added to an
+existing suite).
+
+| Unit | What it was | Result |
+|---|---|---|
+| A | **R11** research: cid 12952 supplement (2022-03-26) + **three** Q&A entries (fid 20472, fid 11022, fid 262), all `request_locale=ja`, plus a live re-fetch and character-for-character diff of the **English** text against `Data/cards/cards.json` (identical, 378 characters) | **COMPLETE** — R11 CLOSED |
+| A | the opponent-decision gate (`EffectContext.ask_player()`, `EffectPrimitives.player_may()` / `player_chooses_one()` / `player_chooses_up_to_one()` / `player_may_send_from_deck_to_gy()`) proved by the new `HiddenInfoTests` section, **written and green BEFORE the card** | **COMPLETE** |
+| A | `RULES_SPEC.md` **§12.4** (a decision made during resolution by the player who does not control the effect) and **§10.10** ("return BOTH X and Y" is ONE process, and a card may make it ALL OR NONE) | **COMPLETE** |
+| A | `Fairy Tail - Luna` (`FairyTailLunaTests`, 225) | **COMPLETE** |
+
+### The fact the printed English text does not carry — SEVEN for seven
+
+**「ダメージステップ中には発動できません。」** — clause (2) cannot be activated during the Damage
+Step, and the printed English text says nothing about it. (`Burst Stream of Destruction`,
+`Damage Condenser`, `Honest`, `Witchcrafter Golem Aruru`, `A Hero Emerges`,
+`The Monarchs Awaken`, now this.) As with `The Monarchs Awaken` the restriction is satisfied by
+the engine's **default** (`DamageStepPermission.NONE`) and cost no machinery — and for exactly the
+reason batch 16 recorded, it is still asserted directly against `ActivationRules.damage_step_ok()`
+at every Damage Step sub-step. **Mutation M6 proves that assertion is load-bearing.**
+
+### §8 was WRONG about the negation branch being unreachable
+
+§8 reasoned that deck 2 holds one copy of each card, so a card with the same name as a monster on
+the field could not also be in the Deck, making the whole negation branch dead in the V1 pool.
+**Both decks in fact hold a duplicate**, so the branch is live on the printed decks and is tested
+against them rather than synthetically. This is the seventh consecutive batch in which a §8
+prediction of "no research needed" or "not live" was wrong.
+
+### Four supplement facts the English text does not settle
+
+1. **The resolution-time re-check is BOTH-OR-NOTHING and names the MONSTER ZONE.** If either
+   `Fairy Tail - Luna` or the target has left the Monster Zone, **nothing happens at all** — no
+   partial return of the survivor, and the opponent is **not even offered** the negation. This is
+   the case `RULES_SPEC.md` §10.6 does not cover, and it is why §10.10 was written.
+2. **The negation is offered only while the target is FACE-UP.** A target that went face-down
+   between activation and resolution is **still returned** — it is still in the Monster Zone — but
+   its controller loses the chance to stop it. Face-down is therefore *not* the ordinary "the
+   target is no longer legal" case.
+3. **It does NOT re-check control, and so it does not inherit R29.** Luna's resolution sentence
+   names no controller, and its supplement enumerates the resolution-time cases in full and names
+   only presence in a Monster Zone. Card-specific official guidance outranks the general inference
+   R29 rests on. Asserted in both directions.
+4. **The send is a RESOLUTION PROCESS, not a cost** (fid 20472, under 「マクロコスモス」), so its
+   legality is checked when it is reached, nothing is refunded, and a "sent to the GY" trigger
+   sees it. A player with **no legal payment** reaches the same outcome as one who declines —
+   「墓地へ送らなかった場合」 covers all three cases — and the gate proves that is reached **without
+   leaking** whether their Deck held a copy.
+
+### Mutation testing: sixteen mutations, sixteen caught, zero survivors
+
+Run against `FairyTailLunaTests` (225 assertions) with the card restored byte-for-byte between
+each. Unlike batches 15 and 16, **no mutation exposed a weak or vacuous test** — the first pass
+caught every one.
+
+| # | Mutation | Result |
+|---|---|---|
+| M1 | drop the Luna-in-Monster-Zone half of both-or-nothing | **CAUGHT** (3 failed) |
+| M2 | drop the target-in-Monster-Zone half of both-or-nothing | **CAUGHT** (3 failed) |
+| M3 | offer the negation even to a face-**down** target | **CAUGHT** (1 failed) |
+| M4 | ask Luna's own controller instead of the opponent | **CAUGHT** (21 failed) |
+| M5 | clause (1) fires for **any** Normal Summon, not just this copy | **CAUGHT** (2 failed) |
+| M6 | allow clause (2) during the Damage Step (`UNTIL_DAMAGE_CALC`) | **CAUGHT** (3 failed) |
+| M7 | drop the once-per-turn on this copy | **CAUGHT** (5 failed) |
+| M8 | clause (1) activatable with no valid search target in the Deck | **CAUGHT** (1 failed) |
+| M9 | return only Luna, never the target | **CAUGHT** (12 failed) |
+| M10 | search for 1800 ATK instead of 1850 | **CAUGHT** (12 failed) |
+| M11 | clause (2) becomes Spell Speed 1 | **CAUGHT** (2 failed) |
+| M12 | target any monster, not just face-up opponent monsters | **CAUGHT** (6 failed) |
+| M13 | clause (1) also fires on a Special Summon | **CAUGHT** (2 failed) |
+| M14 | the "same name" test accepts any card | **CAUGHT** (3 failed) |
+| M15 | resolve with a null target | **CAUGHT** (31 failed) |
+| M16 | ignore the send and return anyway | **CAUGHT** (11 failed) |
 
 ## Batch 16 — COMPLETE. Nothing in it is partial or unverified.
 

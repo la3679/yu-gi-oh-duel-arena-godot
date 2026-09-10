@@ -46,6 +46,20 @@ static func run() -> TestCase:
 	_test_can_be_special_summoned_now(t)
 	_test_the_control_limit_is_part_of_the_question(t)
 	_test_the_summonable_hand_list(t)
+	# The opponent-decision gate - batch 17 unit A, written before `Fairy Tail - Luna`.
+	_test_ask_player_routes_to_the_named_player(t)
+	_test_ask_player_refuses_a_misaddressed_request(t)
+	_test_ask_without_a_table_still_asks_the_controller(t)
+	_test_a_decision_is_recorded_against_the_player_who_made_it(t)
+	_test_an_opponent_decision_is_replayable_from_the_script(t)
+	_test_an_optional_pick_offers_decline_and_declining_is_recorded(t)
+	_test_an_empty_candidate_list_asks_nothing_at_all(t)
+	_test_a_forced_pick_asks_nothing(t)
+	_test_the_options_never_reach_the_other_player(t)
+	_test_a_deck_lookup_can_span_the_extra_deck(t)
+	_test_a_send_from_a_deck_asks_that_decks_owner(t)
+	_test_negating_your_own_effect_records_it_without_undoing_anything(t)
+	_test_has_name_of_matches_by_name_only(t)
 	return t
 
 
@@ -859,3 +873,369 @@ static func _test_the_summonable_hand_list(t: TestCase) -> void:
 	t.eq(EffectPrimitives.hand_monsters_that_could_be_special_summoned(ctx, 1).size(),
 		engine.state.player(1).hand.size(),
 		"asked about the opponent, it answers about the OPPONENT's hand")
+
+
+# ---------------------------------------------------------------------------
+# The OPPONENT-DECISION gate — a decision made DURING resolution by the player who does
+# NOT control the resolving Chain Link. RULES_SPEC.md 12.4, CARD_RULINGS.md R11.
+#
+# Written and passing BEFORE `Fairy Tail - Luna` existed, the way the batch-15 random-choice
+# gate above it, the batch-12 look gate, the batch-7 movement gate and the batch-6 control
+# gate were. It belongs in this file for the reason the other two do: the decision is a
+# choice out of the deciding player's OWN Deck and Extra Deck, so it is an operation over
+# the hidden-information subsystem this file already owns.
+#
+# Before this gate, `EffectContext` had exactly one `decider` and it was always the link's
+# controller. Every card in the library asks only its own controller, and every one of them
+# still does — `ask()` is now `ask_player(controller_id, ...)` and nothing else changed.
+#
+# The five things that make this a distinct operation, each asserted below:
+#   1. the RIGHT player is asked, and the other one is asked nothing;
+#   2. the answer is recorded against the player who gave it, so the REPLAY payload
+#      describes the duel that actually happened;
+#   3. a player with NO legal choice is not asked at all — a prompt with zero options, or a
+#      "declined" logged for somebody who was never offered anything, both leak the fact
+#      that their Deck holds no such card;
+#   4. declining and taking both reach their own outcome, and declining is a real answer;
+#   5. the options come out of the DECIDING player's private zones and are shown to nobody
+#      else.
+# ---------------------------------------------------------------------------
+
+
+## A context with the whole controller table attached, as `ChainManager` attaches it.
+static func _ctx_with_table(d: Dictionary, pid: int, source: CardInstance) -> EffectContext:
+	var engine: DuelEngine = d["engine"]
+	var ctx := _ctx(engine, pid, source)
+	ctx.decider = d["p%d" % pid]
+	ctx.deciders = [d["p0"], d["p1"]]
+	return ctx
+
+
+## `count` fresh cards named `card_name` sitting in `pid`'s Deck since the duel began.
+static func _stack_deck(engine: DuelEngine, pid: int, card_name: String,
+		count: int) -> Array:
+	var out: Array = []
+	for i in range(count):
+		out.append(TestFixtures.give_to_deck(engine, pid,
+			TestFixtures.monster(card_name, 4, 1000, 1000)))
+	return out
+
+
+static func _test_ask_player_routes_to_the_named_player(t: TestCase) -> void:
+	t.start("ask_player(): the NAMED player answers, and the other player is asked nothing "
+		+ "— the whole point of the mechanism")
+	var d := TestFixtures.new_duel(1701, 0)
+	var mine: ScriptedController = d["p0"]
+	var theirs: ScriptedController = d["p1"]
+	var engine: DuelEngine = d["engine"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0, TestFixtures.trap("Asker"))
+	var ctx := _ctx_with_table(d, 0, source)
+
+	theirs.queue(true)
+	t.is_true(EffectPrimitives.player_may(ctx, 1, "opponent, decide"),
+		"the opponent's queued YES came back")
+	t.eq(theirs.seen_requests.size(), 1, "the opponent was asked exactly once")
+	t.eq(mine.seen_requests.size(), 0,
+		"and the effect's own controller was not asked at all")
+	t.eq((theirs.seen_requests[0] as DecisionRequest).player_id, 1,
+		"the request itself names the player it was put to")
+
+	# And the same context can still ask its own controller, without confusing the two.
+	mine.queue(true)
+	t.is_true(EffectPrimitives.may(ctx, "controller, decide"),
+		"the controller's own queued YES came back")
+	t.eq(mine.seen_requests.size(), 1, "the controller has now been asked once")
+	t.eq(theirs.seen_requests.size(), 1, "and the opponent still only once")
+
+
+static func _test_ask_player_refuses_a_misaddressed_request(t: TestCase) -> void:
+	t.start("ask_player(): a request addressed to one player but asked of another is "
+		+ "REFUSED — otherwise the right controller would answer and the replay would "
+		+ "record it against the wrong player")
+	var d := TestFixtures.new_duel(1702, 0)
+	var engine: DuelEngine = d["engine"]
+	var theirs: ScriptedController = d["p1"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0, TestFixtures.trap("Asker"))
+	var ctx := _ctx_with_table(d, 0, source)
+	var before: int = engine.log.decisions.size()
+
+	var misaddressed := DecisionRequest.yes_no(0, "addressed to p0", source, null)
+	t.is_null(ctx.ask_player(1, misaddressed), "nothing comes back")
+	t.eq(theirs.seen_requests.size(), 0, "and nobody was asked")
+	t.eq(engine.log.decisions.size(), before,
+		"and nothing was written to the replay payload")
+
+
+static func _test_ask_without_a_table_still_asks_the_controller(t: TestCase) -> void:
+	t.start("ask(): a context built for a pure-legality check carries no controller table, "
+		+ "and asking its own controller still works — the pre-R11 behaviour, unchanged")
+	var d := TestFixtures.new_duel(1703, 0)
+	var engine: DuelEngine = d["engine"]
+	var mine: ScriptedController = d["p0"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0, TestFixtures.trap("Asker"))
+	var ctx := _ctx(engine, 0, source)
+	ctx.decider = mine          # the only thing a legality context ever had
+	t.is_true(ctx.deciders.is_empty(), "no table is attached")
+
+	mine.queue(true)
+	t.is_true(EffectPrimitives.may(ctx, "controller, decide"),
+		"the controller is still reachable through the fallback")
+	t.eq(mine.seen_requests.size(), 1, "and was asked once")
+
+	# The fallback is keyed on the controller and on NOTHING else: guessing for the other
+	# player would let one player silently answer for the other.
+	t.is_null(ctx.decider_for(1), "there is no controller for the other player")
+	t.is_false(EffectPrimitives.player_may(ctx, 1, "opponent, decide"),
+		"so an optional step put to them is not taken")
+	t.eq(mine.seen_requests.size(), 1, "and the controller was NOT asked in their place")
+
+
+static func _test_a_decision_is_recorded_against_the_player_who_made_it(
+		t: TestCase) -> void:
+	t.start("the replay payload records an opponent's mid-resolution decision as the "
+		+ "OPPONENT's — master prompt 70")
+	var d := TestFixtures.new_duel(1704, 0)
+	var engine: DuelEngine = d["engine"]
+	var theirs: ScriptedController = d["p1"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0, TestFixtures.trap("Asker"))
+	var ctx := _ctx_with_table(d, 0, source)
+	var before: int = engine.log.decisions.size()
+
+	theirs.queue(true)
+	EffectPrimitives.player_may(ctx, 1, "opponent, decide")
+	t.eq(engine.log.decisions.size(), before + 1, "one decision was recorded")
+	var entry: Dictionary = engine.log.decisions[before]
+	t.eq(int((entry["request"] as Dictionary)["player"]), 1,
+		"and it is recorded against player 1, who actually made it")
+	t.eq(entry["answer"], true, "with the answer they gave")
+
+	var replay := engine.log.to_replay()
+	t.eq((replay["decisions"] as Array).size(), before + 1,
+		"and it reaches the replay payload, so the duel can be reproduced")
+
+
+static func _test_an_opponent_decision_is_replayable_from_the_script(t: TestCase) -> void:
+	t.start("the same scripted answers reproduce the same outcome every time — an "
+		+ "opponent-side decision is as deterministic as a controller-side one")
+	var outcomes: Array = []
+	var logged: Array = []
+	for run in range(3):
+		var d := TestFixtures.new_duel(1705, 0)
+		var engine: DuelEngine = d["engine"]
+		var theirs: ScriptedController = d["p1"]
+		var source := TestFixtures.give_set_spell_trap(engine, 0,
+			TestFixtures.trap("Asker"))
+		var deck := _stack_deck(engine, 1, "Twin", 2)
+		var ctx := _ctx_with_table(d, 0, source)
+		var before: int = engine.log.decisions.size()
+		theirs.queue([deck[1].id])
+		var picked := EffectPrimitives.player_chooses_up_to_one(ctx, 1, deck, "take one?")
+		outcomes.append(-1 if picked == null else deck.find(picked))
+		logged.append(int((engine.log.decisions[before]["request"] as Dictionary)["player"]))
+	t.eq(outcomes[0], 1, "the scripted choice was the SECOND card, not a default first")
+	t.eq(outcomes[1], outcomes[0], "the second run reproduced it")
+	t.eq(outcomes[2], outcomes[0], "and so did the third")
+	t.eq(logged, [1, 1, 1], "and every run logged it against player 1")
+
+
+static func _test_an_optional_pick_offers_decline_and_declining_is_recorded(
+		t: TestCase) -> void:
+	t.start("player_chooses_up_to_one(): ONE request with a minimum of 0 — taking and "
+		+ "declining are both real answers and both reach the replay payload")
+	var d := TestFixtures.new_duel(1706, 0)
+	var engine: DuelEngine = d["engine"]
+	var theirs: ScriptedController = d["p1"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0, TestFixtures.trap("Asker"))
+	var deck := _stack_deck(engine, 1, "Twin", 2)
+	var ctx := _ctx_with_table(d, 0, source)
+	var before: int = engine.log.decisions.size()
+
+	theirs.queue([])
+	t.is_null(EffectPrimitives.player_chooses_up_to_one(ctx, 1, deck, "take one?"),
+		"an empty answer is a DECLINE, not an error and not a default pick")
+	t.eq(theirs.seen_requests.size(), 1, "exactly one prompt, not a yes/no plus a select")
+	var req: DecisionRequest = theirs.seen_requests[0]
+	t.eq(req.kind, Enums.DecisionKind.SELECT_UP_TO, "and it is a SELECT_UP_TO")
+	t.eq(req.min_count, 0, "with a minimum of zero, which is what makes declining legal")
+	t.eq(req.max_count, 1, "and a maximum of one")
+	t.eq(req.options.size(), 2, "offering both candidates")
+	t.eq(engine.log.decisions.size(), before + 1, "the decline itself is recorded")
+	t.eq(engine.log.decisions[before]["answer"], [], "as the empty answer it was")
+
+	theirs.queue([deck[0].id])
+	t.eq(EffectPrimitives.player_chooses_up_to_one(ctx, 1, deck, "take one?"), deck[0],
+		"and taking one returns exactly the card they named")
+
+
+static func _test_an_empty_candidate_list_asks_nothing_at_all(t: TestCase) -> void:
+	t.start("player_chooses_up_to_one(): a player with NO legal choice is not asked — a "
+		+ "zero-option prompt would announce that their Deck holds no such card")
+	var d := TestFixtures.new_duel(1707, 0)
+	var engine: DuelEngine = d["engine"]
+	var mine: ScriptedController = d["p0"]
+	var theirs: ScriptedController = d["p1"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0, TestFixtures.trap("Asker"))
+	var ctx := _ctx_with_table(d, 0, source)
+	var before: int = engine.log.decisions.size()
+
+	t.is_null(EffectPrimitives.player_chooses_up_to_one(ctx, 1, [], "take one?"),
+		"nothing is taken")
+	t.eq(theirs.seen_requests.size(), 0, "and the player was never prompted")
+	t.eq(mine.seen_requests.size(), 0, "nor was anybody else")
+	t.eq(engine.log.decisions.size(), before,
+		"and NOTHING reached the replay payload — a logged 'declined' for a player who was "
+		+ "never offered anything is the same leak by another route")
+
+	# The control: with a candidate, the very same call does ask.
+	var deck := _stack_deck(engine, 1, "Twin", 1)
+	theirs.queue([])
+	EffectPrimitives.player_chooses_up_to_one(ctx, 1, deck, "take one?")
+	t.eq(theirs.seen_requests.size(), 1, "one real candidate produces exactly one prompt")
+
+
+static func _test_a_forced_pick_asks_nothing(t: TestCase) -> void:
+	t.start("player_chooses_one(): exactly one candidate is not a decision, so no question "
+		+ "is asked and nothing is written to the replay payload")
+	var d := TestFixtures.new_duel(1708, 0)
+	var engine: DuelEngine = d["engine"]
+	var theirs: ScriptedController = d["p1"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0, TestFixtures.trap("Asker"))
+	var deck := _stack_deck(engine, 1, "Twin", 1)
+	var ctx := _ctx_with_table(d, 0, source)
+	var before: int = engine.log.decisions.size()
+
+	t.eq(EffectPrimitives.player_chooses_one(ctx, 1, deck, "pick"), deck[0],
+		"the only candidate comes back")
+	t.eq(theirs.seen_requests.size(), 0, "with no prompt")
+	t.eq(engine.log.decisions.size(), before, "and no replay entry")
+
+	# Two candidates IS a decision, and it goes to the same player.
+	var more := _stack_deck(engine, 1, "Twin", 1)
+	theirs.queue([more[0].id])
+	t.eq(EffectPrimitives.player_chooses_one(ctx, 1, deck + more, "pick"), more[0],
+		"two candidates are a real choice and the named player makes it")
+	t.eq(theirs.seen_requests.size(), 1, "one prompt")
+
+
+static func _test_the_options_never_reach_the_other_player(t: TestCase) -> void:
+	t.start("the cards offered come out of the DECIDING player's own private zones, and "
+		+ "the other player is shown nothing — no prompt, no reveal, no visible-state entry")
+	var d := TestFixtures.new_duel(1709, 0)
+	var engine: DuelEngine = d["engine"]
+	var mine: ScriptedController = d["p0"]
+	var theirs: ScriptedController = d["p1"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0, TestFixtures.trap("Asker"))
+	var deck := _stack_deck(engine, 1, "Secret Twin", 2)
+	var ctx := _ctx_with_table(d, 0, source)
+
+	theirs.queue([])
+	EffectPrimitives.player_chooses_up_to_one(ctx, 1, deck, "take one?")
+	t.eq(mine.seen_requests.size(), 0, "the other player was asked nothing")
+	for card in deck:
+		t.is_false((card as CardInstance).revealed_to.has(0),
+			"and merely being OFFERED reveals nothing to them")
+
+	var blob := JSON.stringify(engine.state.get_visible_state(0))
+	t.is_false(blob.contains("Secret Twin"),
+		"the offered cards do not appear anywhere in the other player's view of the duel")
+
+
+static func _test_a_deck_lookup_can_span_the_extra_deck(t: TestCase) -> void:
+	t.start("deck_search_candidates(): 'from their Deck OR Extra Deck' is ONE look-through "
+		+ "over both zones — off by default, so no existing search changed")
+	var d := TestFixtures.new_duel(1710, 0)
+	var engine: DuelEngine = d["engine"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0, TestFixtures.trap("Asker"))
+	var ctx := _ctx_with_table(d, 0, source)
+	var in_deck := _stack_deck(engine, 1, "Twin", 1)
+	var in_extra := TestFixtures.give(engine, 1,
+		TestFixtures.monster("Twin", 4, 1000, 1000), Enums.Zone.EXTRA_DECK)
+	var named := EffectPrimitives.has_name_of(in_deck[0])
+
+	var main_only := EffectPrimitives.deck_search_candidates(ctx, 1, named)
+	t.eq(main_only.size(), 1, "by default only the Deck is looked through")
+	t.eq(main_only[0], in_deck[0], "and it is the Deck copy")
+
+	var both := EffectPrimitives.deck_search_candidates(ctx, 1, named, true)
+	t.eq(both.size(), 2, "with the Extra Deck included, both copies are candidates")
+	t.is_true(both.has(in_extra), "including the one in the Extra Deck")
+
+	# And it is that player's OWN Deck: the other player's copies are never candidates.
+	_stack_deck(engine, 0, "Twin", 3)
+	t.eq(EffectPrimitives.deck_search_candidates(ctx, 1, named, true).size(), 2,
+		"three more copies in the OTHER player's Deck change nothing")
+
+
+static func _test_a_send_from_a_deck_asks_that_decks_owner(t: TestCase) -> void:
+	t.start("send_from_deck_to_gy(): the player whose Deck it is chooses, and the card "
+		+ "really reaches their own Graveyard")
+	var d := TestFixtures.new_duel(1711, 0)
+	var engine: DuelEngine = d["engine"]
+	var mine: ScriptedController = d["p0"]
+	var theirs: ScriptedController = d["p1"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0, TestFixtures.trap("Asker"))
+	var ctx := _ctx_with_table(d, 0, source)
+	var deck := _stack_deck(engine, 1, "Twin", 2)
+	var gy_before: int = engine.state.player(1).graveyard.size()
+
+	theirs.queue([deck[1].id])
+	var sent := EffectPrimitives.send_from_deck_to_gy(ctx, 1,
+		EffectPrimitives.has_name_of(deck[0]), "send one")
+	t.eq(sent, deck[1], "the card THEY named was the one sent")
+	t.eq(mine.seen_requests.size(), 0, "the effect's controller was not asked")
+	t.eq(sent.zone, Enums.Zone.GRAVEYARD, "it is in a Graveyard")
+	t.eq(engine.state.player(1).graveyard.size(), gy_before + 1,
+		"and it is that player's OWN Graveyard — a non-field zone is owner-bound")
+
+
+static func _test_negating_your_own_effect_records_it_without_undoing_anything(
+		t: TestCase) -> void:
+	t.start("negate_own_effect(): the resolving link is marked negated and an "
+		+ "EFFECT_NEGATED event is emitted — 'negate this effect' is not 'negate the "
+		+ "activation', so nothing already done is undone")
+	var d := TestFixtures.new_duel(1712, 0)
+	var engine: DuelEngine = d["engine"]
+	var source := TestFixtures.give_set_spell_trap(engine, 0, TestFixtures.trap("Asker"))
+	var ctx := _ctx_with_table(d, 0, source)
+	var link := ChainLink.new(source, null, 0)
+	link.link_number = 1
+	ctx.link = link
+	var mark: int = engine.state.events.size()
+
+	t.is_false(link.is_negated(), "the link starts un-negated")
+	EffectPrimitives.negate_own_effect(ctx, 1, "the opponent paid to negate it")
+	t.is_true(link.effect_negated, "the EFFECT is now negated")
+	t.is_false(link.activation_negated,
+		"and the ACTIVATION is not — the card was still activated, so its cost stays paid "
+		+ "and a once-per-turn allowance stays spent")
+	t.eq(link.resolution_note, "the opponent paid to negate it", "the reason is recorded")
+
+	var events := TestFixtures.events_of(engine, GameEvent.Kind.EFFECT_NEGATED, mark)
+	t.eq(events.size(), 1, "exactly one EFFECT_NEGATED was emitted")
+	var ev: GameEvent = events[0]
+	t.eq(int(ev.data["card_id"]), source.id, "naming the card whose effect it was")
+	t.eq(int(ev.data["by_player"]), 1, "and the player who negated it")
+	t.eq(ev.data["during_resolution"], true,
+		"marked as a negation that happened DURING resolution, which is what makes it "
+		+ "different from the two that stop a link before it ever runs")
+
+
+static func _test_has_name_of_matches_by_name_only(t: TestCase) -> void:
+	t.start("has_name_of(): '1 card with that monster's name' matches on the NAME and on "
+		+ "nothing else — not the instance, not the zone, not the printed stats")
+	var d := TestFixtures.new_duel(1713, 0)
+	var engine: DuelEngine = d["engine"]
+	var twin_a := TestFixtures.give_to_deck(engine, 1,
+		TestFixtures.monster("Twin", 4, 1000, 1000))
+	var twin_b := TestFixtures.give_to_deck(engine, 1,
+		TestFixtures.monster("Twin", 7, 2800, 1000))
+	var other := TestFixtures.give_to_deck(engine, 1,
+		TestFixtures.monster("Not Twin", 4, 1000, 1000))
+	var named := EffectPrimitives.has_name_of(twin_a)
+
+	t.is_true(named.call(twin_a), "the card itself matches")
+	t.is_true(named.call(twin_b),
+		"and so does a different copy with different stats — the name is the whole test")
+	t.is_false(named.call(other), "a differently named card does not")
+	t.is_false(EffectPrimitives.has_name_of(null).call(twin_a),
+		"and with no card to take a name from, nothing matches")

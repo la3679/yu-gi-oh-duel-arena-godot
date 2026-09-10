@@ -14,8 +14,12 @@ const DECK_SIZE := 40
 # Card definitions
 # ---------------------------------------------------------------------------
 
+## `race` is the sixth argument and defaults to "Warrior", so every existing call is
+## unchanged. A clause that filters on RACE — `Fairy Tail - Luna` searches for a
+## "Spellcaster monster with 1850 ATK" — cannot be tested without saying what the race is,
+## and the fifth argument is the ATTRIBUTE.
 static func monster(name: String, level: int = 4, atk: int = 1000, def_: int = 1000,
-		attribute: String = "LIGHT") -> CardDef:
+		attribute: String = "LIGHT", race: String = "Warrior") -> CardDef:
 	var d := CardDef.new()
 	d.name = name
 	d.official_name = name
@@ -24,7 +28,7 @@ static func monster(name: String, level: int = 4, atk: int = 1000, def_: int = 1
 	d.base_atk = atk
 	d.base_def = def_
 	d.attribute = attribute
-	d.race = "Warrior"
+	d.race = race
 	d.is_normal_monster = true
 	d.text = "Test monster."
 	return d
@@ -132,6 +136,13 @@ static func interferer(card_name: String, victim: CardInstance, mode: String) ->
 			"flip_face_down":
 				ctx.state.set_battle_position(victim, Enums.Position.FACE_DOWN_DEFENSE,
 					true, ctx.source.id)
+			"take_control":
+				# Control passes to THIS card's controller, the way `Enemy Controller` and
+				# the three Charmers do it. Needed by any suite that has to move control
+				# while a Chain is still building, which is the only moment at which a
+				# resolution-time control re-check can be observed at all.
+				ctx.state.change_control(victim, ctx.controller_id, ctx.source.id,
+					Enums.ControlDuration.PERMANENT)
 			_:
 				push_error("TestFixtures.interferer: unknown mode '%s'" % mode)
 	return with_effect(d, e)
@@ -215,6 +226,33 @@ static func activation_negator(card_name: String) -> CardDef:
 		return EffectPrimitives.spell_trap_activation_below(ctx) != null
 	e.resolve = func(ctx: EffectContext) -> void:
 		EffectPrimitives.negate_activation_and_destroy(ctx)
+	return with_effect(d, e)
+
+
+## A synthetic Counter Trap that negates the ACTIVATION of the Chain Link directly below it,
+## whatever kind of activation that was.
+##
+## `activation_negator()` above is the `Champion's Vigilance` shape and, like that card, can
+## only answer a **Spell/Trap card activation** — `spell_trap_activation_below()` finds
+## nothing else. A MONSTER effect's activation is a different thing, and **no card in the V1
+## pool can negate one**, so a monster whose clause must be tested against activation
+## negation has nothing real to be tested against. This fixture is that missing counterpart,
+## and a suite using it is testing the ENGINE's handling of a branch the printed pool cannot
+## reach — which is the R1 / R21 / R23 treatment and must be said out loud where it is used.
+static func any_activation_negator(card_name: String) -> CardDef:
+	var d := trap(card_name, Enums.STKind.COUNTER_TRAP)
+	var e := EffectDef.new("negate_any_activation", "Test: negate whatever activated below.")
+	e.of_type(Enums.EffectType.CARD_ACTIVATION)
+	e.with_spell_speed(Enums.SpellSpeed.SS3)
+	e.activation_locations = [Enums.ActivationLocation.FIELD_FACE_DOWN]
+	e.condition = func(ctx: EffectContext) -> bool:
+		return EffectPrimitives.chain_link_below(ctx) != null
+	e.resolve = func(ctx: EffectContext) -> void:
+		var link_number: int = ctx.link.link_number if ctx.link != null else 0
+		var below := EffectPrimitives.chain_link_below(ctx, link_number)
+		if below == null or ctx.engine == null or ctx.engine.chain == null:
+			return
+		ctx.engine.chain.negate_activation(below.link_number, ctx.source)
 	return with_effect(d, e)
 
 

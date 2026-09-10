@@ -1073,6 +1073,48 @@ against the obvious mistake is a test: `MonarchsAwakenTests` flips the target fa
 real **Chain Link 2** rather than by touching the board after the fact, because a post-hoc flip
 would clear the states anyway and the test would pass whatever the card did.
 
+### 10.10 "Return BOTH X and Y" is ONE process, and a card may make it ALL OR NONE — **DECIDED** (Phase 5 batch 17)
+
+Decided in `CARD_RULINGS.md` **R11 Part E**, for `Fairy Tail - Luna`'s "return both this card and
+that monster to the hand".
+
+This is the fourth answer in this file to the same question — *what does a failure at resolution
+cost?* — and it must be read next to the other three:
+
+* **§10.6** — a dead **TARGET** costs only the sentences that name it;
+* **§10.8** — a failed **ACTIVATION REQUIREMENT** costs the **entire** resolution, first sentence
+  included;
+* **§10.9** — a **property of the target the text names**, failing at resolution, costs exactly
+  the clauses the card's own supplement says it costs;
+* **§10.10** — a clause worded **"both X and Y"** names one process over two cards, and the
+  card's own supplement may make it **all or none**.
+
+For cid 12952 it is all or none, in as many words: 「処理時に、このカードと対象のモンスターのうち
+少なくとも片方がモンスターゾーンに存在しなくなった場合、処理は行われません」. If **either** card has
+left the Monster Zone, nothing at all happens — not even a partial return of the survivor, and not
+the opponent's chance to respond to it.
+
+**The general lesson is the one §10.6 already carries and this sharpens: "both … and …" is not two
+sentences.** §10.6's rule — that a dead target costs only what names it — is about a clause with
+several *independent* sentences. It does not reach a single sentence that names two cards, and
+reading it as though it did would have produced a partial return no official source supports.
+
+**What re-check a card performs is the CARD's to state, not the engine's to infer.** cid 12952
+enumerates its resolution-time cases and names only presence in a **Monster Zone** — not control,
+even though the target was chosen as "1 face-up monster your opponent controls". That is why this
+card does not inherit **R29**'s control re-check, and why R29 stays unchanged for the two cards it
+was written for: card-specific official guidance outranks a general inference, the precedent
+**R40 Part C** already made load-bearing.
+
+*Engine:* stated in the card's own `resolve`, not in a shared primitive — there is nothing generic
+to share until a second card words a clause this way. What IS generic is what the card must not
+reach for: `EffectPrimitives.surviving_target()` re-checks one zone for one card and cannot express
+"both, or neither".
+*Tests:* `FairyTailLunaTests`, both directions, each driven by a real **Chain Link 2** the opponent
+activates in response rather than by editing the board after the Chain has resolved.
+
+---
+
 ## 11. Once-per-turn tracking (master prompt §47)
 
 | Text form | Key scope | Reset |
@@ -1087,7 +1129,7 @@ Per-instance usage flags are cleared when the card changes zone or is flipped fa
 the specific text says otherwise (master prompt §48). Named hard-once-per-turn counters live on
 the **player**, not the instance, so they survive the card leaving the field.
 
-### 11.1 Two effects SHARING one use — **DECIDED** (Phase 5 batch 9)
+## 11.1 Two effects SHARING one use — **DECIDED** (Phase 5 batch 9)
 
 "You can only use 1 *[name]* effect per turn, and only once that turn." (`Maiden with Eyes of
 Blue`, `CARD_RULINGS.md` **R3**) is a **sixth** form and is none of the five above: it is a
@@ -1243,6 +1285,64 @@ proves the same seed picks the same card, that a sweep of seeds reaches every ca
 (so "deterministic" is not "always index 0"), that exactly one value is drawn from the duel's own
 generator, that neither controller is asked anything, that exactly one card is revealed and the
 rest stay hidden in the filtered view, and that nothing moves.
+
+### 12.4 A decision made DURING resolution by the player who does NOT control the effect — **DECIDED** (Phase 5 batch 17)
+
+Decided in `CARD_RULINGS.md` **R11**, for `Fairy Tail - Luna`'s "your opponent **can** send 1
+card with that monster's name from their Deck or Extra Deck to the GY to negate this effect".
+Like §12.2's look and §12.3's random pick this is an **operation** over subsystems that already
+exist, not a new one: the same `DecisionRequest`, the same `PlayerController`, the same replay
+payload, and the same synchronous controller architecture.
+
+**Rule: a card whose text puts a choice to a named player has that player's own controller
+answer it, has the answer recorded against that player, and offers a choice only when a legal
+one exists.**
+
+Before batch 17 an `EffectContext` carried exactly one `decider` and it was always the resolving
+Chain Link's controller — which every card in the library until now is content with. The
+mechanism is `EffectContext.ask_player(pid, request)` over the engine's controller **table**
+(`deciders`), and `ask()` is now `ask_player(controller_id, …)`, so no existing card changed.
+
+Five properties, each of which would be a silent defect on its own:
+
+* **the right player answers.** The request already names the player it is addressed to, so the
+  two are checked against each other rather than one being trusted. A mismatch is refused
+  loudly: a request built for one player and put to the other would be answered by the right
+  controller and then recorded against the wrong one, and the replay would stop describing the
+  duel that happened.
+* **the answer is recorded against whoever gave it.** A mid-resolution choice is a duel INPUT
+  (master prompt 70). An opponent's decision reaches `DuelLog.decisions` carrying **their**
+  player id, which is what lets the same script reproduce the same duel.
+* **replay stays deterministic and the controller stays synchronous.** Nothing is asynchronous,
+  nothing waits, and nothing consults the RNG. The decision is an ordinary `decide()` call on an
+  ordinary controller, made while the link resolves.
+* **a player with no legal choice is not asked.** The candidates come out of that player's own
+  private zones, so a prompt carrying zero options would announce that those zones hold nothing
+  qualifying — and so, equally, would a "declined" written into the replay payload on behalf of
+  somebody who was never offered anything. Neither happens.
+* **the offered cards are shown to nobody else.** Being *offered* reveals nothing: the other
+  player is asked no question, sees no `CARD_REVEALED`, and finds no trace of the cards in their
+  filtered view of the duel.
+
+**It is not an activation and it is not a Chain Link.** The decision happens inside one resolving
+link, so Chain resolution order is untouched and no window opens for it — which is what official
+Q&A fid 11022 confirms from the other side by letting a hand trap chain to the *activation* and
+not to the decision. The UI has no authority here either: only choices the engine has already
+determined to be legal are ever offered, exactly as everywhere else.
+
+**Where a Deck was looked through, it is shuffled — whether or not anything was taken and
+whether or not anything COULD have been** [S1 p.5], §12.1, `CARD_RULINGS.md` R40 Part A. A
+shuffle that happened only when a qualifying card existed would leak the same fact through a
+public event, which is why the shuffle is unconditional in the primitive rather than in each
+card.
+
+*Engine:* `EffectContext.deciders` / `decider_for()` / `ask_player()`;
+`EffectPrimitives.player_may()`, `player_chooses_one()`, `player_chooses_up_to_one()` (which
+finally consumes the previously dead `Enums.DecisionKind.SELECT_UP_TO`),
+`player_may_send_from_deck_to_gy()`, and `negate_own_effect()` for a clause the decision
+switches off. `ChainManager._resolve_link()` and `DuelEngine` hand the table down wherever they
+already hand down `decider`.
+*Tests:* `HiddenInfoTests` — the gate, written and green before `Fairy Tail - Luna` existed.
 
 ---
 

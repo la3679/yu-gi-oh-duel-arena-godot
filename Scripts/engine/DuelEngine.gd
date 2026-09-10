@@ -641,6 +641,9 @@ func _apply_open_action(action: DuelAction) -> void:
 			var ctx := ActivationRules.make_context(state, card, effect, pid, null)
 			ctx.engine = self
 			ctx.decider = _controller(pid)
+			# The whole controller table too: a clause whose text puts a decision to the
+			# OTHER player asks through `ctx.ask_player()`. CARD_RULINGS.md R11.
+			ctx.deciders = controllers
 			if effect.pay_cost.is_valid() and not bool(effect.pay_cost.call(ctx)):
 				push_error("DuelEngine: summon procedure cost failed for %s after it "
 					% card.card_name() + "was offered")
@@ -802,6 +805,9 @@ func _perform_activation(card: CardInstance, effect: EffectDef, pid: int,
 	var ctx := ActivationRules.make_context(state, card, effect, pid, trigger_event)
 	ctx.engine = self
 	ctx.decider = _controller(pid)
+	# The whole controller table too: a clause whose text puts a decision to the
+	# OTHER player asks through `ctx.ask_player()`. CARD_RULINGS.md R11.
+	ctx.deciders = controllers
 	ctx.chosen_target_ids = target_ids.duplicate()
 
 	if effect.effect_type == Enums.EffectType.CARD_ACTIVATION:
