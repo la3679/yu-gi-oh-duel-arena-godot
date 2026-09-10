@@ -430,13 +430,26 @@ func _attack_actions(pid: int) -> Array:
 func _activation_actions(pid: int, window_events, fast_only: bool = false) -> Array:
 	var out: Array = []
 	for card in state.all_instances():
-		if card.owner_id != pid and card.controller_id != pid:
-			continue
-		if card.controller_id != pid:
-			continue
 		if card.definition == null:
 			continue
+		# A card ordinarily offers its effects to its CONTROLLER and to nobody else.
+		#
+		# One official wording breaks that: 「お互いのプレイヤーは、自身のメインフェイズ２にこの
+		# 効果を発動できます。」 — the TURN PLAYER may activate the effect, whoever controls the
+		# card, which for `Hidden Springs of the Far East` means the opponent of its
+		# controller can use it. Such an effect is marked `activated_by_turn_player`, and
+		# it is the ONLY way a foreign card is considered here.
+		#
+		# `get_legal_actions()` already refuses anyone but the turn player in an open game
+		# state, so the "turn player" half needs no check of its own — but a FAST window
+		# does not, so it is checked explicitly rather than inherited.
+		# RULES_SPEC.md 19, CARD_RULINGS.md R14 Part A.
+		var is_controller: bool = card.controller_id == pid
+		if not is_controller and pid != state.turn_player_id:
+			continue
 		for effect in card.definition.effects:
+			if not is_controller and not effect.activated_by_turn_player:
+				continue
 			if fast_only and not ActivationRules.is_fast_effect(effect):
 				continue
 			if not effect.starts_chain:
@@ -931,6 +944,14 @@ func _cleanup_resolved_spell_traps(links: Array) -> void:
 ## Returns the monster whose Summon was negated, or null when no Summon is pending.
 func negate_pending_summon(by_card_id: int = -1):
 	if _pending_summon.is_empty() or bool(_pending_summon.get("negated", false)):
+		return null
+	# "The Normal and Special Summons of their monsters cannot be negated."
+	# The single entry point every Summon negation in the library passes through, so the
+	# gate goes here rather than in each negating card. A Flip Summon is NOT covered — see
+	# `NegationImmunity`. RULES_SPEC.md 19, CARD_RULINGS.md R14 Part C.
+	if NegationImmunity.summon_negation_blocked(state,
+			int(_pending_summon.get("controller", -1)),
+			_pending_summon.get("kind", Enums.SummonKind.NORMAL)):
 		return null
 	_pending_summon["negated"] = true
 	_pending_summon["negated_by"] = by_card_id

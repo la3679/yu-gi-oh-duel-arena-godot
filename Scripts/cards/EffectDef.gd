@@ -49,6 +49,31 @@ var starts_chain: bool = true
 ## card in the V1 pool that sets it.
 var negates_effects: bool = false
 
+## Is the player eligible to activate this effect the TURN PLAYER rather than the card's
+## controller? RULES_SPEC.md 19, CARD_RULINGS.md R14 Part A.
+##
+## 「お互いのプレイヤーは…自分メインフェイズ２に発動できる」 — either player may activate it, in
+## their own Main Phase 2, including the player who does NOT control the card. Every other
+## effect in the library is offered to its controller and to nobody else.
+##
+## This is NOT batch 17's mechanism and must not be confused with it. `EffectContext`'s
+## `ask_player()` routes a DECISION MADE DURING RESOLUTION to a named player; this routes
+## ELIGIBILITY TO ACTIVATE to a player who is not the controller. The two are independent
+## and a card could want either, both, or neither.
+var activated_by_turn_player: bool = false
+
+## Does this effect's text INCLUDE an effect that Special Summons a monster?
+##
+## Declared rather than inferred: the alternative is inspecting a `resolve` callable, which
+## cannot be done, and the official wording is about what the effect *includes* by its text
+## rather than about what it manages to do at resolution — a Special Summon that turns out
+## to be impossible still counts. CARD_RULINGS.md R14 Part C, recorded at MEDIUM confidence.
+##
+## Read only by `NegationImmunity`, for "if they activate a Spell/Trap Card, or monster
+## effect, that includes an effect that Special Summons a monster, that activation cannot
+## be negated".
+var includes_special_summon: bool = false
+
 ## Does this effect target? RULES_SPEC.md 10, master prompt 17.
 var targets: bool = false
 var target_count_min: int = 0
@@ -188,6 +213,19 @@ func opt_named_activation() -> EffectDef:
 
 func in_group(key: String) -> EffectDef:
 	restriction_group = key
+	return self
+
+
+## "The turn player can activate this effect" — see `activated_by_turn_player`.
+func by_turn_player() -> EffectDef:
+	activated_by_turn_player = true
+	return self
+
+
+## "…that includes an effect that Special Summons a monster" — see
+## `includes_special_summon`.
+func includes_a_special_summon() -> EffectDef:
+	includes_special_summon = true
 	return self
 
 

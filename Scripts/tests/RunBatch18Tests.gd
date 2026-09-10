@@ -26,11 +26,23 @@ extends SceneTree
 ##   * `FairyTailLunaTests` and `FairyTailRellaTests` — the same archetype, and Luna's
 ##     search reads the 1850 ATK Spellcaster list that Sleeper is a member of.
 ##
+## Unit B (`Hidden Springs of the Far East`, R14) added the negation-immunity gate and
+## the turn-player activation route, so it brings with it:
+##
+##   * `NegationImmunityTests` — the gate itself, with a paired control for every one of
+##     the three protections;
+##   * `SpellTrapTests` and `TurnFlowTests` — the Field Zone, the Main Phase 2 window and
+##     the end-of-turn cleanup the protections are cleared by;
+##   * `ChampionsVigilanceTests` again — the pool's real activation negator, which is now
+##     gated, and `SummonTests` for the Summon negation half.
+##
 ## The FULL run stays the authority for every number.
 
 func _initialize() -> void:
 	var suites: Array[TestCase] = []
 	suites.append(ChainTests.run())
+	suites.append(SpellTrapTests.run())
+	suites.append(TurnFlowTests.run())
 	suites.append(TimingTests.run())
 	suites.append(ReplayTests.run())
 	suites.append(DamageStepTests.run())
@@ -41,7 +53,9 @@ func _initialize() -> void:
 	suites.append(CrystalSeerTests.run())
 	suites.append(FairyTailRellaTests.run())
 	suites.append(FairyTailLunaTests.run())
+	suites.append(NegationImmunityTests.run())
 	suites.append(FairyTailSleeperTests.run())
+	suites.append(HiddenSpringsOfTheFarEastTests.run())
 
 	var total_passed := 0
 	var total_failed := 0

@@ -231,6 +231,14 @@ static func legal_targets(ctx: EffectContext) -> Array:
 		var card: CardInstance = entry
 		if card != null and card.cannot_be_targeted():
 			continue
+		# "Their opponent cannot target Set Spells/Traps they control with card effects."
+		# A SEPARATE question from `cannot_be_targeted()` above, and deliberately not
+		# merged with it: that flag is a property of a monster and is the same for
+		# everybody, this one is a property of a player's SET Spell/Traps and is relative
+		# to WHO is targeting. RULES_SPEC.md 19, CARD_RULINGS.md R14 Part C.
+		if card != null and NegationImmunity.targeting_blocked(ctx.state, card,
+				ctx.controller_id):
+			continue
 		kept.append(card)
 	return kept
 

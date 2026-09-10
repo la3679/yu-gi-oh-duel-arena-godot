@@ -221,6 +221,10 @@ func _end_of_turn_cleanup() -> void:
 	_spend_battle_phase_skip()
 	for card in state.all_instances():
 		card.remove_modifiers_with_duration("end_of_turn")
+	# 「このターン中」 — the three protections `Hidden Springs of the Far East` grants last
+	# for the turn they resolved in and no longer. The card stays on the field; a second
+	# turn needs a second activation. RULES_SPEC.md 19, CARD_RULINGS.md R14 Part B.
+	NegationImmunity.clear_all(state)
 	for p in state.players:
 		p.end_turn(state.turn_number)
 		p.clear_restriction("skip_battle_phase_this_turn")

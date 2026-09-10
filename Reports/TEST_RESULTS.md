@@ -1,9 +1,10 @@
 # TEST_RESULTS
 
-**Last run:** 2026-09-09 (Phase 5 **batch 17 COMPLETE**: `Fairy Tail - Luna`, the pool's first
-card whose effect the **OPPONENT may pay to negate during its resolution** — a decision routed to
-a player who does not control the resolving Chain Link, over that player's own **private** Deck
-and Extra Deck. **R11** is now CLOSED, and `RULES_SPEC.md` gains **§12.4** and **§10.10**.)
+**Last run:** 2026-09-09 (Phase 5 **batch 18 COMPLETE** — and with it the **CARD
+IMPLEMENTATION PHASE**. `Fairy Tail - Sleeper` (unit A) and `Hidden Springs of the Far East`
+(unit B) were the last two cards. **R5 and R14 are CLOSED, and no ruling that blocks a card
+remains open.** `RULES_SPEC.md` gains **§10.11** and **§19**. **77 / 77 implemented, 77 / 77
+tested.**)
 **Engine:** Godot 4.7.1.stable.official.a13da4feb (headless)
 
 Command:
@@ -39,22 +40,131 @@ authority for every number below.
 
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
-| Core rules tests | 25 | 2607 | **2607** | 0 |
-| Per-card tests | 67 | 7099 | **7099** | 0 |
+| Core rules tests | 26 | 2724 | **2724** | 0 |
+| Per-card tests | 69 | 7317 | **7317** | 0 |
 | Interaction tests | 1 | 46 | **46** | 0 |
 | Scripted duel tests | 0 | 0 | 0 | 0 |
-| **TOTAL** | **93** | **9752** | **9752** | **0** |
+| **TOTAL** | **96** | **10087** | **10087** | **0** |
 
-Previous clean commit: **`6083e48`** (batch 16). SmokeCheck: **PASS**. `SCRIPT ERROR`
-occurrences in the full run: **0**. Matrix: **75 / 77 implemented, 75 / 77 tested, 2 remaining**
-(computed by `python Tools/build_matrix.py`, not written by hand). ObjectDB at exit: **334340** —
-+11589 over batch 16's 322751, for roughly 62 new duels between the two changed suites, i.e.
-**~187 per duel** against the 187 batch 16 measured and the 188 batch 15 measured. The linear
-per-duel model now holds for a **third** consecutive batch; nothing new is leaking, and the
-underlying reference-cycle **fix** is still owed before Phase 7.
+Previous clean commit: **`01fe26f`** (batch 18 unit A). SmokeCheck: **PASS**.
+`SCRIPT ERROR` occurrences in the full run: **0**. Matrix: **77 / 77 implemented, 77 / 77 tested,
+0 remaining** (computed by `python Tools/build_matrix.py`, not written by hand). ObjectDB at exit:
+**347433** — +13093 over batch 17's 334340, for roughly 70 new duels across the three new suites,
+i.e. **~187 per duel** against the 187 measured in each of batches 16 and 17 and the 188 of batch
+15. The linear per-duel model now holds for a **fourth** consecutive batch; nothing new is leaking,
+and the underlying reference-cycle **fix** is still owed before Phase 7.
 
-The targeted runner for this batch is `./Tools/run_tests.sh RunBatch17Tests` (1838 assertions
-across 14 suites). The full suite remains the authority for every number above.
+The targeted runner for this batch is `./Tools/run_tests.sh RunBatch18Tests` (1692 assertions
+across 16 suites). The full suite remains the authority for every number above.
+
+## Batch 18 — COMPLETE, and with it the CARD IMPLEMENTATION PHASE.
+
+**Two cards, two units, two genuinely new rules subsystems — deliberately NOT grouped.** Their
+subsystems are disjoint (surgery on the one function every resolving effect passes through, versus
+three additive checks in three existing gates), so combining them would have put a
+high-blast-radius change and a wide-surface change behind one regression run with no way to say
+which caused a failure. Each unit was gated, tested, mutation-checked and committed before the
+next began.
+
+Every one of the previous checkpoint's **9752** assertions passes unchanged — with **one
+deliberate, documented retargeting**, recorded in full below. 10087 − 9752 = **335** = 113
+(`FairyTailSleeperTests`, new) + 103 (`HiddenSpringsOfTheFarEastTests`, new) + 72
+(`NegationImmunityTests`, new) + 45 (`ChainTests`, 27 → 72) + 2 (`NormalMonsterTests`, the
+retargeted guard).
+
+| Unit | What it was | Result |
+|---|---|---|
+| 0 | **R5** and **R14** research, and the batch-18 plan, committed BEFORE any code | **COMPLETE** — both CLOSED |
+| A | the Chain-Link substitution gate (`ChainLink.substituted_effect` / `resolving_effect()`, `ChainManager.substitute_link_effect()`, `CHAIN_LINK_EFFECT_SUBSTITUTED`, three `EffectPrimitives` siblings) + `RULES_SPEC.md` **§10.11**, in `ChainTests` (27 → **72**), **green before the card** | **COMPLETE** |
+| A | `Fairy Tail - Sleeper` (`FairyTailSleeperTests`, **113**) | **COMPLETE** |
+| B | the negation-immunity gate (`NegationImmunity`, `EffectDef.activated_by_turn_player` / `includes_special_summon`, four gated call sites) + `RULES_SPEC.md` **§19**, in `NegationImmunityTests` (**72**), **green before the card** | **COMPLETE** |
+| B | `Hidden Springs of the Far East` (`HiddenSpringsOfTheFarEastTests`, **103**) | **COMPLETE** |
+
+### The Damage Step pattern BROKE — and inverted
+
+Seven consecutive cards had a supplement carrying a Damage Step **restriction** the printed English
+text did not mention. `Fairy Tail - Sleeper` clause ① carries the **opposite**:
+
+> 「ダメージステップ中に条件を満たした場合でも発動できます。」
+
+It **CAN** be activated during the Damage Step. Taking the engine's default (`NONE`) would have
+been **wrong** — the exact inverse of batches 16 and 17, where the default happened to be right.
+It is not a quirk either: the ordinary way a Flip monster is turned face-up is by being attacked,
+so the Damage Step is that clause's main line of play. Clause ② *does* carry the usual refusal,
+and the two are asserted against the same gate at the same sub-step, so neither result can be the
+gate answering uniformly.
+
+### §8 was wrong twice more — in BOTH directions
+
+* **optimistically**, again: it predicted `Fairy Tail - Sleeper` would need no research beyond the
+  substitution mechanism. The supplement and four Q&A entries settled six facts the English text
+  does not state, including which side of the field the card actually hits;
+* **pessimistically**, for the first time: it called `Hidden Springs of the Far East` "three or
+  four subsystems in one card" and led with **the Field Spell Zone**. The Field Zone, Main Phase 2,
+  the LP gain and both once-per-turn shapes **all already existed**. What was genuinely new was
+  **two** things, not four.
+
+That is eight consecutive batches in which a §8 prediction about scope was wrong.
+
+### The counter-intuitive ruling: `Fairy Tail - Sleeper` hits its OWN side
+
+The replacement text becomes the **opponent's card's** text and is carried out by the **opponent**,
+so its 「相手フィールド」 means **Sleeper's own controller's field**. Sleeper flips **its own side's**
+monster face-down. Three independent confirmations — the supplement measuring the empty case
+against 「自分フィールド」, Q&A fid 9677's 「相手プレイヤーに…させる」, and the card being a FLIP monster
+for which re-arming clause ① is the payoff. Asserted in both directions and at the level of which
+**side** changed, because an implementation resolving the replacement as *Sleeper's* effect would
+hit the wrong field and a careless test would still pass.
+
+### The Q&A pair that decides what survives a substitution
+
+| Q&A | Original card | Its restriction | Applied after substitution? |
+|---|---|---|---|
+| **fid 8714** | 「埋葬されし生け贄」 | part of the resolving effect | **NO** — replaced away |
+| **fid 19695** | 「強欲で謙虚な壺」 | 「カードの効果の扱いではありません」 | **YES** — it was never part of the effect |
+
+The engine gets **both** right, and not by luck: `_resolve_link()` runs a card's
+`activation_confirmed` clauses off its own `definition.effects`, gated on `link.effect` — the
+**original** — while only the `resolve` is swapped. That is why `substitute_link_effect()`
+deliberately does not overwrite `link.effect`. Both halves are asserted against controls, and
+mutation M12 proves the gating read is load-bearing.
+
+### Mutation testing: 16 + 19 = 35 mutations, one survivor, and it found a REAL gap
+
+**Unit A: sixteen mutations, sixteen caught, zero survivors** — across the card, the primitives
+and the chain engine.
+
+**Unit B: nineteen mutations, eighteen caught on the first pass. M15 SURVIVED**, and it mattered:
+
+> **M15** — removing the `activated_by_turn_player` check from
+> `DuelEngine._activation_actions()` left the whole suite green. Nothing asserted that an
+> **unmarked** effect on a foreign card stays unavailable, so an engine that offered the turn
+> player **every one of their opponent's effects** would have passed. That is a far worse bug than
+> the one the marker was added to enable.
+
+A negative control was added (`_test_an_ORDINARY_effect_on_a_foreign_card_is_NOT_offered`), and
+M15 is now caught. **This is the third batch running in which the mutation pass found the weakness
+in the TESTS rather than in the code**, and the reason the pass is non-optional.
+
+### One existing assertion was RETARGETED, deliberately and in the open
+
+`NormalMonsterTests` carried a non-vacuity guard asserting `unimplemented.size() > 0` — *"the list
+is genuinely non-empty at this point in Phase 5, so the checks above are not passing vacuously"*.
+It was the right guard for batches 1–17 and it **failed in batch 18 for the best possible reason:
+the list is now empty, because every card is implemented.**
+
+It was **not deleted and not weakened.** What it was really protecting — that the three `== []`
+checks beside it examined a non-empty population — is now asserted directly, against the counts of
+Effect Monsters and of genuine vanilla bodies. That is a **stronger** statement than the old one
+and it does not expire. The new assertion `unimplemented == []` records the completion instead.
+This is the only pre-existing assertion batch 18 changed.
+
+### ObjectDB — the linear model holds for a FOURTH batch
+
+**347433 at exit**, +13093 over batch 17's 334340, for roughly 70 new duels: **~187 per duel**,
+against 187 (batch 17), 187 (batch 16) and 188 (batch 15). Nothing new is leaking. The **fix** —
+breaking the reference cycle at the `DuelEngine` / `GameState` root — is still owed and **must land
+before Phase 7**. Batch 18 did not have room for it and does not claim it.
 
 ## Batch 17 — COMPLETE. Nothing in it is partial or unverified.
 

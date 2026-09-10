@@ -242,6 +242,31 @@ static func _test_no_effect_monster_is_treated_as_vanilla(t: TestCase) -> void:
 			vanilla_on_the_unimplemented_list.append(card_name)
 	t.eq(vanilla_on_the_unimplemented_list, [],
 		"and nothing on that list is a vanilla body — the two categories never overlap")
-	t.is_true(unimplemented.size() > 0,
-		"the list is genuinely non-empty at this point in Phase 5, so the checks above "
-		+ "are not passing vacuously")
+	# --- The non-vacuity guard, RETARGETED because its premise expired. ---
+	#
+	# This used to assert `unimplemented.size() > 0` — "the list is genuinely non-empty at
+	# this point in Phase 5, so the checks above are not passing vacuously". That was the
+	# right guard for every batch from 1 to 17, and it FAILED in batch 18 for the best
+	# possible reason: the card implementation phase finished, so the list is now empty.
+	#
+	# The guard is not deleted and not weakened. What it was really protecting — that the
+	# three `== []` checks above examined a non-empty population — is now asserted directly,
+	# which is a STRONGER statement than the old one and does not expire.
+	t.eq(unimplemented, [],
+		"nothing is unimplemented any more — the card implementation phase is COMPLETE, "
+		+ "which is why the old \"the list is non-empty\" guard could no longer hold")
+
+	var effect_monster_count := 0
+	var vanilla_count := 0
+	for card_name in cards.keys():
+		var def: CardDef = cards[card_name]
+		if def.is_effect_monster:
+			effect_monster_count += 1
+		elif def.is_vanilla():
+			vanilla_count += 1
+	t.is_true(effect_monster_count > 0,
+		"there are %d Effect Monsters, so the \"none is marked vanilla\" check above "
+			% effect_monster_count + "examined a real population rather than an empty one")
+	t.is_true(vanilla_count > 0,
+		"and %d genuine vanilla bodies, so the two categories are both live and the "
+			% vanilla_count + "\"they never overlap\" check is not vacuous either")

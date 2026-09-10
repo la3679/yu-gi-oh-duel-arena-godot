@@ -9,129 +9,143 @@ Gate B (the generic rules engine) is MET; nothing in Phase 4 needs revisiting.
 
 ---
 
-## 0. READ THIS FIRST — batch 17 is COMPLETE; batch 18 is the FINAL card batch
+## 0. READ THIS FIRST — the CARD IMPLEMENTATION PHASE is COMPLETE (77 / 77)
 
-**Batches 1–17 are complete. Nothing in batch 17 is partial or unverified.**
+**Batches 1–18 are complete. Nothing in batch 18 is partial or unverified. There is no card
+left to implement.**
 
-| Batch 17 unit | Status |
+| Batch 18 unit | Status |
 |---|---|
-| **R11** research — cid 12952 supplement (2022-03-26) + **three** Q&A entries (fid 20472, fid 11022, fid 262), `request_locale=ja`, plus a live re-fetch and character-for-character diff of the **English** text (identical, 378 characters) | **COMPLETE** — R11 CLOSED |
-| the opponent-decision gate (`EffectContext.ask_player()` + four `EffectPrimitives` siblings) proved by the new `HiddenInfoTests` section (**224**, +68) — **written and green BEFORE the card** | **COMPLETE** |
-| `RULES_SPEC.md` **§12.4** and **§10.10** | **COMPLETE** |
-| `Fairy Tail - Luna` (`FairyTailLunaTests`, **225**) | **COMPLETE** — it was the whole batch |
+| 0 — **R5** and **R14** research, and the batch-18 plan, committed BEFORE any code | **COMPLETE** — both CLOSED |
+| A — the Chain-Link **substitution** gate + `RULES_SPEC.md` **§10.11**, in `ChainTests` (27 → **72**), green BEFORE the card | **COMPLETE** |
+| A — `Fairy Tail - Sleeper` (`FairyTailSleeperTests`, **113**) | **COMPLETE** |
+| B — the **negation-immunity** gate + the **turn-player activation** route + `RULES_SPEC.md` **§19**, in `NegationImmunityTests` (**72**), green BEFORE the card | **COMPLETE** |
+| B — `Hidden Springs of the Far East` (`HiddenSpringsOfTheFarEastTests`, **103**) | **COMPLETE** |
 
-**Measured at this checkpoint: 9752 passed / 0 failed across 93 suites; SmokeCheck PASS; 0
-`SCRIPT ERROR`; 75 / 77 implemented, 75 / 77 tested, 2 remaining** (counts computed by
-`python Tools/build_matrix.py`, never written by hand). ObjectDB at exit: **334340** — +11589 over
-batch 16, which is ~187 per duel built against the **187** batch 16 measured and the **188** batch
-15 measured, i.e. the known linear behaviour and **not** a regression. **Previous clean HEAD:**
-`6083e48`.
+**Measured at this checkpoint: 10087 passed / 0 failed across 96 suites; SmokeCheck PASS; 0
+`SCRIPT ERROR`; 77 / 77 implemented, 77 / 77 tested, 0 remaining** (counts computed by
+`python Tools/build_matrix.py`, never written by hand). ObjectDB at exit: **347433** — +13093 over
+batch 17, ~187 per duel against the 187 measured in each of batches 16 and 17, i.e. the known
+linear behaviour and **not** a regression. **Previous clean HEAD:** `01fe26f` (unit A).
 
-### A WARNING for whoever resumes: this checkpoint was written LATE
+### ✅ CARD IMPLEMENTATION PHASE COMPLETE
 
-Batch 17's code, tests and research were all finished and green, but the batch was **never
-committed and its checkpoint was never written**. A later session found `PROJECT_STATE.md` §0 still
-saying *"batch 17 is RECOMMENDED but NOT started"* while the working tree held a complete,
-passing `Fairy Tail - Luna`, an updated `CARD_RULINGS.md` with **R11 RESOLVED**, and two new
-`RULES_SPEC.md` sections. **Nothing was lost, but nothing was provable from Git either.**
+**All 77 cards of the V1 pool are implemented and tested.** Every card's official text was
+verified against the live Konami database; every ruling that blocked a card has been settled from
+primary Japanese sources and CLOSED. **The next phase is NOT a card phase** — it is full
+integration, scripted duels and backend acceptance, and it is specified in §8 under
+**"NEXT PHASE — integration, scripted duels, backend acceptance"**.
 
-The recovery was: re-run the targeted suite (1838/1838), re-run the full suite (9752/9752), re-run
-SmokeCheck (PASS), re-scan for `SCRIPT ERROR` (0), rebuild the matrix (75/77), **run the mutation
-pass that had no record of having been run** (sixteen mutations, sixteen caught), and only then
-write this section. **The lesson is the commit, not the code:** a batch is not complete until its
-checkpoint is persisted, and "the tests pass on my machine" is not a checkpoint.
+**Do not start that phase in the same session that finished this one.**
 
-### Every one of the previous checkpoint's 9459 assertions passes UNCHANGED
+### Every one of the previous checkpoint's 9752 assertions passes — with ONE documented retargeting
 
-9752 − 9459 = **293** = 225 (`FairyTailLunaTests`, new) + 68 (`HiddenInfoTests`, added to an
-existing suite). Nothing was retired, weakened or retargeted anywhere. The one existing suite that
-changed did so **only by addition** — the opponent-decision gate belongs to the hidden-information
-subsystem, so it was put where that subsystem already lives rather than in a suite of its own.
+10087 − 9752 = **335** = 113 (`FairyTailSleeperTests`) + 103 (`HiddenSpringsOfTheFarEastTests`)
++ 72 (`NegationImmunityTests`) + 45 (`ChainTests`, 27 → 72) + 2 (`NormalMonsterTests`).
 
-### §8's standing warning has now been right SEVEN batches in a row
+**The one changed assertion, stated plainly because it is the only one in eighteen batches:**
+`NormalMonsterTests` carried a non-vacuity guard asserting `unimplemented.size() > 0`. It **failed
+in batch 18 for the best possible reason — the list is now empty.** It was not deleted and not
+weakened: what it protected (that the checks beside it examined a non-empty population) is now
+asserted **directly**, against the counts of Effect Monsters and vanilla bodies, which is stronger
+and does not expire. `unimplemented == []` records the completion in its place.
 
-**`Fairy Tail - Luna`'s clause (2) cannot be activated during the Damage Step, and its printed
-English text says nothing about the Damage Step.** cid 12952's supplement:
-「ダメージステップ中には発動できません。」 Same shape as `The Monarchs Awaken` (R12),
-`A Hero Emerges` (R15), `Honest` (R20), `Damage Condenser` (R42 Part C), `Burst Stream of
-Destruction` (R41 Part C) and `Witchcrafter Golem Aruru` (R13) before it. As with `The Monarchs
-Awaken` the restriction is satisfied by the engine's **default** (`DamageStepPermission.NONE`), so
-it cost no machinery — and it is asserted anyway, at every Damage Step sub-step. **Mutation M6
-proves that assertion is load-bearing: flipping the permission to `UNTIL_DAMAGE_CALC` fails three
-tests.** Assume §8 is wrong about "no research needed" again.
+### §8's Damage Step warning was right EIGHT batches running — and this time it INVERTED
 
-### §8 was ALSO wrong about which branches are live
+`Fairy Tail - Sleeper` clause ①: 「ダメージステップ中に条件を満たした場合でも発動できます。」 — it **CAN**
+be activated during the Damage Step. Seven previous cards' supplements each carried a Damage Step
+**restriction** the English omitted; this one carries a **permission**, and taking the engine's
+default would have been **wrong**. It is not a quirk: the ordinary way a Flip monster is turned
+face-up is by being attacked. Clause ② carries the usual refusal, and the two are asserted against
+the same gate at the same sub-step so neither answer can be the gate replying uniformly.
 
-§8 reasoned that the negation branch was **unreachable from the printed decks**, because deck 2
-holds one copy of each card and so a card sharing a name with a monster on the field could not
-also be in the Deck. **Both decks in fact hold a duplicate.** The branch is live on the real decks
-and is tested against them. §8 has now mispredicted "not live" or "no research needed" in **seven
-consecutive batches**; treat every such claim in §8 as a hypothesis, never as a finding.
+### §8 was wrong about SCOPE twice more — in BOTH directions, for the eighth batch running
 
-### The one fact worth carrying forward: "return BOTH X and Y" can be ALL OR NONE
+* **optimistically:** §8 said `Fairy Tail - Sleeper` needed no research beyond its mechanism. The
+  supplement and **four** Q&A entries settled six facts the English does not state — including
+  which side of the field the card actually hits;
+* **pessimistically, for the first time:** §8 called `Hidden Springs of the Far East` "three or
+  four subsystems in one card" and led with **the Field Spell Zone**. The Field Zone, Main Phase 2,
+  the LP gain and both once-per-turn shapes **all already existed**. Two things were new, not four.
 
-`RULES_SPEC.md` **§10.10** now states it from the supplement rather than from the English:
+**Treat every §8 scope claim as a hypothesis. It has now been wrong in eight consecutive batches.**
 
-> **"Return both X and Y" is ONE process over two cards. A card's own supplement may make it
-> all-or-none — and when it does, a survivor is NOT returned on its own.**
+### The two facts worth carrying forward
 
-For this card the re-check names the **Monster Zone** and nothing else. If either `Fairy Tail -
-Luna` or the target has left it, **nothing happens at all**, and the opponent is not even offered
-the negation. This sits deliberately beside the three sections it is easily confused with:
+**1. Substitution is a THIRD operation on a Chain Link** (`RULES_SPEC.md` **§10.11**). Not
+activation negation, not effect negation: the card still activated, still occupies its link, still
+resolves, and a Normal Spell still reaches the Graveyard as a **resolved** card. Only the text is
+different.
 
-* **§10.6** — a dead **TARGET** costs only the sentences that name it;
-* **§10.8** — a failed **ACTIVATION REQUIREMENT** costs the **entire** resolution;
-* **§10.9** — a **property of the target the text names**, failing at resolution, costs exactly
-  the clauses the card's own supplement says it costs;
-* **§10.10** — a **multi-card process** the supplement makes indivisible costs **all** of itself.
+> The replacement becomes the **substituted card's** text and is carried out by **its**
+> controller — so a replacement worded "your opponent" means the opponent **of the substituted
+> card's controller**. `Fairy Tail - Sleeper` therefore flips a monster on its **OWN** side.
 
-§12.4 records the second general rule this card produced — *a decision made during resolution by
-the player who does NOT control the effect*. The engine had exactly one `decider` per resolving
-link before this batch; it now carries a controller **table**, and `ask_player()` refuses a
-misaddressed request loudly rather than quietly asking the wrong person.
+That reads like a bug and is not; it is confirmed three ways (the supplement's 「自分フィールド」, Q&A
+fid 9677's 「相手プレイヤーに…させる」, and the card being a FLIP monster for which re-arming clause ①
+is the payoff). **And what survives a substitution is decided by one design decision:**
+`ChainLink.effect` is deliberately **not** overwritten, so `_resolve_link()` still runs the card's
+`activation_confirmed` clauses off its own definition. That is exactly why fid 8714's in-effect
+restriction is replaced away while fid 19695's activation restriction survives — **both official,
+both asserted, and opposite in outcome.**
 
-**And the reading English readers get backwards:** "your opponent **can** send … to negate this
-effect" is **not a cost and not a Chain Link**. It is a **resolution process** inside this effect
-(fid 20472), so its legality is checked when it is reached, nothing is refunded if it cannot be
-done, and an ordinary "when this card is sent to the GY" trigger sees it. A player with no legal
-payment, a player who declines, and a player prevented from paying by
-「マクロコスモス」 all reach the **same** outcome —
-「墓地へ送らなかった場合」 covers all three — and the gate proves that outcome is reached
-**without leaking** whether their Deck held a copy.
+**2. The eligible ACTIVATOR is not always the controller** (`RULES_SPEC.md` **§19.1**).
+「お互いのプレイヤーは、自身のメインフェイズ２に…発動できます。」 The turn player may activate
+`Hidden Springs of the Far East`'s effect **even when the opponent controls it**, and 「自分」
+throughout that clause means *the player who activated it*. **This is NOT batch 17's mechanism:**
+§12.4 routes a **decision during resolution** to a named player; this routes **eligibility to
+activate**. Do not merge them.
 
-### Mutation testing: sixteen mutations, sixteen caught, ZERO survivors
+A rules consequence that makes the card unusable for a whole turn, and is asserted: **Main Phase 2
+is reachable only through the Battle Phase**, and the player who goes first has no Battle Phase on
+turn 1 [S1 p.37] — so on turn 1 the first player has no Main Phase 2 and this effect cannot be
+activated at all.
 
-The full table is in `Reports/TEST_RESULTS.md`. This is the first batch since batch 12 in which the
-mutation pass found **nothing** — no weak test, no vacuous path, no gap. That is worth stating
-plainly rather than glossing: batches 15 and 16 each had the pass find the weakness in the
-**tests** rather than the code, and this one did not. The pass remains non-optional.
+### Mutation testing: 35 mutations, ONE survivor, and it found a real gap
 
-Note that the pass was run by the **recovering** session, not the implementing one, and there was
-no record either way. Had it found a survivor, batch 17 would have shipped broken.
+**Unit A: 16 mutations, 16 caught, zero survivors.** **Unit B: 19 mutations, 18 caught on the
+first pass.** The survivor mattered:
 
-### ObjectDB — the linear model holds for a THIRD batch, and the FIX is still owed
+> **M15** — removing the `activated_by_turn_player` check from
+> `DuelEngine._activation_actions()` left the whole suite green. Nothing asserted that an
+> **unmarked** effect on a foreign card stays unavailable, so an engine offering the turn player
+> **every one of their opponent's effects** would have passed — a far worse bug than the one the
+> marker enables.
 
-**334340 at exit**, +11589 over batch 16's 322751, for roughly 62 new duels: **~187 per duel**,
-against 187 (batch 16) and 188 (batch 15). Nothing new is leaking. The "per new assertion" ratio
-stays **retired**. What remains is the **fix** — breaking the reference cycle at the `DuelEngine` /
-`GameState` root — which must land before Phase 7 and which batch 17 again did not have room for
-and does not claim.
+A negative control was added and M15 is now caught. **Third batch running in which the mutation
+pass found the weakness in the TESTS rather than the code.** It is not optional.
+
+### The three protections are VACUOUS-PATH HAZARDS, and the suite is built around that
+
+Each of `Hidden Springs of the Far East`'s protections is observable only when something is
+actually trying to do what it prevents — "the Summon succeeded" is also what an engine that never
+negates anything reports. **Every positive assertion in `NegationImmunityTests` is paired with a
+control proving the same action IS negated, targeted or destroyed without the protection**, and
+the negators are really **activated** rather than merely Set: activation is an *action*, not a
+decision, and a `ScriptedController` never performs one on its own. That last point cost a full
+debugging pass and is worth remembering.
+
+### ObjectDB — the linear model holds for a FOURTH batch, and the FIX is still owed
+
+**347433 at exit**, +13093 over batch 17's 334340, ~**187 per duel** against 187 (batch 17), 187
+(batch 16) and 188 (batch 15). Nothing new is leaking. What remains is the **fix** — breaking the
+reference cycle at the `DuelEngine` / `GameState` root — which **must land before Phase 7** and
+which batch 18 again did not have room for and does not claim. **It is now the single highest
+non-card priority.**
 
 ### Rulings
 
-**R11 is CLOSED.** **R12, R13, R15, R20 and R42 Part D remain CLOSED** and were not reopened.
+**R5 and R14 are CLOSED.** **R11, R12, R13, R15, R20 and R42 Part D remain CLOSED** and were not
+reopened.
 
-**R1, R2, R5 and R14 remain OPEN.** R1 and R2 belong to cards that are already implemented and are
-carried as recorded questions. **R5 and R14 belong to the two cards that remain, one each, and
-they do not share a subsystem.** Do not treat either as closed.
+**No ruling that blocks a card remains open.** **R1 and R2 remain OPEN** and belong to cards that
+are already implemented and tested; they are carried as recorded questions, not as blockers.
 
 **There is no known-incorrect card left in the library.**
 
-**R35 / `Mirage Dragon` was NOT re-checked against the `ja` locale.** It has now been carried
-across **eight** checkpoints unclaimed. Batch 17 did not have the room and does not claim it.
-
-**Batch 18 is the FINAL card batch: `Fairy Tail - Sleeper` (R5) and `Hidden Springs of the Far
-East` (R14). It is specified in §8.**
+**R35 / `Mirage Dragon` was NOT re-checked against the `ja` locale.** Carried across **nine**
+checkpoints unclaimed. Batch 18 did not have the room and does not claim it. **With no card unit
+left to derail, this is now a cheap and obvious thing to close.**
 
 ---
 
@@ -444,8 +458,8 @@ Key research outputs:
 
 ## 4. Build/verification status
 
-> **The current measured numbers are in §0 above: 9459 / 9459 across 92 suites, SmokeCheck PASS,
-> 0 `SCRIPT ERROR`, 74 / 77.** The batch-4 run reproduced below is kept only as a historical record of the format;
+> **The current measured numbers are in §0 above: 10087 / 10087 across 96 suites, SmokeCheck
+> PASS, 0 `SCRIPT ERROR`, 77 / 77.** The batch-4 run reproduced below is kept only as a historical record of the format;
 > `Reports/TEST_RESULTS.md` is the authoritative per-suite breakdown.
 
 Historical run (2026-08-13, at commit `565ae0c` plus the Phase 5 batch-4 work):
@@ -692,7 +706,7 @@ the pool that needs the behaviour. Full write-up in `Reports/TEST_RESULTS.md`.
 | 2 | Per-card official text + rulings research (77 cards) | **COMPLETE** |
 | 3 | Architecture / scaffolding + Graphify index | **COMPLETE** |
 | 4 | Core rules engine | **COMPLETE** — 4b-1/4b-2/4b-3/4c done+tested |
-| 5 | Card effect library (77 cards) | **IN PROGRESS** — **74 / 77** implemented and tested (batches 1-16 all complete; **batch 17 recommended in §8, NOT started**) |
+| 5 | Card effect library (77 cards) | **COMPLETE** — **77 / 77** implemented and tested (batches 1-18 all complete). The next phase is integration / scripted duels / backend acceptance, specified in §8. |
 | 6 | Automated tests | NOT STARTED |
 | 7 | Basic playable UI | NOT STARTED |
 | 8 | Arena / presentation | NOT STARTED |
@@ -704,7 +718,7 @@ the pool that needs the behaviour. Full write-up in `Reports/TEST_RESULTS.md`.
 |---|---|
 | A — Research complete | **MET** |
 | B — Core engine complete | **MET** — every subsystem in §6a is DONE+TESTED; 630 assertions, 0 failures |
-| C — Card library complete | NOT MET |
+| C — Card library complete | **MET** — 77 / 77 implemented and tested, 10087 assertions across 96 suites, 0 failures, SmokeCheck PASS, 0 `SCRIPT ERROR` |
 | D — Playable prototype | NOT MET |
 | E — Presentation complete | NOT MET |
 | F — Final acceptance | NOT MET |
@@ -1498,11 +1512,13 @@ re-run research, or re-derive rules.
 
 > **Start here instead of reading this section top to bottom.** Everything below the "How to
 > resume" paragraph is historical. The current state is §0; the next thing to do is
-> **"Batch 17 — RECOMMENDED, NOT STARTED"** further down this section.
+> **"NEXT PHASE — integration, scripted duels, backend acceptance"** further down this section.
 >
-> **Measured now: 9459 / 9459 across 92 suites, SmokeCheck PASS, 0 `SCRIPT ERROR`, 74 / 77
-> implemented and tested, three remaining, ObjectDB 322751 (the known linear per-duel behaviour
-> — see §0).** Batch 16 closed **R12** (`The Monarchs Awaken`) and produced `RULES_SPEC.md`
+> **Measured now: 10087 / 10087 across 96 suites, SmokeCheck PASS, 0 `SCRIPT ERROR`, 77 / 77
+> implemented and tested, NONE remaining — the CARD IMPLEMENTATION PHASE is COMPLETE — ObjectDB
+> 347433 (the known linear per-duel behaviour — see §0).** Batch 18 closed **R5** and **R14** and
+> produced `RULES_SPEC.md` **§10.11** (substitution is a THIRD operation on a Chain Link) and
+> **§19** (negation immunity, and an effect activated by the TURN PLAYER). Batch 16 closed **R12** (`The Monarchs Awaken`) and produced `RULES_SPEC.md`
 > **§18** — *"unaffected" gates effect APPLICATION only; targeting, resolution, costs and battle
 > are all untouched* — and **§10.9**, a card stating its own resolution-time condition per clause.
 > Batch 15 closed **R15** and produced **§10.8** — *an activation requirement that fails by
@@ -1948,232 +1964,129 @@ outstanding and is not claimed.
   predicate half SURVIVED. Mutation testing found it; reading it had not. The clause now lives in
   exactly one place and answers identically at activation and at resolution.
 
-### Batch 18 — the FINAL card batch. PLANNED AND RESEARCHED; two units, NOT grouped.
+### Batch 18 — COMPLETE. It was the final card batch. (kept for the record; it is done, not a plan)
 
-**Two cards remain**, and `Reports/CARD_IMPLEMENTATION_MATRIX.csv` is the authoritative list.
-Both are in deck 2 (`Fairy-Tail Tribute Guard`). Each is blocked on its own OPEN ruling and
-**they do not share a subsystem.**
+Two cards, two units, deliberately not grouped. `Fairy Tail - Sleeper` (R5) in unit A with the
+Chain-Link substitution gate; `Hidden Springs of the Far East` (R14) in unit B with the
+negation-immunity gate and the turn-player activation route. **77 / 77.** The full record is in
+§0 and in `Reports/TEST_RESULTS.md`.
 
-| Card | Category | Ruling | The subsystem it needs |
-|---|---|---|---|
-| `Fairy Tail - Sleeper` | Effect Monster | **R5** | an effect that **REPLACES the text of a Chain Link already on the Chain** |
-| `Hidden Springs of the Far East` | Field Spell | **R14** | an effect on a Field Spell activated by the **TURN PLAYER** (either side), granting three lingering rules — two of them a new **negation-immunity**, the third targeting/destruction protection for **Set** Spell/Traps |
+---
 
-#### The grouping decision, and why they are NOT one unit
+## NEXT PHASE — integration, scripted duels, backend acceptance
 
-**They cannot safely be done together.** §8's standing rule — *"do NOT take more than one
-ruling-blocked card per unit, and do not group them"* — holds here for the ordinary reason: the
-point of one-subsystem-per-unit is that a **gate can be written and made green before the card
-exists**, and these two need entirely unrelated gates. `Fairy Tail - Sleeper` needs surgery on
-`ChainManager._resolve_link()`, which every card in the library resolves through;
-`Hidden Springs of the Far East` needs three additive checks in three different existing gates.
-Combining them would put a high-blast-radius change and a wide-surface change behind one
-regression run, and a failure would not say which caused it.
+**Read §0 first. The card implementation phase is COMPLETE and this is what follows it.**
+Nothing below is started. **Do not begin it in the same session that finished batch 18.**
 
-**Batch 18 is therefore TWO SEQUENTIAL UNITS, each tested, mutation-checked and committed before
-the next begins.** They are in one *batch* because they are the last two cards and the batch's
-completion criterion is 77 / 77; they are in separate *units* because their subsystems are
-disjoint.
+### What is TRUE right now, so the next session does not re-derive it
 
-**Unit A is `Fairy Tail - Sleeper` and unit B is `Hidden Springs of the Far East`**, in that
-order, for two reasons:
+| Fact | Value |
+|---|---|
+| Cards implemented / tested | **77 / 77** |
+| Full suite | **10087 / 10087 across 96 suites**, 0 failed |
+| SmokeCheck | **PASS** |
+| `SCRIPT ERROR` occurrences | **0** |
+| Scripted duel tests | **0** — the row has been zero in every checkpoint since Phase 5 began |
+| Rulings blocking a card | **none** |
+| ObjectDB at exit | **347433**, ~187 per duel, linear for four batches |
+| Targeted runner | `./Tools/run_tests.sh RunBatch18Tests` (1692 across 16 suites) |
 
-* **the invasive change goes first, while the session has the most room.** Substitution touches
-  the one function every resolving effect passes through. If it destabilises anything, that must
-  surface against a full regression with budget left to fix it — not at the end;
-* **unit B can then carry the cross-card interaction test, and unit A cannot.** Both cards are in
-  the same deck, so the interaction is live: `Hidden Springs of the Far East` says the turn
-  player's activations 「は無効化されない」, and `Fairy Tail - Sleeper` **does not negate an
-  activation** — it substitutes the resolving effect. The protection therefore does **not** stop
-  Sleeper, and that is a real assertion that can only be written once both cards exist.
+**The engine has never played a whole duel end to end in a test.** Every one of the 96 suites
+builds a board, exercises a mechanism and stops. That is the gap this phase exists to close, and
+it is the reason "the card library is finished" is **not** the same as "the game works".
 
-#### R5 is SETTLED — `Fairy Tail - Sleeper`, cid 12625
+### Unit 1 — the ObjectDB reference-cycle FIX. Do this FIRST.
 
-Supplement (2020-07-04) and **four** Q&A entries, all `request_locale=ja`. The **English** text
-was re-fetched live and diffed character for character against `Data/cards/cards.json`:
-**identical, 336 characters**.
+**This is the highest non-card priority and it has been carried, unclaimed, since batch 15.**
 
-**§8's seven-batch pattern BREAKS here, and in the opposite direction.** For the first time the
-supplement carries a Damage Step note that **grants** permission rather than withholding it:
+* it is a **fix**, not a characterisation. The measurement (~187 objects leaked per duel built,
+  stable across batches 15–18) is already done and is **not** the deliverable;
+* the cycle is at the **`DuelEngine` / `GameState` root**. `GameState` holds `players`,
+  `chain`, instances and the event signal; `DuelEngine` holds `state`, `chain`, `triggers`,
+  `summons`, `battle`, `continuous`, `flow`, `log`, and every one of those subsystems holds
+  `state` back. `state.event_emitted` is connected to two `DuelEngine`-owned receivers;
+* **it must land before Phase 7**, and it must land before the scripted-duel work below, because
+  that work multiplies the number of duels built per run by a large factor. Fixing it afterwards
+  means re-measuring everything;
+* the acceptance test is a new one: build N duels, drop every reference, and assert the ObjectDB
+  count returns to its baseline. Write that test **before** the fix, the way every gate in this
+  project has been written.
 
-* ① — 「モンスターゾーンで発動できる誘発効果です。」 and
-  「**ダメージステップ中に条件を満たした場合でも発動できます。**」 — the FLIP effect **CAN** be
-  activated during the Damage Step. It must therefore be given an explicit non-default
-  `damage_step_permission`; taking the engine default would be **wrong**, which is the exact
-  inverse of the `The Monarchs Awaken` / `Fairy Tail - Luna` case;
-* ② — 「モンスターゾーンで発動できる誘発即時効果です。」,
-  「相手が通常魔法・通常罠カードを発動した時、**その発動に直接チェーンして**発動できます。」 and
-  「ダメージステップ中には発動できません。」 — so ② must be the Chain Link **directly above**
-  the Normal Spell/Trap it answers, and it keeps the engine's default Damage Step refusal.
+### Unit 2 — scripted duels: the row that has always read zero
 
-**Whose effect the substituted text belongs to — the question §8 said the English does not settle
-— is settled, three ways over.** The substituted effect belongs to the **opponent's** Normal
-Spell/Trap card and is carried out by the **opponent**, so the 「相手フィールド」 in the replacement
-text means **`Fairy Tail - Sleeper`'s own controller's field**. Sleeper flips **its own side's**
-monster face-down:
+A **scripted duel** is a full duel driven end to end by seeded `ScriptedController`s, asserted on
+its final state and on its `DuelLog` replay payload. The infrastructure already exists and is
+tested — `TestFixtures.new_duel()`, `ScriptedController`, `DuelLog`, `ReplayTests` — so this is
+**assembly, not new engine work**, and any new engine work it turns up is a finding worth recording
+rather than a task to absorb silently.
 
-1. the supplement measures the empty case against 「**自分**フィールドに表側表示のモンスターが存在
-   しない場合でも」 — Sleeper's controller's field, which is only the relevant field if that is
-   where the replacement effect looks;
-2. fid 9677 says the effect 「**相手プレイヤーに**カードをセット（＝この場合、モンスターを裏側守備
-   表示に）**させる**」 — it makes the OPPONENT do the Setting;
-3. and the card is a **FLIP** monster, so re-arming its own ① is the design intent, not a drawback.
+What each scripted duel must assert, at minimum:
 
-**When Sleeper's controller has no face-up monster the effect still applies** and the opponent's
-card simply does nothing: 「この効果は適用され…（結果的に、発動した相手の通常魔法・通常罠カードの
-効果処理は何も行われなくなります。）」 **This is a vacuous-path trap and must be tested
-explicitly**, not left to fall out of the implementation.
+1. it **ends**, by a real win condition, inside a bounded number of turns — no hangs, no
+   force-quits, and a turn cap that fails loudly rather than passing quietly;
+2. **0 `SCRIPT ERROR`** across the whole duel;
+3. the `DuelLog` replay payload **reproduces the duel exactly** from the same seed and the same
+   controller script — same events, same order, same final board. `ReplayTests` proves the payload
+   is complete for a fragment; this proves it for a whole game;
+4. no illegal action was ever offered: assert against `get_legal_actions()` / `get_legal_responses()`
+   rather than against the board alone.
 
-**The replacement effect CHOOSES at resolution; it does not target.** The older Q&A wording is
-「相手フィールドの表側表示モンスター１体を**選んで**裏側守備表示にする」 with no 「対象」. No
-target is declared when the opponent's card was activated, and none is declared by Sleeper.
+**Use the two REAL decks** (`Blue-Eyes Dragon Guard` and `Fairy-Tail Tribute Guard`) rather than
+filler decks. That is the whole point: it is the first time the 77 cards meet each other with no
+test arranging the board.
 
-**The pair of Q&A entries that is the crown jewel — what survives the substitution.** These two
-disagree in outcome and agree in principle, and together they give the general rule:
+**Expect this to find real defects, and budget for them.** Nothing in the library has ever been
+exercised in an unarranged sequence. Cards that pass in isolation can still interact wrongly, and
+that is what this unit is for.
 
-| Q&A | The original card | Its restriction | Applied? |
-|---|---|---|---|
-| **fid 8714** (2017-03-24) | 「埋葬されし生け褭」 | 「この効果の発動後、ターン終了時まで自分はモンスターを特殊召喚できない」 — part of the resolving effect | **NO** — replaced away |
-| **fid 19695** (2017-03-24) | 「強欲で謙虚な壺」 | 「このカードを発動するターン、自分はモンスターを特殊召喚できない」 — 「カードの効果の扱いではありません」 | **YES** — it was never part of the effect |
+### Unit 3 — backend acceptance
 
-> **The substitution replaces the RESOLVING EFFECT and nothing else. A restriction that resolves
-> as part of that effect goes with it; a restriction that is not treated as a card effect — an
-> inherent activation-time restriction — survives untouched.**
+The `DuelEngine` API is already the only way anything reaches the rules, which is what makes this
+tractable. What is owed:
 
-That belongs in `RULES_SPEC.md` as a new section next to §10.6 / §10.8 / §10.9 / §10.10, and it
-is the single most likely thing for an implementation to get wrong, because the natural
-implementation (swap the `resolve` callable) gets **both** cases right only by accident and the
-natural shortcut (negate the link and add a new one) gets **both** wrong.
+* a **headless acceptance entry point** that a backend can call without the Godot scene tree, and
+  a documented contract for it;
+* **hidden-information filtering asserted at the API boundary** for a whole duel, not per
+  operation. `HiddenInfoTests` proves each operation filters; this must prove nothing leaks across
+  a full game — including the batch-17 case where "you were not asked" would itself leak that a
+  player's Deck held no copy;
+* **determinism across processes**: the same seed and script, run twice in separate invocations,
+  must produce byte-identical logs. Same-process determinism is already asserted per card;
+* the **CI wiring** in `.github/` extended to run the scripted duels, with the runner's exit code
+  authoritative (`Tools/run_tests.sh` already guarantees that).
 
-**Two further Q&A facts, neither live in the V1 pool but both recorded rather than guessed:**
+### Unit 4 — the cleanup items, none of which is now blocked by anything
 
-* **fid 9677** — with one's own 「ダーク・シムルグ」 applying 「相手はカードをセットできない」, Sleeper's
-  ② **cannot be activated at all**, because the replacement would make the opponent Set. Changing
-  a monster to face-down Defense Position counts as the opponent Setting a card for this purpose.
-  No card in the V1 pool applies such a restriction, so this is recorded, not implemented;
-* **fid 24272** (2026-01-23) — Sleeper's ② does **not** itself count as 「カードをセットする効果
-  を含む」 for another card's trigger condition. It is an effect that *changes* an effect, and it
-  is classified by what it does, not by what the replacement text says. Note this sits in
-  deliberate tension with fid 9677 and the two are **different questions** — one is a continuous
-  restriction read against the resolution, the other a trigger condition read against the
-  activation. Record both; do not collapse them.
+With no card unit left to derail, these are cheap and should simply be done:
 
-**What unit A must build BEFORE the card**, from synthetic cards, the way every gate since
-`EquipTests` has been: a **Chain-Link effect-substitution** operation on `ChainManager`. It must
-prove that the substituted link resolves the **new** text and not the old, that the substitution
-is visible to a replay, that the original card is **still the card that activated** (it is not
-negated, it is not removed from the Chain, and it still goes to the Graveyard as a resolved
-Normal Spell/Trap), that a restriction belonging to the activation survives while one belonging
-to the resolution does not, and that substituting a link that has **already resolved** or is not
-on the Chain is refused loudly rather than silently. Put it where the Chain subsystem already
-lives — ask the question rather than assuming, as batches 16 and 17 both did.
-
-#### R14 is SETTLED — `Hidden Springs of the Far East`, cid 16027
-
-Supplement (2021-01-16), `request_locale=ja`. The **English** text was re-fetched live and diffed
-character for character against `Data/cards/cards.json`: **identical, 573 characters**.
-**There are no Q&A entries for this card** — 「このカードに関連するＱ＆Ａはありません。」 — so the
-supplement is the entire authority and there is no second source to cross-check it against. Say
-so in `CARD_RULINGS.md`; an absent Q&A list is a fact about confidence, not an absence of risk.
-
-The supplement is short and every line of it is load-bearing:
-
-* ■ 「フィールドで発動できるチェーンブロックの作られる効果です。」 — the ① effect **creates a Chain
-  Block**. It is an ordinary activation that can be responded to; it is not a continuous effect
-  and not a cost;
-* ■ 「このカードがフィールドゾーンに表側表示で存在する場合、**お互いのプレイヤーは、自身のメイン
-  フェイズ２に**この効果を発動できます。」 — **either player**, in their **own** Main Phase 2. The
-  opponent of the card's controller can activate it, and gets the LP and all three protections;
-* ■ 「この効果の処理時に、『自分は５００ＬＰ回復し』の処理と、３つの『●』の効果の適用を行います。
-  （これらは**同時に**行われます。）」 — the LP gain and all three lingering rules apply **at the
-  same time**, in one resolution. There is no ordering between them to get wrong, and no case
-  where the LP is gained but a protection is not.
-
-**§8 was WRONG about this card needing a new zone, and that halves the unit.** §8 called it
-"three or four subsystems in one card" and led with **the Field Spell Zone**. The Field Spell Zone
-**already exists and is fully wired**: `Enums.Zone.FIELD_ZONE`, `PlayerState.field_zone`,
-`Enums.is_on_field_zone()`, Field Spell placement and the replacement of an existing Field Spell
-in `DuelEngine` (≈ lines 399, 720, 842), and two cards already read it
-(`ChironTheMage`, `StampingDestruction`). **Main Phase 2 already exists too**
-(`Enums.Phase.MAIN_2` plus `EffectDef.legal_phases` and `ActivationRules.phase_ok()`), and so
-does the LP gain. That is §8's **eighth** consecutive misprediction; it was wrong in the
-pessimistic direction this time rather than the optimistic one.
-
-**What is genuinely new in unit B, and it is three things, not four:**
-
-1. **an effect activated by the TURN PLAYER rather than by the controller.** Everything in
-   `ActivationRules` today asks about `controller_id`, and
-   `card_activation_timing_ok()` computes `is_turn_player := state.turn_player_id ==
-   controller_id`. This card needs a per-`EffectDef` marker saying *the eligible activator is the
-   turn player, whoever controls the card*, plus the once-per-turn being **per player** rather
-   than per card. Note this is **not** the batch-17 mechanism: batch 17 routed a *decision during
-   resolution* to a named player; this routes *eligibility to activate* to a player who is not
-   the controller. Do not try to reuse `ask_player()` for it;
-2. **negation-immunity**, in two flavours — a Summon that cannot be negated, and an *activation*
-   that cannot be negated when the activated effect **includes** a Special Summon. Nothing named
-   `cannot_be_negated` exists anywhere in `Scripts/`. Both flavours must be gates the existing
-   negation paths consult, not flags the negating cards check individually — the library already
-   has summon negation (`negate_summon_and_destroy()`) and activation negation
-   (`negate_activation_and_destroy()`), and those are the two places to gate. **The second flavour
-   needs a way to ask "does this effect include a Special Summon?"**, which is a declarative
-   property of an `EffectDef` and must not be inferred by inspecting a `resolve` callable;
-3. **targeting and destruction protection for SET Spell/Traps.** `cannot_be_targeted` exists and
-   is read in `ActivationRules.legal_targets()`, but §8 records that it is only ever asked about
-   monsters — **verify that claim before relying on it**, because §8 has now been wrong eight
-   times. The destruction half has one entry point already (`GameState.destroy()`, design
-   decision 19) and the batch-16 immunity gate is the shape to follow. Both halves are qualified
-   by **whose** effect it is — only the **opponent's** effects are blocked — which is the same
-   source-relative shape `unaffected_exempt_source_ids` needed in batch 16.
-
-**Watch for the vacuous paths in unit B; there are more of them than in any card so far.** Each
-of the three protections is only observable when something is actually trying to do the thing it
-prevents. A test that activates the effect and then asserts "the Summon succeeded" proves nothing
-unless a control proves the same Summon **is** negated without the protection. Every one of the
-three needs that paired control, and the negation-immunity ones need a **real negating card from
-the pool** on the other side, not a synthetic one, wherever the pool provides one.
-
-**And the interaction that closes the batch:** `Fairy Tail - Sleeper` (unit A) versus
-`Hidden Springs of the Far East` (unit B). Hidden Springs protects the turn player's *activations*
-from being **negated**. Sleeper does not negate an activation — it **substitutes the resolving
-effect**, and fid 24272 confirms it is classified by what it does rather than by the replacement
-text. So Sleeper **still works** through Hidden Springs' protection. Assert it in both directions,
-and assert next to it that a real activation-negation from the pool **is** stopped, so the first
-assertion cannot be passing because nothing was protected.
-
-#### The order of work for batch 18, and the completion criterion
-
-1. **Unit A** — the substitution gate (synthetic cards, green before the card), then
-   `RULES_SPEC.md`'s new section, then `Fairy Tail - Sleeper`, then its suite, then the mutation
-   pass, then targeted + full + SmokeCheck, then **commit**;
-2. **Unit B** — the three gates (each green before the card), then
-   `Hidden Springs of the Far East`, then its suite **including the cross-card interaction**, then
-   the mutation pass, then targeted + full + SmokeCheck, then **commit**;
-3. `Tools/build_matrix.py` decides the count. **If and only if it reports 77 / 77 implemented and
-   77 / 77 tested**, mark the **CARD IMPLEMENTATION PHASE COMPLETE** in §0 and §5 and record the
-   exact next-phase plan. Do not mark it from a hand count.
-
-**A batch-18 targeted runner** (`Scripts/tests/RunBatch18Tests.gd`) should follow the batch-16 /
-batch-17 shape: the new gates and the two new cards next to `ChainTests`, `TimingTests`,
-`ReplayTests`, `SummonTests`, `FlipTests`, the negation cards from the pool, and the neighbouring
-Fairy Tail cards. **The full run stays the authority for every number.**
-
-**Cleanup items, none of which should derail a card unit** — all carried, none claimed:
-
-* **`R35` / `Mirage Dragon` has still NOT been re-checked against the `ja` locale.** Eight
-  checkpoints now. The recorded conclusion was reached the `en` way that R40's methodology note
-  warns about.
-* **`docs/PROJECT_STATUS.md` is stale** and has been since before batch 13. Not read by any tool;
-  it contradicts §0, which is the authority.
+* **`R35` / `Mirage Dragon` has never been re-checked against the `ja` locale.** Carried across
+  **nine** checkpoints. The recorded conclusion — "the official database has no Q&A entry for cid
+  6196" — was reached the `en` way that R40's methodology note explicitly warns about. **This is
+  the last piece of unverified research in the project.**
 * **`Tools/build_matrix.py` hard-codes "Ruling Verified" to `PENDING`** for every card carrying a
   ruling reference (`"PENDING" if ruling else "N/A"`). The column means *"this card carries a
-  flagged ruling"*, not *"the ruling is unresolved"* — which is why R11, R12, R13, R15 and R20
-  cards all read `PENDING` although those rulings are CLOSED. `Research/CARD_RULINGS.md` is the
-  authority. Still the cheapest remaining non-card unit, and after batch 18 there is no card unit
-  left for it to derail.
+  flagged ruling"*, not *"the ruling is unresolved"* — which is why 21 cards read `PENDING`
+  although every ruling that blocks a card is CLOSED. It was left alone through batches 13–18
+  because changing the tool's semantics mid-batch would move numbers a checkpoint was reporting.
+  **That reason has now expired.** `Research/CARD_RULINGS.md` is the authority.
+* **`docs/PROJECT_STATUS.md` is stale** and has been since before batch 13. Not read by any tool;
+  it contradicts §0, which is the authority. Delete it or regenerate it from the matrix.
 * **`Spiritual Wind Art - Miyabi` reads the printed Attribute** where batch 12 established the
-  field reader is correct; never live in the V1 pool.
-* **The ObjectDB reference cycle at the `DuelEngine` / `GameState` root is a FIX, not a
-  characterisation**, and it **must land before Phase 7**.
+  field reader is correct. Never live in the V1 pool; fix it when touching that card for any other
+  reason.
+
+### The order, and the one rule that has held for eighteen batches
+
+**Unit 1, then unit 2, then unit 3.** Unit 4 is independent and can be taken whenever there is
+room. Do not start unit 2 before unit 1 lands.
+
+**And the rule that produced every clean batch in this project: build the gate first, from
+synthetic cases, and make it green BEFORE the thing that needs it.** `EquipTests`, `ControlTests`,
+`MovementTests`, `DeckAccessTests`, `CostLegalityTests`, `ImmunityTests`, the batch-17
+opponent-decision gate, batch 18's `ChainTests` substitution section and `NegationImmunityTests`
+were all written that way. **Every mutation survivor in the last four batches was a missing test,
+not a broken implementation** — so the mutation pass stays non-optional, and a survivor is a
+finding about coverage.
 
 ### Batch 16 — COMPLETE (kept for the record; it is done, not a plan)
 

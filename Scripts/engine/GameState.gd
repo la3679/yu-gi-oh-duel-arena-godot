@@ -1247,6 +1247,15 @@ func destroy(card: CardInstance, reason: Enums.MoveReason = Enums.MoveReason.DES
 	if reason == Enums.MoveReason.DESTROYED_BY_EFFECT \
 			and EffectImmunity.blocks(card, source_id):
 		return false
+	# "…also they cannot be destroyed by their opponent's card effects." Asked in the same
+	# place and for the same reason as the immunity gate above: the destroying effect never
+	# applies, so nothing that COUNTS uses of a prevention effect may be spent here, and no
+	# destruction replacement may run. Only DESTROYED_BY_EFFECT is gated — battle
+	# destruction and rules destruction are not card effects.
+	# RULES_SPEC.md 19, CARD_RULINGS.md R14 Part C.
+	if reason == Enums.MoveReason.DESTROYED_BY_EFFECT \
+			and NegationImmunity.destruction_blocked(self, card, source_id):
+		return false
 	if destruction_prevented(card, reason):
 		return false
 	return carry_out_destruction(card, reason, source_id, depth)

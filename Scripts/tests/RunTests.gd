@@ -120,7 +120,9 @@ func _initialize() -> void:
 	suites.append(MonarchsAwakenTests.run())
 	suites.append(FairyTailLunaTests.run())
 	# --- Batch 18 ---
+	suites.append(NegationImmunityTests.run())
 	suites.append(FairyTailSleeperTests.run())
+	suites.append(HiddenSpringsOfTheFarEastTests.run())
 
 	var total_passed := 0
 	var total_failed := 0

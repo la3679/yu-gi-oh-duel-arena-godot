@@ -131,6 +131,13 @@ func negate_activation(link_number: int, by_source: CardInstance) -> bool:
 	var link := link_at(link_number)
 	if link == null or link.resolved:
 		return false
+	# "If they activate a Spell/Trap Card, or monster effect, that includes an effect that
+	# Special Summons a monster, that activation cannot be negated." Gated HERE and not in
+	# `negate_effect()`: the protection names the ACTIVATION, and negating the effect while
+	# the activation stands is a different operation that stays reachable.
+	# RULES_SPEC.md 19, CARD_RULINGS.md R14 Part C.
+	if NegationImmunity.activation_negation_blocked(state, link):
+		return false
 	link.activation_negated = true
 	state.emit(GameEvent.Kind.ACTIVATION_NEGATED, {
 		"link_number": link_number,

@@ -1615,3 +1615,81 @@ with a control that proves the probe fires for an ordinary monster.
 
 `remove_counters()` is deliberately **not** gated: removing counters is most often a cost, the
 call site cannot tell a cost from an effect, and blocking a cost would contradict fid 298.
+
+---
+
+## 19. Negation immunity, and an effect activated by the TURN PLAYER — **DECIDED** (Phase 5 batch 18)
+
+Decided in `CARD_RULINGS.md` **R14**, for `Hidden Springs of the Far East`. Two unrelated
+mechanisms, recorded together because one card produced both.
+
+### 19.1 The eligible ACTIVATOR is not always the controller
+
+Every effect in the library is offered to the card's controller and to nobody else. One official
+wording breaks that:
+
+> 「このカードがフィールドゾーンに表側表示で存在する場合、**お互いのプレイヤーは、自身のメインフェイズ
+> ２に**この効果を発動できます。」
+
+Either player may activate it, in **their own** Main Phase 2 — and since a player only has a Main
+Phase 2 on their own turn, the eligible activator is exactly the **turn player**, who may be the
+**opponent of the card's controller**. 「自分」 throughout such a clause means *the player who
+activated the effect*, never *the player who controls the card*.
+
+**This is NOT batch 17's mechanism, and the two must not be merged.** §12.4 routes a **decision
+made during resolution** to a named player; this routes **eligibility to activate** to a player who
+is not the controller. A card could want either, both, or neither.
+
+*Engine:* `EffectDef.activated_by_turn_player`, read in exactly one place —
+`DuelEngine._activation_actions()`, which otherwise refuses every card the asking player does not
+control. `get_legal_actions()` already refuses anyone but the turn player in an open game state;
+the fast-window path checks it explicitly rather than inheriting it.
+*Tests:* `HiddenSpringsOfTheFarEastTests`, from the opponent's side — which is the only way to
+tell this apart from an ordinary controller-activated effect — **and with the negative control
+that an UNMARKED effect on a foreign card is still refused.** That control is not optional: the
+batch-18 mutation pass found it missing, and without it an engine offering the turn player every
+one of their opponent's effects would have passed.
+
+**A rules consequence worth stating, because it makes the card unusable for a whole turn:** Main
+Phase 2 is reachable only **through the Battle Phase**, and "the player who goes first cannot
+conduct a Battle Phase on their first turn" [S1 p.37]. So on turn 1 the first player has no Main
+Phase 2 at all, and this effect can never be activated that turn.
+
+### 19.2 "Cannot be negated", and protection for SET Spell/Traps, applied to a PLAYER
+
+Three protections, granted to a player for the rest of a turn. They are three and not one because
+the official text separates them, they are gated at three different entry points, and each is
+false in cases where the others are true.
+
+| | What it blocks | Gated in | The narrowing that is easy to lose |
+|---|---|---|---|
+| 1 | negation of that player's **Normal and Special Summons** | `DuelEngine.negate_pending_summon()` | **a FLIP Summon is NOT covered** |
+| 2 | negation of that player's **activation** | `ChainManager.negate_activation()` | only when the effect **includes a Special Summon**, and only the **activation** — negating the EFFECT stays reachable |
+| 3 | the **opponent** targeting or destroying that player's **SET** Spell/Traps | `ActivationRules.legal_targets()` and `GameState.destroy()` | **SET** only, **Spell/Trap** only, **opponent's card effects** only — battle and rules destruction are untouched, and a face-up card is not protected **including the one that granted this** |
+
+**Every one of these is a vacuous-path hazard.** A protection is observable only when something is
+actually trying to do the thing it prevents, so "the Summon succeeded" is also what an engine that
+never negates anything would report. **Every positive assertion in `NegationImmunityTests` is
+paired with a control proving the same action IS negated, targeted or destroyed without the
+protection**, and the negators are really *activated* rather than merely Set — activation is an
+action, not a decision, and a `ScriptedController` never performs one on its own.
+
+*Engine:* `Scripts/rules/NegationImmunity.gd`, plus `EffectDef.includes_special_summon` — a
+**declared** property of the printed text rather than something inferred from a `resolve` callable,
+because "includes" is about what the text says and a Special Summon that turns out to be impossible
+at resolution still counts.
+
+*State lifetime:* plain per-player restriction keys, cleared by `TurnFlow._end_of_turn_cleanup()`,
+exactly like `skip_battle_phase_this_turn`. Deliberately **not** `ContinuousEffects` restriction
+flags and deliberately **not** namespaced with `PLAYER_KEY_PREFIX`: those are wiped and rebuilt
+from the board on every recompute, which would make the protection blink out depending on what
+else happened to be face-up and would tie it to the card rather than to the turn. The official
+duration is 「このターン中」 and it attaches to a **player**, not to a card — the Field Spell stays
+on the field afterwards and grants nothing until it is activated again.
+
+**Confidence.** `Hidden Springs of the Far East` has **no official Q&A entries at all**, so the
+supplement is the entire authority and there is no second source to cross-check it against. The
+Flip Summon omission and the printed-text reading of "includes a Special Summon" are **inferences**
+and are recorded at MEDIUM confidence in R14, each asserted in both directions so a later
+correction has exactly one place to land.
+
