@@ -27,6 +27,7 @@ left to implement.**
 `python Tools/build_matrix.py`, never written by hand). ObjectDB at exit: **347433** — +13093 over
 batch 17, ~187 per duel against the 187 measured in each of batches 16 and 17, i.e. the known
 linear behaviour and **not** a regression. **Previous clean HEAD:** `01fe26f` (unit A).
+**Batch-18 commits:** `eca45d5` (unit 0 — R5 and R14 research and the plan, before any code), `01fe26f` (unit A — the substitution gate and `Fairy Tail - Sleeper`), `fda62f9` (unit B — the negation-immunity gate, `Hidden Springs of the Far East`, and the phase checkpoint). Three commits, because batch 18 was three units.
 
 ### ✅ CARD IMPLEMENTATION PHASE COMPLETE
 
