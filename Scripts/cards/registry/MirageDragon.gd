@@ -22,7 +22,8 @@ extends RefCounted
 ##      Some Continuous Trap Cards have abilities similar to the Ignition Effects or Trigger
 ##      Effects"; S1 p.53: "The effect of a card is the special ability written on it"].
 ##      `ActivationRules.card_class_activation_ok()` already draws exactly this line and no
-##      card name reaches it. R34 part D records the confidence honestly.
+##      card name reaches it. The card's official supplement (cid 6196, 2015-03-21) states
+##      this distinction outright; R34 part D and R35 Part C record it.
 ##   2. **A Counter Trap is a Trap Card.** The rulebook lists Normal, Continuous and Counter
 ##      as the three kinds of Trap Card [S1 p.30], so the lock covers activating one. Nothing
 ##      in the engine special-cases Counter Traps here and nothing should — but it is

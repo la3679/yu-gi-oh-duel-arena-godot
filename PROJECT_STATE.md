@@ -3,30 +3,80 @@
 > Persistent resume file. A new Claude Code session should read **this file first**,
 > then read only the targeted files named in §8. Do **not** recursively reread the repository.
 
-**Last updated:** 2026-09-10 (Phase 6 — the post-card phase — units 1, 2 and 3 COMPLETE)
-**Current phase:** **Phase 6 — integration, scripted full duels, backend acceptance.** Units 1–3
-are COMPLETE and the backend acceptance gate is MET; unit 4 (cleanups) is not started. Phases 0–5
-are complete and Gates A, B and C are MET. **STOP HERE: the next phase is Phase 7 (UI), and it is
-not to be started without the user's explicit instruction.**
+**Last updated:** 2026-09-10 (Phase 6 COMPLETE — units 1, 2, 3 and 4)
+**Current phase:** **Phase 6 is COMPLETE** — integration, scripted full duels, backend acceptance
+(gate MET) and the unit-4 cleanup. Phases 0–6 are complete and Gates A, B and C are MET.
+**STOP HERE: the next phase is Phase 7 (the local Human-v-Human UI). Its full plan is persisted in
+§8 under "PHASE 7 PLAN"; it is NOT started and is not to be started without the user's explicit
+instruction.**
 
 ---
 
-## 0. READ THIS FIRST — Phase 6 units 1–3 are COMPLETE, and the backend acceptance gate is MET
+## 0. READ THIS FIRST — Phase 6 is COMPLETE (units 1–4), and the backend acceptance gate is MET
 
 **The card library was already complete (77 / 77, §0b). This phase proved the GAME works: the
 ObjectDB reference cycle is fixed, the engine plays whole duels between the two real 40-card decks
 from the opening shuffle to a legitimate game over, and the backend acceptance gate is MET.
-Nothing in units 1–3 is partial or unverified. STOP HERE — Phase 7 (UI) is not to be started
-without the user's explicit instruction.**
+Unit 4 then closed the backend cleanup list. Nothing in units 1–4 is partial or unverified. STOP
+HERE — Phase 7 (UI) is planned in §8 ("PHASE 7 PLAN") and is not to be started without the user's
+explicit instruction.**
 
 | Phase 6 unit | Status |
 |---|---|
 | 1 — the ObjectDB reference-cycle FIX, with `LifetimeTests` (**16**) written and FAILING before the fix | **COMPLETE** |
 | 2 — scripted full duels: `DuelDriver` + `ScriptedDuelTests` (**231**) | **COMPLETE** |
 | 3 — backend acceptance: `BackendAcceptanceTests` (**65**) + `Tools/check_determinism.*` + CI | **COMPLETE — gate MET** |
-| 4 — cleanups (R35 `ja` re-check, `build_matrix.py` PENDING column, stale `docs/PROJECT_STATUS.md`, `Miyabi` attribute) | NOT STARTED |
+| 4 — cleanups (R35 `ja` re-check, `build_matrix.py` PENDING column, stale `docs/PROJECT_STATUS.md`, `Miyabi` attribute) | **COMPLETE** |
 
-**Measured at this checkpoint: 10422 passed / 0 failed across 99 suites; SmokeCheck PASS; 0
+### Unit 4 — the backend cleanup: COMPLETE (2026-09-10)
+
+**Measured at this checkpoint: 10433 passed / 0 failed across 99 suites; SmokeCheck PASS; 0
+`SCRIPT ERROR`; 77 / 77 implemented and tested (matrix recomputed); NO ObjectDB leak warning and
+NO "resources still in use at exit"; cross-process determinism PASS; the matrix tool's own tests
+16 / 16.** Previous clean HEAD: `5d483bc`. The unit-4 commit hash is recorded in the follow-up
+docs commit, the way every checkpoint in this file has been.
+
+**Every one of the 10422 assertions of units 1–3 passes unchanged — none changed, retargeted or
+deleted.** 10433 − 10422 = **11** = the one new `SpiritualWindArtMiyabiTests` test (150 → 161).
+
+| Item (as persisted in §8) | What was done | Evidence |
+|---|---|---|
+| **R35 / `Mirage Dragon`, `ja` re-check** | Fetched `faq_search.action?ope=4&cid=6196&request_locale=ja`: the card HAS an official supplement — **four** bullets, dated **2015-03-21** — plus exactly one related Q&A (fid 16684, 2017-03-24), which is a ruling on 「サクリボー」 that merely uses `Mirage Dragon` as the monster in its scenario. The same URL under `en` still returns the generic TCG boilerplate — the R40 bad-locale shape. **Batch 9's "no Q&A entry for cid 6196" was wrong.** Each bullet was compared with the shipped behaviour: continuous; the controller's opponent cannot make a Trap **card** activation; a Trap **effect** activation (face-up Continuous Trap, a Trap effect in the GY) is still allowed; the lock applies in **either** player's Battle Phase. **No bullet contradicts the implementation or a test, so no card code, engine code or assertion changed.** R34 part D: MEDIUM-HIGH → **HIGH**. **R35 CLOSED.** | `CARD_RULINGS.md` R35 Part C (bullets quoted, each mapped to its test) and R34 Part D; `MirageDragonTests` 121 / 121 unchanged (header comment corrected) |
+| **`Tools/build_matrix.py` "Ruling Verified"** | The column no longer prints `PENDING` for every flagged card. `CARD_RULINGS.md` §4's table gained an authoritative **Status** column — `CLOSED` / `DECIDED` / `OPEN` — and the tool now parses it, **replacing the hard-coded `RULING_FLAGGED` dict as well**. A missing table, an unknown status, a card flagged twice or a card outside the pool is an error (exit 1), never a quiet matrix. | 21 × `PENDING` → **13 CLOSED / 6 DECIDED / 2 OPEN** (+56 `N/A`); **only that column changed** (diffed against HEAD); 77 / 77 implemented and tested unchanged; new `Tools/test_build_matrix.py` (16 tests: 10 parser, 6 on the real data) wired into CI |
+| **`docs/PROJECT_STATUS.md` stale** | Regenerated from §0 and the matrix | — |
+| **`Miyabi` reads the printed Attribute** | `monster_filter(WIND)` → `field_monster_of_attribute(WIND)`, the reader `Kurenai` and `Aoi` use. `_test_a_wind_trap_monster_is_a_legal_tribute` was written **first** and run against the old code: **4 / 11 failed, and exactly the right 4** — both controls (nothing to Tribute while the WIND Trap is in the GY; runtime Attribute WIND over a blank printed one) passed, every assertion after "the Trap is offered" failed | `SpiritualWindArtMiyabiTests` 161 / 161 |
+| **Docs brought in step** | README (status, badges, tree, roadmap, limitations, rulings), `docs/TESTING.md`, `docs/RULES_AND_RULINGS.md`, `docs/ARCHITECTURE.md` (suite count), `CONTRIBUTING.md` (baseline, the stale ObjectDB guidance), `Reports/TEST_RESULTS.md`, the CI comment | — |
+
+**The status given to each flagged ruling, and why.** `CLOSED` — R3, R4, R5, R6, R7, R8, R11, R12,
+R13, R14, R15, R20 — each already carried a CLOSED/RESOLVED marker or a closing §4A entry.
+`OPEN` — R1, R2 — as every checkpoint since batch 8 has recorded. `DECIDED` — R16 and R19 have a
+written "DECIDED" entry in §4A; **R9, R10, R17 and R18 had no status recorded anywhere**. Their
+§4 notes are mechanism requirements rather than questions, and each point they name is asserted
+by name in the card's own suite (Rider: self-equip from hand or field, piercing, destruction
+replacement; Gagagashield: "TWICE per turn", "the count comes back"; Nefarious: the opponent's
+End Phase and "your own End Phase is not the timing"; Inari Fire: card-effect destruction, not
+battle, "your NEXT Standby Phase"). **No card-specific Konami Q&A was consulted for any of the six
+`DECIDED` rulings** — that is what the status says, and why it is not `CLOSED`.
+
+**Findings.**
+
+1. **The R40 methodology note was right, and this is the case it was written about.** Nine
+   checkpoints carried a negative research result that a single `ja` request disproved. No other
+   "no Q&A exists" claim remains in `CARD_RULINGS.md` that was reached the `en` way (R41 and R42
+   record `ja`-verified absences with the 「このカードに関連するＱ＆Ａはありません」 shape).
+2. **The new parser failed loudly on its first real run — on my own edit.** The Status-meaning
+   table I added under §4 was read as a ruling row (`bad ruling id 'Status'`). The fail-loudly
+   design worked; the parser now reads only the FIRST table in §4, and a test pins it.
+3. **No engine defect, no card defect.** The Miyabi divergence was known and never live.
+
+**Honest limits.** Bullet 3's Graveyard half goes through the same predicate branch as the
+face-up half but is not separately asserted in `MirageDragonTests` (no printed Trap in the pool
+activates an effect in the GY, and no contradiction required a test change). The six `DECIDED`
+rulings were not checked against Konami Q&A — not in this unit's scope. R1 and R2 stay OPEN.
+
+### Units 1–3 — the record
+
+**Measured at the units 1–3 checkpoint: 10422 passed / 0 failed across 99 suites; SmokeCheck PASS; 0
 `SCRIPT ERROR`; 77 / 77 implemented and tested (matrix recomputed, committed CSV unchanged);
 NO "ObjectDB instances were leaked at exit" warning (was 347433) and NO "resources still in use
 at exit" error (was 123); cross-process determinism PASS (6 / 6 duels byte-identical across two
@@ -326,8 +376,8 @@ are already implemented and tested; they are carried as recorded questions, not 
 
 **There is no known-incorrect card left in the library.**
 
-**R35 / `Mirage Dragon` was NOT re-checked against the `ja` locale.** Carried across **nine**
-checkpoints unclaimed. Batch 18 did not have the room and does not claim it. **With no card unit
+**R35 / `Mirage Dragon` was NOT re-checked against the `ja` locale** at batch 18 — *it was
+re-checked and CLOSED in Phase 6 unit 4 (§0)*. Carried across **nine** checkpoints unclaimed. Batch 18 did not have the room and does not claim it. **With no card unit
 left to derail, this is now a cheap and obvious thing to close.**
 
 ---
@@ -893,8 +943,8 @@ the pool that needs the behaviour. Full write-up in `Reports/TEST_RESULTS.md`.
 | 3 | Architecture / scaffolding + Graphify index | **COMPLETE** |
 | 4 | Core rules engine | **COMPLETE** — 4b-1/4b-2/4b-3/4c done+tested |
 | 5 | Card effect library (77 cards) | **COMPLETE** — **77 / 77** implemented and tested (batches 1-18 all complete). The next phase is integration / scripted duels / backend acceptance, specified in §8. |
-| 6 | Automated tests — integration, scripted full duels, backend acceptance | **Units 1–3 COMPLETE** — the ObjectDB cycle is fixed, whole duels between the real decks are played, replayed and checked, and the backend acceptance gate is MET. Unit 4 (cleanups) remains. See §0 and §8. |
-| 7 | Basic playable UI | NOT STARTED |
+| 6 | Automated tests — integration, scripted full duels, backend acceptance | **COMPLETE (units 1–4)** — the ObjectDB cycle is fixed, whole duels between the real decks are played, replayed and checked, the backend acceptance gate is MET, and the unit-4 cleanup (R35 closed, matrix ruling column, Miyabi reader, docs) is done. See §0 and §8. |
+| 7 | Basic playable UI — local Human-v-Human | NOT STARTED — planned in §8 "PHASE 7 PLAN" (units A–G, with acceptance criteria) |
 | 8 | Arena / presentation | NOT STARTED |
 | 9 | Local privacy UX | NOT STARTED |
 | 10 | Asset polish | NOT STARTED |
@@ -1512,7 +1562,7 @@ page, not on a transcription of it.
 
 **There is no known-incorrect card left in the library.**
 
-### NOT A DEFECT, but recorded so it is not rediscovered — `Miyabi` reads the printed Attribute
+### FIXED in Phase 6 unit 4 — `Miyabi` read the printed Attribute (kept for the record)
 
 `Spiritual Wind Art - Miyabi` (batch 7) filters its Tribute candidates with
 `monster_filter(WIND)`, which reads `definition.attribute`. Batch 12 established that on the
@@ -1524,7 +1574,9 @@ It is **never live in the V1 pool** — the pool's only Trap Monster is
 `The Phantom Knights of Shadow Veil` — so this is a latent divergence rather than a reachable
 bug, and it was deliberately not changed in batch 12: `Miyabi` is stable shipped code and this
 batch had no card that needed it. A batch that touches `Miyabi` for any other reason should fix
-it then.
+it then. **Fixed in Phase 6 unit 4**: `field_monster_of_attribute(WIND)`, with
+`SpiritualWindArtMiyabiTests :: a WIND Trap Monster is a legal Tribute` written first and seen
+failing (4 of its 11 assertions) against the old reader.
 
 ### CLOSED in batch 6 — Flip Summon negation (found in batch 5)
 
@@ -1573,7 +1625,7 @@ Everything previously listed here is now done and tested; see §6a and
   deck). They are recorded questions, not gaps.
 * **R3, R6, R7 and R8 are CLOSED**, settled while implementing their cards and recorded as
   **R37**, **R36**, **R39** and **R38** respectively. Do not reopen them.
-* **R34 part D was re-checked and is still MEDIUM-HIGH.** That "cannot activate Trap Cards"
+* *(Superseded in Phase 6 unit 4: the `ja` re-check found cid 6196's official supplement; R34 part D is now HIGH and R35 is CLOSED.)* **R34 part D was re-checked and is still MEDIUM-HIGH.** That "cannot activate Trap Cards"
   locks activating a Trap CARD but not activating an EFFECT of an already-face-up Trap. The
   research was done: the official Konami database has **no Q&A entry for cid 6196**, and
   Yugipedia and the Fandom wiki were unreachable (HTTP 403 / 402). [S1 p.30] and [S1 p.53] now
@@ -1670,7 +1722,7 @@ Everything previously listed here is now done and tested; see §6a and
   **R1** and **R2** belong to cards that are already implemented and are carried as recorded
   questions, not as gaps. Settle each one BEFORE writing its card, and use `request_locale=ja`
   on the Konami database — see the methodology note in **R40**.
-* **An earlier "no official Q&A exists" conclusion has NOT been re-checked and may be wrong.**
+* *(Resolved in Phase 6 unit 4 — it WAS wrong; `CARD_RULINGS.md` R35 Part C.)* **An earlier "no official Q&A exists" conclusion has NOT been re-checked and may be wrong.**
   **R35** records that the Konami database has no Q&A entry for cid 6196 (`Mirage Dragon`),
   which is why R34 part D stayed at MEDIUM-HIGH. That conclusion was reached with
   `request_locale=en`, which batch 10 discovered returns generic boilerplate for every card.
@@ -1705,12 +1757,13 @@ still open — which no longer includes any engine gap. Do **not** re-read the w
 re-run research, or re-derive rules.
 
 > **Start here instead of reading this section top to bottom.** Everything below the "How to
-> resume" paragraph is historical. The current state is §0; the next thing to do is
-> **"NEXT PHASE — integration, scripted duels, backend acceptance"** further down this section.
+> resume" paragraph is historical. The current state is §0. **The next thing to do is Phase 7,
+> planned under "PHASE 7 PLAN" further down this section — and only on the user's explicit
+> instruction.** The Phase 6 plan below it is kept as the record.
 >
-> **Measured now: 10422 / 10422 across 99 suites, SmokeCheck PASS, 0 `SCRIPT ERROR`, 77 / 77
-> implemented and tested — the CARD IMPLEMENTATION PHASE is COMPLETE, and Phase 6 units 1–3
-> (the ObjectDB fix, scripted full duels, backend acceptance) are COMPLETE — no ObjectDB leak at
+> **Measured now: 10433 / 10433 across 99 suites, SmokeCheck PASS, 0 `SCRIPT ERROR`, 77 / 77
+> implemented and tested — the CARD IMPLEMENTATION PHASE is COMPLETE, and Phase 6 units 1–4
+> (the ObjectDB fix, scripted full duels, backend acceptance, cleanup) are COMPLETE — no ObjectDB leak at
 > exit (see §0).** Batch 18 closed **R5** and **R14** and
 > produced `RULES_SPEC.md` **§10.11** (substitution is a THIRD operation on a Chain Link) and
 > **§19** (negation immunity, and an effect activated by the TURN PLAYER). Batch 16 closed **R12** (`The Monarchs Awaken`) and produced `RULES_SPEC.md`
@@ -2168,23 +2221,189 @@ negation-immunity gate and the turn-player activation route. **77 / 77.** The fu
 
 ---
 
-## NEXT PHASE — integration, scripted duels, backend acceptance
+## PHASE 7 PLAN — a functional local Human-v-Human UI. NOT STARTED.
 
-**Read §0 first.** **Units 1, 2 and 3 are COMPLETE (2026-09-10); unit 4 is not started.** The plan
-below is kept as it was written, each unit marked with what actually happened. **The phase after
-this one is Phase 7 (UI); do not start it without the user's explicit instruction.**
+**Written at the end of Phase 6 unit 4 (2026-09-10). Nothing below is implemented. Do not start
+it without the user's explicit instruction.** Functionality before polish: Phase 7 is a
+*playable* duel between two humans on one PC, with plain 2D controls. 3D, animation and
+"holographic" presentation are Phase 8 and come only after the Phase 7 gate (unit G below).
+
+### The architecture Phase 7 must preserve
+
+```
+UI (Scenes/, Scripts/ui/)
+  -> legal-action API     get_pending_decision(), get_legal_actions(), get_legal_responses(),
+                          DecisionRequest.options, submit_action()
+  -> DuelEngine           the only thing that decides legality or mutates state
+  -> semantic events      GameEvent stream, get_log_for(viewer), get_visible_state(viewer)
+  -> presentation         renders what already happened; never changes an outcome
+```
+
+**The UI is never the source of truth for legality.** It renders only options the engine offered,
+submits the player's pick, and shows the engine's verdict. It never reads `GameState`,
+`CardInstance` or `PlayerState` directly, never filters or re-derives legal options (for example,
+Tribute sets come from `DuelAction.tribute_combinations` and are never recomputed), and never
+decides what a viewer may see — `get_visible_state(viewer)` and `get_log_for(viewer)` do.
+
+### The one real design problem, measured before this plan was written
+
+The engine asks two kinds of question, and they reach a player differently (verified in code at
+this checkpoint):
+
+* **Timing-window questions are already pull-based.** `get_pending_decision()`,
+  `waiting_player()`, `get_legal_actions()` / `get_legal_responses()` and `submit_action()` let a
+  UI drive open game states and response windows with no engine change.
+* **Mid-resolution questions are PUSHED, synchronously.** Targets for a trigger, an optional
+  trigger's yes/no, trigger ordering and every choice a card makes while resolving arrive as a
+  `DecisionRequest` through `PlayerController.decide(req)`, called inside the engine's own stack
+  (`DuelEngine._choose_targets_for()` at `DuelEngine.gd:1138`; `ChainManager.resolve_chain(controllers)`).
+  A Godot UI cannot answer from inside that call on the main thread.
+
+Options, with the recommendation — **unit A must prove or disprove it with a spike before any
+board work, and record the decision as an ADR in `docs/ARCHITECTURE.md`:**
+
+1. **RECOMMENDED — a worker-thread session adapter.** The engine runs on one dedicated `Thread`.
+   A `HumanController` (a `PlayerController`) publishes each `DecisionRequest` to the UI via
+   `call_deferred` and blocks on a `Semaphore` until the UI posts an answer. The UI reads
+   `get_visible_state()` / logs only while the engine thread is parked (waiting on a decision, or
+   idle at an open state). **No engine change**; replay and determinism are untouched because
+   every answer is still recorded by `DuelLog`. Risk: thread discipline — enforce it in one class.
+2. **Make the engine resumable** (a pending mid-resolution decision as engine state instead of a
+   callback). Clean, but a large refactor of the Chain / trigger paths that every one of the 10433
+   assertions sits on. Only if option 1 fails its spike, and then behind its own gate first.
+3. **Rejected — `await` coroutines inside the engine.** The backend acceptance gate asserts
+   zero `await` / scene-tree / clock dependencies in engine code; this would break it.
+
+Two constraints any option must keep:
+
+* **Asking must not leak.** `GameEvent.Kind.DECISION_REQUESTED` / `DECISION_SUBMITTED` are
+  declared and never emitted. Whether a player is asked something can itself reveal hidden
+  information (the batch-17 case). If Phase 7 emits them or shows "waiting for opponent", the
+  batch-17 boundary test in `BackendAcceptanceTests` must stay green.
+* **Nothing may regress headless.** `run/main_scene` will be set in unit A; `SmokeCheck`, the full
+  suite and `Tools/check_determinism.*` must still pass headless with 0 `SCRIPT ERROR`.
+
+### Units, in order. Each ends with a full regression, SmokeCheck, determinism and a checkpoint.
+
+**A — engine session adapter + minimal playable board.**
+Build `EngineSession` (a `RefCounted` owning one `DuelEngine`, the controller bridge and the thread),
+`HumanController`, and the thinnest possible scene: the current prompt as text, the offered
+actions/options as buttons, a log line. Keep logic in headless-testable `RefCounted` classes; keep
+scene scripts thin.
+*Acceptance:*
+* the ADR above is written, and a spike proves a mid-resolution `DecisionRequest` (e.g. a trigger's
+  target choice) can be answered from the UI thread;
+* a new headless suite (`EngineSessionTests`) plays whole real-deck duels through `EngineSession`,
+  answering from the test thread with the `DuelDriver` policies, and each produces an event log
+  and final board **identical** to the `DuelDriver` run of the same seed and policy;
+* a scan test fails if any file under `Scripts/ui/` references `GameState`, `PlayerState`,
+  `CardInstance` fields, `ActivationRules`, `SummonRules` or `BattleRules` — the UI talks to
+  `EngineSession` only;
+* `run/main_scene` is set; F5 starts a duel with both real decks and the turn player can click an
+  offered action (a Normal Summon) and see the engine's result;
+* full regression, SmokeCheck and determinism PASS headless; 0 `SCRIPT ERROR`.
+
+**B — hand, field, Deck / GY / banished visualisation.**
+A functional 2D board rendered **only** from `get_visible_state(viewer)`: both players' 5 Monster
+Zones, 5 Spell & Trap Zones, Field Zone, Deck count, Graveyard and Banished lists, (empty) Extra
+Deck, hand, LP, turn / phase, the current Chain with link numbers, positions (ATK / DEF,
+face-down), counters and Equip links, and a card-detail panel with the official text of cards the
+viewer may see.
+*Acceptance:*
+* a view-model test builds the rendered model for each viewer after **every step** of the scripted
+  duels and asserts it equals `get_visible_state(viewer)` — nothing added, nothing dropped;
+* the rendered model for one viewer never contains the identity of the other's hand, Deck or
+  face-down cards (reuse `DuelDriver`'s independently computed truth);
+* every zone in the visible state has a widget; face-down cards render as backs to the opponent.
+
+**C — legal-action prompts, targeting, choices, Chain responses.**
+A prompt for every `Enums.ActionKind` (activate card / effect, Normal / Tribute / Set / Flip
+Summon, attack and attack target, position change, phase advance, pass) and every
+`Enums.DecisionKind` (targets, yes / no, trigger order, choose effect, card choices with
+min / max counts). Response windows show the Chain and an explicit **Pass**. Each prompt shows its
+source card and `clause_text`.
+*Acceptance:*
+* a coverage test enumerates `Enums.ActionKind` and `Enums.DecisionKind` and fails if any kind has
+  no prompt handler;
+* prompts offer exactly the engine's options — the test compares the offered set with the
+  engine's list at each step of the battery;
+* the UI enforces min / max for usability, but a forged or out-of-range answer pushed through the
+  adapter is **rejected by the engine**, the state is unchanged, and the UI shows the error and
+  re-prompts;
+* every `DecisionKind` that the scripted battery reaches is exercised through the UI adapter.
+
+**D — the complete local HvH duel flow.**
+A setup screen (the two real decks, first player by the seeded coin), the full turn cycle with
+every phase, the End Phase discard, surrender for either player at any prompt, a game-over screen
+(LP 0, deck-out, surrender, and the draw result the engine can report), and a new duel afterwards.
+*Acceptance:*
+* two humans can play a duel from the opening shuffle to a legitimate game over (manual, recorded);
+* automated: all 24 scripted duels played through `EngineSession` reach the same end reason, turn
+  count and final board as `DuelDriver`;
+* playing and dropping N sessions back to back leaves ObjectDB growth at **0** and no thread
+  alive (a `LifetimeTests`-style check on `EngineSession`);
+* a duel that ends mid-resolution (LP 0 from a burn inside a Chain) closes cleanly, with no hang.
+
+**E — pass-and-play hidden-information handoff.**
+One screen, one viewer at a time. Whenever the player who must act changes — an open state, a
+response window, **or an opponent-side mid-resolution decision** (`Fairy Tail - Luna`'s opponent
+send, for example) — a handoff screen blanks the board until the next player confirms.
+*Acceptance:*
+* **the handoff policy cannot leak.** Showing a handoff only when the other player *could*
+  respond reveals their hand. The policy must depend only on public information (for example:
+  every response window of the non-acting player hands off, or a player-chosen auto-pass that
+  behaves identically whatever the hand holds). Test: the sequence of handoffs over a scripted
+  duel is **identical** when one player's hand is replaced by a hand with no legal responses;
+* after every step of the battery, the rendered viewer equals the acting player and the model
+  holds nothing outside `get_visible_state(viewer)`; the log panel uses `get_log_for(viewer)` only;
+* no frame renders one player's hidden information while the other is the viewer.
+
+**F — UX / error states, and the Phase 7 acceptance gate.**
+A rejected submission explains itself and re-prompts; "nothing legal" offers only pass / advance;
+long Chains stay readable; an engine `push_error` surfaces in a debug overlay instead of crashing;
+keyboard navigation for prompts; readable card text.
+*The gate (all must hold, measured, recorded in `Reports/TEST_RESULTS.md`):*
+* full regression, SmokeCheck and cross-process determinism PASS; 0 `SCRIPT ERROR`;
+* no ObjectDB leak after a session that plays 10 duels back to back;
+* the 24-duel battery through `EngineSession` equals `DuelDriver`;
+* every `ActionKind` / `DecisionKind` has a handler; the privacy and handoff tests pass;
+* a manual HvH checklist, performed and recorded: a Tribute Summon; a Chain of 2+ with a response
+  by the non-turn player; a Damage Step activation (`Honest`); an opponent-side decision
+  (`Fairy Tail - Luna`); a random choice (`A Hero Emerges`); a Flip effect; a control change; a
+  deck-out; a surrender.
+
+**G — only afterwards: 3D and presentation (Phase 8).**
+Presentation consumes the semantic event stream; an animation queue may delay *display* but never
+blocks, reorders or changes a rules outcome. **Not started until the unit-F gate is MET.**
+
+### Rules that carry over unchanged
+
+* **Gate first.** Every new mechanism (the adapter, the handoff policy) gets its tests written and
+  passing — or, for a fix, failing first — before anything depends on it.
+* **The mutation pass stays non-optional**, now aimed at the adapter and the privacy checks too.
+* **Any engine change Phase 7 needs is a finding, recorded and gated**, not absorbed silently.
+* **Never weaken, retarget or delete an existing assertion.**
+
+---
+
+## NEXT PHASE — integration, scripted duels, backend acceptance (COMPLETE — kept for the record)
+
+**Read §0 first.** **All four units are COMPLETE (2026-09-10).** The plan below is kept as it was
+written, each unit marked with what actually happened. **The phase after this one is Phase 7 (UI),
+planned under "PHASE 7 PLAN" above; do not start it without the user's explicit instruction.**
 
 ### What is TRUE right now, so the next session does not re-derive it
 
 | Fact | Value |
 |---|---|
 | Cards implemented / tested | **77 / 77** |
-| Full suite | **10422 / 10422 across 99 suites**, 0 failed |
+| Full suite | **10433 / 10433 across 99 suites**, 0 failed |
 | SmokeCheck | **PASS** |
 | `SCRIPT ERROR` occurrences | **0** |
 | Scripted duel tests | **24 whole duels** between the real decks (6 in `ScriptedDuelTests`, 18 in `BackendAcceptanceTests`), every one to a legitimate game over and replayed exactly |
 | Cross-process determinism | **PASS** — `Tools/check_determinism.*` |
-| Rulings blocking a card | **none** |
+| Rulings blocking a card | **none** — only R1 and R2 are OPEN (never-live branches); R35 CLOSED in unit 4 |
+| Matrix `Ruling Verified` | read from `CARD_RULINGS.md` §4's Status column: 13 CLOSED / 6 DECIDED / 2 OPEN |
 | ObjectDB at exit | **no leak warning** (was 347433, ~187 per duel) — fixed in unit 1 |
 | Targeted runner | `./Tools/run_tests.sh RunIntegrationTests` (592 across 5 suites) |
 
@@ -2252,7 +2471,7 @@ tractable. What is owed:
 * the **CI wiring** in `.github/` extended to run the scripted duels, with the runner's exit code
   authoritative (`Tools/run_tests.sh` already guarantees that).
 
-### Unit 4 — the cleanup items, none of which is now blocked by anything — **NOT STARTED**
+### Unit 4 — the cleanup items, none of which is now blocked by anything — **COMPLETE** (result in §0)
 
 With no card unit left to derail, these are cheap and should simply be done:
 

@@ -2,17 +2,18 @@
 
 [![tests](https://github.com/la3679/yu-gi-oh-duel-arena-godot/actions/workflows/tests.yml/badge.svg)](https://github.com/la3679/yu-gi-oh-duel-arena-godot/actions/workflows/tests.yml)
 [![Godot](https://img.shields.io/badge/Godot-4.7.1-478cbf)](https://godotengine.org/)
-[![cards](https://img.shields.io/badge/cards-49%2F77-orange)](Reports/CARD_IMPLEMENTATION_MATRIX.csv)
-[![assertions](https://img.shields.io/badge/assertions-5509%20passing-brightgreen)](docs/TESTING.md)
+[![cards](https://img.shields.io/badge/cards-77%2F77-brightgreen)](Reports/CARD_IMPLEMENTATION_MATRIX.csv)
+[![assertions](https://img.shields.io/badge/assertions-10433%20passing-brightgreen)](docs/TESTING.md)
 
 A deterministic, rules-aware Yu-Gi-Oh! duel engine written in GDScript for Godot 4, plus the
 local two-player duel arena that will eventually sit on top of it.
 
-> **Status: active development. Engine-first, and not yet playable by a human.**
-> Phase 5 of 11 — the card effect library. **49 of 77** cards in the target pool are
-> implemented and tested; **28 remain**. There is no player-facing UI yet, no CPU opponent,
-> and no 3D presentation. What exists is a headless rules engine with **5,509 assertions
-> passing across 63 suites**, and the research trail behind every rule it enforces.
+> **Status: the backend is complete; the game is not yet playable by a human.**
+> Phases 0–6 are done. **All 77 cards** in the target pool are implemented and tested, the
+> engine plays **whole duels** between the two real decks from the opening shuffle to a
+> legitimate game over, replays them exactly, and does so identically across processes.
+> **10,433 assertions pass across 99 suites.** There is no player-facing UI yet — that is
+> **Phase 7, which has not started** — and no CPU opponent or 3D presentation.
 
 ---
 
@@ -123,40 +124,50 @@ counts come from the last full run of the suite.
 
 | | |
 |---|---|
-| **Phase** | 5 of 11 — the card effect library |
-| **Batch** | 9, **partial**: the generic attack-restriction / attack-negation gate is complete; no batch-9 card is started |
-| **Cards implemented** | **49 / 77** |
-| **Cards tested** | **49 / 77** |
-| **Cards remaining** | **28** |
+| **Phase** | 6 of 11 — integration, scripted full duels, backend acceptance — **COMPLETE** |
+| **Next** | Phase 7, the local Human-v-Human UI — **not started** |
+| **Cards implemented** | **77 / 77** |
+| **Cards tested** | **77 / 77** |
 | **Official text verified** | **77 / 77** |
-| **Assertions** | **5,509 passed / 0 failed** |
-| **Suites** | **63** — 21 core-rules, 41 per-card, 1 interaction |
+| **Assertions** | **10,433 passed / 0 failed** |
+| **Suites** | **99** — 26 core-rules, 69 per-card, 1 interaction, 3 integration |
 | **SmokeCheck** | **PASS** |
+| **`SCRIPT ERROR`** | **0** |
+| **Scripted full duels** | **24** between the two real decks — every one ends legitimately (LP 0, deck-out or surrender) and is rebuilt event for event from its replay payload |
+| **Cross-process determinism** | **PASS** — the same duels in two separate processes are byte-identical |
+| **ObjectDB at exit** | **no leak warning** — the reference cycle was found and fixed in Phase 6 |
 | **Engine** | Godot `4.7.1.stable.official.a13da4feb`, headless |
-| **CI** | Green — the full suite runs on Ubuntu on every push and reproduces these numbers exactly |
+| **CI** | the full suite, SmokeCheck, cross-process determinism and the matrix check run on Ubuntu on every push |
 | **Gate A** — research complete | **MET** |
 | **Gate B** — core rules engine complete | **MET** |
-| **Gate C** — card library complete | not met |
-| **Gate D** — playable prototype | not met |
+| **Gate C** — card library complete | **MET** |
+| **Backend acceptance** (Phase 6) | **MET** |
+| **Gate D** — playable prototype | not met — Phase 7 |
 
 Assertion breakdown:
 
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
-| Core rules | 21 | 1,797 | 1,797 | 0 |
-| Per-card | 41 | 3,666 | 3,666 | 0 |
+| Core rules | 26 | 2,747 | 2,747 | 0 |
+| Per-card | 69 | 7,328 | 7,328 | 0 |
 | Interaction | 1 | 46 | 46 | 0 |
-| **Total** | **63** | **5,509** | **5,509** | **0** |
+| Integration — lifetime, scripted full duels, backend acceptance | 3 | 312 | 312 | 0 |
+| **Total** | **99** | **10,433** | **10,433** | **0** |
 
 **Complete engine subsystems:** turn flow, summoning (all kinds in the pool, plus Summon
 negation), the Chain and Fast Effect Timing state machine, activation legality, the Damage
 Step, battle and attack replay, continuous effects and continuous negation, the Equip
 subsystem, counters, control changes, movement and excavation, banishment and return leases,
 LP payment as a cost, Trap Monsters, Battle-Phase-skip as turn state, attack restriction and
-attack negation, hidden information, and deterministic replay.
+attack negation, immunity, Chain-Link substitution, hidden information, and deterministic
+replay.
 
-**Major remaining work:** the last 28 cards and their interaction coverage, then Phase 6
-scripted-duel acceptance, then the Phase 7 playable UI. See [Roadmap](#roadmap).
+**The headless backend contract** is the public `DuelEngine` API itself, documented in
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); `Tests/support/DuelDriver.gd` is its reference
+client, playing whole duels using nothing but that API.
+
+**Major remaining work:** Phase 7 — a *functional* local Human-v-Human interface on top of that
+API, before any visual polish. See [Roadmap](#roadmap).
 
 The authoritative internal state files, kept in the repository and updated at every
 checkpoint, are [`PROJECT_STATE.md`](PROJECT_STATE.md),
@@ -210,8 +221,8 @@ evaluation stays on the record.
 
 **Platforms.** The engine is plain GDScript with no platform-specific code. Development
 happens on **Windows 11**, and CI runs the full suite on **Ubuntu** on every push. Both
-produce **identical** results — 5,509 assertions, 0 failures, and even the same ObjectDB
-count at exit — which is a useful independent check on the engine's determinism. **macOS is
+produce **identical** results — every assertion, 0 failures, and the same whole-duel event
+logs — which is a useful independent check on the engine's determinism. **macOS is
 untested**: `Tools/run_tests.sh` should work there, but nobody has run it.
 
 There are **no package dependencies to install**, no lockfile, no `.env` file and no
@@ -344,20 +355,20 @@ python Tools/build_card_db.py
 
 ```
 =======================================
-TOTAL: 5509 passed, 0 failed (5509 assertions across 63 suite(s))
+TOTAL: 10433 passed, 0 failed (10433 assertions across 99 suite(s))
 =======================================
 RESULT: PASS
 RUNNER: PASS
 ```
 
-**Two `SCRIPT ERROR` lines on stderr are expected and are not failures.** They are printed by
-`push_error` from two tests that deliberately prove the engine fails *loudly*: `ChainTests`
-proves a missing `resolve()` is a hard error rather than a silent no-op, and
-`ContinuousTests` proves an unknown restriction flag is rejected rather than silently
-written. A run without them would mean those guards had stopped working.
+**A handful of `ERROR:` lines on stderr are expected and are not failures.** Each is printed by
+`push_error` from a test that deliberately proves the engine fails *loudly*: `ChainTests`
+proves a missing `resolve()` and an impossible Chain-Link substitution are hard errors rather
+than silent no-ops, and `ContinuousTests` proves an unknown restriction flag is rejected rather
+than silently written. A run without them would mean those guards had stopped working.
 
-You will also see `WARNING: ... ObjectDB instances were leaked at exit`. That is a known,
-tracked harness issue — see [Known limitations](#known-limitations).
+A healthy run has **no** `SCRIPT ERROR` and **no** `ObjectDB instances were leaked at exit`
+warning. The leak was a real reference cycle, fixed in Phase 6; `LifetimeTests` guards it.
 
 ### Why the wrapper scripts exist
 
@@ -505,6 +516,8 @@ boundaries — is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 │   ├── tests/
 │   │   ├── RunTests.gd            headless entry point; suites registered explicitly
 │   │   ├── SmokeCheck.gd          load card DB, build decks, construct a duel
+│   │   ├── RunIntegrationTests.gd targeted runner for the integration suites
+│   │   ├── DumpDuels.gd           per-duel digests for Tools/check_determinism.*
 │   │   ├── TestCase.gd            the assertion harness
 │   │   └── DumpAssertionCounts.gd per-suite assertion reporting
 │   ├── ui/                        empty — Phase 7
@@ -512,11 +525,12 @@ boundaries — is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 │   └── tools/                     empty
 │
 ├── Tests/
-│   ├── rules/                     21 generic rules + mechanic-gate suites
-│   ├── cards/                     41 per-card suites + 1 interaction suite
+│   ├── rules/                     26 generic rules + mechanic-gate suites
+│   ├── cards/                     69 per-card suites + 1 interaction suite
 │   ├── support/TestFixtures.gd    duel builders; never hand-roll a duel
-│   ├── interactions/              reserved for cross-card interaction suites
-│   └── integration/               reserved for Phase 6 scripted duels
+│   ├── support/DuelDriver.gd      plays a WHOLE duel through the public API
+│   ├── interactions/              reserved for further cross-card interaction suites
+│   └── integration/               LifetimeTests, ScriptedDuelTests, BackendAcceptanceTests
 │
 ├── Data/
 │   ├── cards/cards.json           77 canonical card definitions (verified official text)
@@ -528,9 +542,9 @@ boundaries — is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 │   └── provenance/                data provenance records
 │
 ├── Research/                      the rules trail — read before changing a rule
-│   ├── RULES_SPEC.md              the implementable rules contract (§1–§17)
+│   ├── RULES_SPEC.md              the implementable rules contract (§1–§19)
 │   ├── RULES_SOURCES.md           source register S1–S4: URLs, hashes, page numbers
-│   ├── CARD_RULINGS.md            per-card ruling decisions R1–R34, with confidence
+│   ├── CARD_RULINGS.md            per-card ruling decisions R1–R42, with confidence
 │   └── sources/README.md          how to fetch the primary documents (not vendored)
 │
 ├── Reports/
@@ -541,6 +555,8 @@ boundaries — is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 │   ├── run_tests.ps1              headless runner (Windows)
 │   ├── run_tests.sh               headless runner (Linux / macOS / CI)
 │   ├── build_matrix.py            generates the implementation matrix
+│   ├── test_build_matrix.py       tests for the matrix tool (unittest)
+│   ├── check_determinism.ps1/.sh  plays the scripted duels in two processes and diffs them
 │   ├── build_card_db.py           generates cards.json + the deck files
 │   ├── enumerate_cards.py         enumerates the pool from the deck CSVs
 │   ├── fetch_official_cards.py    captures official card text
@@ -701,8 +717,8 @@ See [`docs/RULES_AND_RULINGS.md`](docs/RULES_AND_RULINGS.md) for the full policy
 | Document | Role |
 |---|---|
 | [`Research/RULES_SOURCES.md`](Research/RULES_SOURCES.md) | The **source register**. For each source S1–S4: title, publisher, canonical URL, byte size, SHA-256, date accessed, and the exact list of rules it establishes, with page numbers. |
-| [`Research/RULES_SPEC.md`](Research/RULES_SPEC.md) | The **implementable rules contract**, §1–§17. Every section cites the source it came from (`[S1 p.44]`). Engine code cites these section numbers in comments. |
-| [`Research/CARD_RULINGS.md`](Research/CARD_RULINGS.md) | Per-card ruling decisions **R1–R34**, each with an explicit confidence level and the reasoning behind it. |
+| [`Research/RULES_SPEC.md`](Research/RULES_SPEC.md) | The **implementable rules contract**, §1–§19. Every section cites the source it came from (`[S1 p.44]`). Engine code cites these section numbers in comments. |
+| [`Research/CARD_RULINGS.md`](Research/CARD_RULINGS.md) | Per-card ruling decisions **R1–R42**, each with an explicit confidence level and the reasoning behind it. |
 
 ### Source hierarchy
 
@@ -719,14 +735,17 @@ See [`docs/RULES_AND_RULINGS.md`](docs/RULES_AND_RULINGS.md) for the full policy
 
 Where a ruling is a reasoned decision rather than a quoted official sentence, it is recorded
 as exactly that, with its confidence level and the reasoning. Examples currently on the
-record: **R34 part D** is MEDIUM-HIGH and explicitly flagged for re-checking against an
-official source; **R29** is MEDIUM overall (HIGH for one card, MEDIUM for the other, and the
+record: **R29** is MEDIUM overall (HIGH for one card, MEDIUM for the other, and the
 difference is explained); **R27** and **R28** rest on community-transcribed rulings and say
 so; **R25** is a reasoned decision about an instant that no official sentence names.
 
 Each of these is **asserted in tests and isolated behind a single predicate**, so a later
-correction fails loudly and lands in one place rather than drifting silently. Four rulings —
-**R3, R6, R7 and R8** — are still **OPEN**, and are listed as open.
+correction fails loudly and lands in one place rather than drifting silently. That is how
+**R34 part D** went from MEDIUM-HIGH to HIGH in Phase 6 without a line of card code changing,
+once `Mirage Dragon`'s official supplement was fetched from the right locale. Two rulings —
+**R1 and R2** — are **OPEN**, about branches never live in these decks, and are listed as open;
+every flagged ruling's status is in the Status column of `CARD_RULINGS.md` §4, and the matrix
+reads it from there.
 
 The primary source documents themselves are **not redistributed** in this repository; see
 [`Research/sources/README.md`](Research/sources/README.md) for how to fetch each one from
@@ -745,6 +764,8 @@ Nothing in the engine reads the clock, the frame counter, or unseeded randomness
 | `DuelLog.gd` | Records the seed plus every submitted action and decision answer, in order. |
 | `GameEvent` stream | A semantic description of everything that happened, with its cause. |
 | `ReplayTests` | Proves a recorded duel replays to an identical state. |
+| `ScriptedDuelTests` / `BackendAcceptanceTests` | 24 whole duels between the real decks, each rebuilt event for event from its payload alone — also through a JSON round trip. |
+| `Tools/check_determinism.*` | Plays the scripted duels in **two separate processes** and requires byte-identical output. Runs in CI. |
 
 This is not a feature for its own sake — it is the debugging tool. A rules interaction that
 goes wrong is a **reproducible** artefact rather than an anecdote: re-run the seed and the
@@ -763,7 +784,9 @@ outcome.
 The engine models visibility rather than assuming an omniscient viewer.
 `DuelEngine.get_visible_state(viewer_id)` returns the board **as that player is allowed to see
 it** — your own hand by name, your opponent's as anonymous cards, face-down cards concealed.
-This is covered by `HiddenInfoTests` (76 assertions).
+This is covered by `HiddenInfoTests` (247 assertions) and, over whole games, by `DuelDriver`,
+which checks both players' views and every move event's privacy after every step of every
+scripted duel.
 
 Implemented today:
 
@@ -784,7 +807,7 @@ exist yet**.
 
 ## Card coverage
 
-**49 / 77 implemented, 49 / 77 tested, 28 remaining.** Official text is verified for all 77.
+**77 / 77 implemented, 77 / 77 tested.** Official text is verified for all 77.
 
 The **authoritative per-card status** is
 [`Reports/CARD_IMPLEMENTATION_MATRIX.csv`](Reports/CARD_IMPLEMENTATION_MATRIX.csv) —
@@ -806,18 +829,13 @@ subsystem:
 | 6 | Flip Summon negation + control change — **completes the control-change group** | complete |
 | 7 | Movement and excavation, in four units — **completes the movement group** | complete |
 | 8 | Banishment, LP costs, Trap Monsters, Battle-Phase restriction | complete |
-| 9 | Attack restriction / negation | **unit A (the gate) only; no card started** |
+| 9 | Attack restriction / negation | complete |
+| 10–18 | The remaining 23 cards, each batch behind its own generic gate (Deck access, cost legality, immunity, opponent decisions, Chain-Link substitution, negation immunity, …) | complete — **77 / 77** |
 
-The 28 remaining cards: `A Hero Emerges`, `Back-Up Rider`, `Burst Stream of Destruction`,
-`Cards of Consonance`, `Chiron the Mage`, `Damage Condenser`, `Divine Dragon Apocralyph`,
-`Dragon Shrine`, `Fairy Tail - Luna`, `Fairy Tail - Sleeper`, `Herald of Creation`,
-`Hidden Springs of the Far East`, `Honest`, `Kaiser Sea Horse`, `Maiden with Eyes of Blue`,
-`Mirage Dragon`, `Soul Exchange`, `Spiritual Fire Art - Kurenai`, `Spiritual Water Art - Aoi`,
-`Stamping Destruction`, `Straight Flush`, `Swords of Revealing Light`, `The Monarchs Awaken`,
-`The White Stone of Legend`, `Trade-In`, `Vampiric Koala`, `White Elephant's Gift`,
-`Witchcrafter Golem Aruru`.
-
-The next card is `Mirage Dragon`, and its plan is written out in `PROJECT_STATE.md` §8.
+The two ruling columns are read from the Status column of `Research/CARD_RULINGS.md` §4:
+`Special Ruling Needed` carries the R-number (or `NO`), and `Ruling Verified` is `CLOSED`
+(13 cards — settled against an official Konami source), `DECIDED` (6 — settled from the official
+text and the rulebook while implementing), `OPEN` (2 — R1 and R2, never-live branches) or `N/A`.
 
 ---
 
@@ -858,7 +876,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full expectations.
 
 ## Roadmap
 
-Honest progression. Only the first five rows are done, and the fifth is in progress.
+Honest progression. Phases 0–6 are done; nothing from Phase 7 onward is started.
 
 | Phase | Goal | Status |
 |---|---|---|
@@ -867,16 +885,16 @@ Honest progression. Only the first five rows are done, and the fifth is in progr
 | 2 | Per-card official text and rulings research (77 cards) | **complete** |
 | 3 | Architecture and scaffolding | **complete** |
 | 4 | Core rules engine | **complete** — Gate B met |
-| **5** | **Card effect library — all 77 cards + interaction coverage** | **in progress — 49/77** |
-| 6 | Backend acceptance: full rules/card integration and scripted duel coverage | not started |
-| 7 | Local Human vs Human — same-PC / pass-and-play duel UI | not started |
+| 5 | Card effect library — all 77 cards + interaction coverage | **complete — 77 / 77**, Gate C met |
+| 6 | Backend acceptance: full rules/card integration and scripted duel coverage | **complete** — acceptance gate met |
+| **7** | **Local Human vs Human — same-PC / pass-and-play duel UI** | **next — planned in `PROJECT_STATE.md` §8; not started** |
 | 8 | Arena presentation — 3D arena, card movement, holographic / 2.5D monsters, effects, audio | not started |
 | 9 | Privacy UX — the hidden-hand handoff flow | not started |
 | 10 | Asset polish and Windows build / export packaging | not started |
 | 11 | Full acceptance | not started |
 | later | CPU player, built on the same `get_legal_actions()` API | not started |
 
-**None of Phases 6–11 is started, and nothing in this repository should be read as claiming
+**None of Phases 7–11 is started, and nothing in this repository should be read as claiming
 otherwise.**
 
 ---
@@ -885,20 +903,13 @@ otherwise.**
 
 Current and honest, taken from the internal checkpoint:
 
-* **Card coverage is incomplete.** 28 of 77 cards are `NOT_IMPLEMENTED`, and the matrix says
-  so rather than rounding up.
-* **Batch 9 is partial.** The generic gate is done; no batch-9 card is started.
 * **No playable UI.** `run/main_scene` is intentionally unset; pressing F5 will not start a
   game. That is Phase 7.
 * **No CPU opponent.** The `PlayerController` abstraction exists for one, but none is written.
 * **No 3D presentation, animation or audio.** `Scenes/` and `Assets/` are empty scaffolding.
-* **ObjectDB growth under the full suite.** The last run reported **164,444 leaked ObjectDB
-  instances at exit** — RefCounted reference cycles between `GameState`, the `DuelLog` signal
-  and test closures. It grows with the number of duels the suite builds. It causes **no test
-  failure, hang, memory pressure or unreliable result**, and no rules outcome changes, so it
-  was not allowed to derail card work — but it is **scheduled to be characterised or fixed
-  before Phase 7**, when a UI keeps one duel alive for a long session. The trend is recorded
-  checkpoint by checkpoint in `Reports/TEST_RESULTS.md` rather than explained away.
+* **Unarranged play does not reach every card.** The scripted duels activated 45 distinct
+  cards' effects without any board being arranged; a deterministic policy will not find every
+  card's window. Each card's own suite remains the authority for its behaviour.
 * **Simultaneous-LP-zero (a draw) is unexercised.** This is the only remaining item on the
   core-rules coverage list. It is a *reachability* gap rather than a missing implementation:
   no card in this 77-card pool can drive both players to 0 LP at once. This was **checked, not
@@ -909,10 +920,9 @@ Current and honest, taken from the internal checkpoint:
   Spell Counter clause, `Fairy Tail - Rella`'s equip clause). Both are fully implemented and
   tested against synthetic cards, and asserted against the real library so the fact cannot
   rot.
-* **Four rulings are open** — R3, R6, R7, R8 — and **R34 part D is MEDIUM-HIGH**, reasoned
-  from Problem-Solving Card Text rather than a quoted ruling, and explicitly flagged for
-  re-checking. It is isolated behind one predicate
-  (`ActivationRules.card_class_activation_ok()`), so correcting it is a one-place change.
+* **Two rulings are open** — R1 and R2 — both about branches that can never be live with these
+  two decks (`Runick Flashing Fire`'s Extra Deck bullet; `Judge of the Ice Barrier`'s "Ice
+  Barrier" clauses). Both cards are implemented and tested, and neither blocks anything.
 * **An End-Phase banish edge case is deliberately left open**: a card banished by an effect
   activated *during* the End Phase does not return until the *next* turn's End Phase, because
   expiry runs as the phase is entered.

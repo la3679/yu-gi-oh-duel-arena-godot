@@ -2,8 +2,8 @@ name: tests
 
 # The headless regression suite. Everything this workflow runs is the same thing a
 # developer runs locally via Tools/run_tests.sh — no CI-only code paths, and no
-# proprietary or private assets are needed: the engine and the whole 5,509-assertion
-# suite run headless from the tracked card data alone.
+# proprietary or private assets are needed: the engine and the whole suite run
+# headless from the tracked card data alone.
 
 on:
   push:
@@ -118,6 +118,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      # The matrix tool's own tests: the Research/CARD_RULINGS.md section-4 parser fails loudly
+      # on a malformed table, and the committed data still yields 77 / 77 with no PENDING.
+      - name: Test the matrix tool
+        run: python -m unittest discover -s Tools -p "test_*.py" -v
 
       # build_matrix.py computes the card implementation matrix from the registry and the
       # test suites. Regenerating it must be a no-op on a clean checkout: if it is not,

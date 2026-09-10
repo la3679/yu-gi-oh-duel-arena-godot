@@ -58,7 +58,10 @@ func effects() -> Array:
 	e.targeting(1)
 
 	# Attribute only: no ATK, Level or Race condition, and deliberately no face-up filter.
-	var wind_monster := EffectPrimitives.monster_filter(WIND)
+	# The candidates are on the FIELD, so the runtime reader, not the printed CardDef: a Trap
+	# Monster carries its Attribute in its runtime identity (R33), exactly as `Kurenai` and
+	# `Aoi` read it. Phase 6 unit 4 — this read `monster_filter(WIND)` until then.
+	var wind_monster := EffectPrimitives.field_monster_of_attribute(WIND)
 
 	e.legal_targets = func(ctx: EffectContext) -> Array:
 		return EffectPrimitives.exclude_required_tributes(ctx, EffectPrimitives.opponent_field_cards(ctx))

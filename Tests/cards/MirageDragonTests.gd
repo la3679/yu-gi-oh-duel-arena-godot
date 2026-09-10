@@ -27,11 +27,12 @@ extends RefCounted
 ##     three kinds], so the lock covers activating one. Nothing in the engine special-cases
 ##     it; the test says so out loud rather than leaving it implied.
 ##
-## `CARD_RULINGS.md` **R34 part D** is the ruling that carries this card and its confidence is
-## **MEDIUM-HIGH**. The official Konami database has **no Q&A entry for cid 6196** (checked
-## this session), so the card/effect distinction is still reasoned from [S1 p.30] and
-## [S1 p.53] plus PSCT rather than from a quoted ruling on this card. Both directions are
-## asserted here, so a later correction fails loudly in one place.
+## `CARD_RULINGS.md` **R34 part D** is the ruling that carries this card, and its confidence is
+## **HIGH**: cid 6196's official supplement (補足情報, 2015-03-21, fetched with
+## `request_locale=ja` in Phase 6 unit 4) states the card/effect distinction outright, and each
+## of its four bullets maps onto a test below — the table is in **R35 Part C**. (Batch 9 wrote
+## "no Q&A entry for cid 6196" here; that came from the `en` locale and was wrong.) Both
+## directions are asserted, so a later correction fails loudly in one place.
 
 const CARD_UNDER_TEST := "Mirage Dragon"
 

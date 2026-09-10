@@ -70,12 +70,13 @@ powershell -ExecutionPolicy Bypass -File Tools\run_tests.ps1 RunTests
 
 If Godot is not on your `PATH`, set `GODOT_BIN` (or pass `-GodotPath` on Windows).
 
-**A clean baseline is `5509 passed, 0 failed` across 63 suites, and `RESULT: PASS`.** If your
+**A clean baseline is `10433 passed, 0 failed` across 99 suites, and `RESULT: PASS`.** If your
 baseline is not green *before* you change anything, stop and open an issue — do not build on
 top of a red suite.
 
-Two `SCRIPT ERROR` lines and an `ObjectDB instances were leaked at exit` warning are
-**expected**. See [README → Running the tests](README.md#running-the-tests).
+A handful of `ERROR:` lines on stderr are **expected** — deliberate fail-loudly tests. A
+`SCRIPT ERROR` or an `ObjectDB instances were leaked at exit` warning is **not** expected, and
+is a regression. See [README → Running the tests](README.md#running-the-tests).
 
 ---
 
@@ -288,10 +289,10 @@ behaviour should update them:
 | [`Reports/TEST_RESULTS.md`](Reports/TEST_RESULTS.md) | Your suite's measured assertion count, and **every defect your tests caught** — including defects in the harness. This file is a record of what testing actually found, not a scoreboard. |
 | [`PROJECT_STATE.md`](PROJECT_STATE.md) | The checkpoint: what is complete, what is partial, what is next. Be explicit about partial work rather than rounding it up. |
 
-Report numbers as **measured**. If the ObjectDB leak count moved, record the new figure and the
-per-assertion ratio; if you do not know why it moved, say that you do not know rather than
-offering an explanation you have not measured. That convention is why the trend in
-`TEST_RESULTS.md` is still readable.
+Report numbers as **measured**. If an ObjectDB leak warning ever reappears, that is a
+regression — `LifetimeTests` should already be failing; record the figure, and if you do not
+know why it appeared, say that you do not know rather than offering an explanation you have not
+measured.
 
 ---
 

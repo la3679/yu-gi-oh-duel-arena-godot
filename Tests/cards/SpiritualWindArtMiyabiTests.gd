@@ -18,6 +18,7 @@ static func run() -> TestCase:
 	_test_the_tribute_is_a_cost_paid_at_activation(t)
 	_test_the_player_chooses_which_wind_monster(t)
 	_test_a_face_down_wind_monster_is_a_legal_tribute(t)
+	_test_a_wind_trap_monster_is_a_legal_tribute(t)
 	_test_it_cannot_be_activated_without_a_wind_monster(t)
 	_test_it_cannot_be_activated_with_an_empty_opponent_field(t)
 	_test_only_the_opponents_cards_are_legal_targets(t)
@@ -207,6 +208,41 @@ static func _test_a_face_down_wind_monster_is_a_legal_tribute(t: TestCase) -> vo
 	t.eq(hidden.zone, Enums.Zone.GRAVEYARD, "the face-down monster paid the Tribute")
 	t.eq(hidden.last_move_reason, Enums.MoveReason.TRIBUTED, "as a Tribute")
 	t.eq(victim.zone, Enums.Zone.DECK, "and the effect resolved")
+
+
+## Phase 6 unit 4. On the FIELD the Attribute is read with `current_attribute()` — a Trap
+## Monster carries it in its runtime identity and its printed `CardDef` carries none — exactly
+## as `Kurenai` and `Aoi` read it (R33, `EffectPrimitives.field_monster_of_attribute()`).
+## Never live in the V1 pool; written, and seen to FAIL, before the one-line fix.
+static func _test_a_wind_trap_monster_is_a_legal_tribute(t: TestCase) -> void:
+	t.start("a WIND Trap Monster is a legal Tribute: its Attribute lives in its RUNTIME "
+		+ "identity, which is the reader the field needs")
+	var d := TestFixtures.new_duel(7519, 0)
+	var engine: DuelEngine = d["engine"]
+	TestFixtures.advance_to_phase(engine, Enums.Phase.MAIN_1)
+	var miyabi := TestFixtures.give_set_spell_trap(engine, 0, _card_def(t))
+	var veil := TestFixtures.give(engine, 0, TestFixtures.trap_monster("Wind Veil",
+		"Winged Beast", "WIND"), Enums.Zone.GRAVEYARD)
+	var victim := TestFixtures.give_monster_on_field(engine, 1,
+		TestFixtures.monster("Their Monster", 4, 1600, 1200))
+
+	t.is_false(TestFixtures.has_action(engine.get_legal_actions(0),
+		Enums.ActionKind.ACTIVATE_CARD, miyabi.id),
+		"control: with the WIND Trap still in the Graveyard there is nothing to Tribute")
+	t.is_true(TestFixtures.activate_effect(engine, 0, veil, "summon_self_as_trap_monster"),
+		"the Trap Monster Summons itself out of the Graveyard")
+	t.is_true(veil.is_monster(), "it is now a monster")
+	t.eq(veil.current_attribute(), "WIND", "whose runtime Attribute is WIND")
+	t.eq(veil.definition.attribute, "",
+		"while the printed CardDef is blank — which is what makes this test bite")
+
+	t.is_true(TestFixtures.has_action(engine.get_legal_actions(0),
+		Enums.ActionKind.ACTIVATE_CARD, miyabi.id),
+		"so it IS a legal Tribute for the WIND cost, and the Trap is offered")
+	t.is_true(TestFixtures.activate_card(engine, 0, miyabi, [victim.id]),
+		"and the Trap is activated targeting the opponent's monster")
+	t.eq(veil.zone, Enums.Zone.GRAVEYARD, "the Trap Monster was Tributed")
+	t.eq(_bottom_of(engine, 1), victim, "and the target is on the bottom of its owner's Deck")
 
 
 static func _test_it_goes_to_the_owners_deck(t: TestCase) -> void:

@@ -147,32 +147,44 @@ Link, Pendulum, Xyz, Synchro, Fusion, Ritual Summoning; Extra Deck play; Tokens.
 These are recorded now and each must be resolved before its implementation is marked complete
 in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`. **No effect may be approximated.**
 
-| # | Card | Question to resolve |
-|---|---|---|
-| R1 | `Runick Flashing Fire` | Second bullet Special Summons a "Runick" monster **from the Extra Deck**. Both decks have an empty Extra Deck, so that branch can never have a legal target. It must still be implemented and must correctly report "no legal choice" rather than being omitted. Also: "skip your next Battle Phase" applies **on activation**, even if the chosen effect is later negated. |
-| R2 | `Judge of the Ice Barrier` | All three effects reference "Ice Barrier" monsters. Judge is the only "Ice Barrier" card in either deck, so the first (continuous) and third (GY) effects can essentially never be live. Both must still be implemented exactly. Confirm whether Judge in the **GY** counts for "If you control an 'Ice Barrier' monster" — it does not (GY is not "control"). |
-| R3 | `Maiden with Eyes of Blue` | **CLOSED — see R37.** "You can only use 1 'Maiden with Eyes of Blue' effect per turn, and only once that turn." — one allowance shared across **both** clauses, per player, per name: both carry `opt_named_effect()` and the same `in_group()` key, so using either locks out the other for the turn. Contrast `Judge of the Ice Barrier`, whose "each of the following effects … once per turn" gives one use per clause. |
-| R4 | `Chain Detonation` / `Chain Healing` | Behaviour depends on the **Chain Link number at which the card was activated**. Chain Link position must be recorded on the Chain Link and readable at resolution. |
-| R5 | `Fairy Tail - Sleeper` | **RESOLVED — see "R5 — `Fairy Tail - Sleeper`" below.** The original note was right that this is substitution and not negate-then-add. What it could not know: the substituted effect belongs to the **opponent's** card and is carried out by the **opponent**, so its 「相手フィールド」 means **Sleeper's own controller's field** — the card flips its own side's monster face-down, which is the point, because Sleeper is a FLIP monster. ① **can** be activated during the Damage Step (the first supplement in eight batches to GRANT rather than withhold), ② cannot and must chain **directly** to the Normal Spell/Trap. fid 8714 and fid 19695 together settle what survives substitution; fid 9677 and fid 24272 are recorded and never live in the V1 pool. |
-| R6 | `Swords of Revealing Light` | **CLOSED — see R36.** "you must destroy it during the End Phase of your opponent's 3rd turn" — requires a per-card turn counter. The three counted turns are the opponent's three turns after activation, and the card is destroyed in the End Phase of the third; the controller's own turns never count, because a Normal Spell is only ever activated on its controller's turn [S1 p.31]. |
-| R7 | `Soul Exchange` | **CLOSED — see R39.** "this turn, if you Tribute a monster, you must Tribute that target, as if you controlled it" — a turn-scoped lingering **material-choice constraint**, not a control change and not an extra Tribute: it binds *which* monster is chosen on both the Tribute Summon/Set route and the Tribute-**cost** route; it drops when the target leaves its Monster Zone, on a control change, on a face-up→face-down reset and at the exact end of the turn; and a still-affected target that becomes unsuitable **blocks** the Tribute rather than releasing the obligation. The Battle Phase sentence is an activation **condition**, confirmed when the Chain Link is processed — it survives EFFECT negation but not ACTIVATION negation. |
-| R8 | `Kaiser Sea Horse` | **CLOSED — see R38.** "can be treated as 2 Tributes for the Tribute Summon of a LIGHT monster" — a rules QUERY on the Attribute of the monster being SUMMONED, not on this card; permission rather than compulsion; the Tribute Summon path only, never a Tribute paid as a cost; and worth 1 while face-down or negated. |
-| R9 | `Rider of the Storm Winds` | Equips **itself** from hand or field; grants piercing; is a destruction **replacement** effect for the equipped monster. Also interacts with the rule that Equip Cards are destroyed when the equipped monster leaves the field. |
-| R10 | `Gagagashield` | "Twice per turn, it cannot be destroyed by battle or card effects" — a counted prevention effect, resetting each turn. |
-| R11 | `Fairy Tail - Luna` | **RESOLVED — see "R11 — `Fairy Tail - Luna`" below.** The original note (an opponent-side decision during resolution) was right but far from complete: cid 12952 also forbids activation **during the Damage Step**, makes the resolution-time re-check **both-or-nothing** over the MONSTER ZONE with no control re-check, offers the negation only while the target is **face-up** (a face-down target is still returned), returns each card to its **OWNER's** hand, and states that an **unaffected** target costs only itself. Q&A fid 20472 makes the send a **resolution process** whose legality is checked when reached, fid 11022 confirms ② is an ordinary Chain activation, and fid 262 permits a **Token** target. §8's claim that the negation branch is unreachable from the printed decks is **wrong** — both decks hold a duplicate. |
-| R12 | `The Monarchs Awaken` | **RESOLVED — see "R12 — `The Monarchs Awaken`" below.** The original note (an Extra Deck activation condition; a broad immunity belonging in the rules layer) was right but far from complete: cid 10963 also forbids activation **during the Damage Step**, states the whole effect **does nothing** if the target is face-down at resolution, fixes the duration at **"as long as it is face-up in the Monster Zone"**, and permits a **Normal Monster** target. The general 「効果を受けない」 Q&A narrow the immunity to **application only** — targeting, resolution, costs, Tributes and battle are all untouched — and Q&A fid 20548 / 20533 overturn the engine's guess that a **Tribute Set** monster is not "Tribute Summoned". |
-| R13 | `Witchcrafter Golem Aruru` | **RESOLVED — see "R13 — `Witchcrafter Golem Aruru`" below.** The original note (both trigger branches; the "Witchcrafter" Spell branch is never live) was right but far from complete: cid 14483 also forbids activation **during the Damage Step**, narrows the Spellcaster to **face-up in your Monster Zone**, restricts the targeting trigger to the **opponent's** activation, and states that a target that has left the field costs the bounce but **not** the Special Summon. |
-| R14 | `Hidden Springs of the Far East` | **RESOLVED — see "R14 — `Hidden Springs of the Far East`" below.** The original note was right and is confirmed verbatim: 「お互いのプレイヤーは、自身のメインフェイズ２にこの効果を発動できます」. Added: the effect **creates a Chain Block**, and the LP gain and all three ● effects are applied **simultaneously** in one resolution. **This card has NO Q&A entries**, so the supplement is the entire authority and there is no second source to cross-check against. §8's claim that it needs a new Field Spell Zone is **wrong** — the zone, Main Phase 2 and the LP gain all already exist. |
-| R15 | `A Hero Emerges` | **RESOLVED — see "R15 — `A Hero Emerges`" below.** The original note (a **random** choice from your hand, through the seeded RNG, leaking nothing) was right but far from complete: cid 5915 also forbids the activation entirely when your hand is empty **or holds no monster**, Q&A fid 12566 narrows that to "a monster this effect could actually Special Summon **right now**", and Q&A fid 8193 states that if the Special Summon has become impossible by resolution the effect is **not applied at all** — the random choice is not even made. |
-| R16 | `Five Brothers Explosion` | Second effect triggers only when the face-up card **you control** is sent to **your** GY **by your opponent's card effect** — a precise movement-reason + agent check. |
-| R17 | `Nefarious Archfiend Eater of Nefariousness` | GY effect during the **opponent's** End Phase; destroys your own face-up monster as part of the effect ("destroy it, and if you do, Special Summon this card"). |
-| R18 | `Inari Fire` | Revives itself "during your next Standby Phase after this face-up card on the field was destroyed by card effect and sent to the GY" — a delayed trigger with a specific destruction reason. |
-| R19 | `Castle of Dragon Souls` | ATK boost persists "even if this card leaves the field"; second effect triggers when the face-up card **is sent to the GY** (any reason). |
-| R20 | `Honest` | **RESOLVED — see "R20 — `Honest`" below.** The original note (a Quick Effect legal during the Damage Step, needing `UNTIL_DAMAGE_CALC`) was right but incomplete: cid 7574 also forbids activation against a **0 ATK** monster, and states the effect is activated **in the hand**. |
+| # | Card | Status | Question to resolve |
+|---|---|---|---|
+| R1 | `Runick Flashing Fire` | **OPEN** | Second bullet Special Summons a "Runick" monster **from the Extra Deck**. Both decks have an empty Extra Deck, so that branch can never have a legal target. It must still be implemented and must correctly report "no legal choice" rather than being omitted. Also: "skip your next Battle Phase" applies **on activation**, even if the chosen effect is later negated. |
+| R2 | `Judge of the Ice Barrier` | **OPEN** | All three effects reference "Ice Barrier" monsters. Judge is the only "Ice Barrier" card in either deck, so the first (continuous) and third (GY) effects can essentially never be live. Both must still be implemented exactly. Confirm whether Judge in the **GY** counts for "If you control an 'Ice Barrier' monster" — it does not (GY is not "control"). |
+| R3 | `Maiden with Eyes of Blue` | **CLOSED** | **CLOSED — see R37.** "You can only use 1 'Maiden with Eyes of Blue' effect per turn, and only once that turn." — one allowance shared across **both** clauses, per player, per name: both carry `opt_named_effect()` and the same `in_group()` key, so using either locks out the other for the turn. Contrast `Judge of the Ice Barrier`, whose "each of the following effects … once per turn" gives one use per clause. |
+| R4 | `Chain Detonation` / `Chain Healing` | **CLOSED** | Behaviour depends on the **Chain Link number at which the card was activated**. Chain Link position must be recorded on the Chain Link and readable at resolution. |
+| R5 | `Fairy Tail - Sleeper` | **CLOSED** | **RESOLVED — see "R5 — `Fairy Tail - Sleeper`" below.** The original note was right that this is substitution and not negate-then-add. What it could not know: the substituted effect belongs to the **opponent's** card and is carried out by the **opponent**, so its 「相手フィールド」 means **Sleeper's own controller's field** — the card flips its own side's monster face-down, which is the point, because Sleeper is a FLIP monster. ① **can** be activated during the Damage Step (the first supplement in eight batches to GRANT rather than withhold), ② cannot and must chain **directly** to the Normal Spell/Trap. fid 8714 and fid 19695 together settle what survives substitution; fid 9677 and fid 24272 are recorded and never live in the V1 pool. |
+| R6 | `Swords of Revealing Light` | **CLOSED** | **CLOSED — see R36.** "you must destroy it during the End Phase of your opponent's 3rd turn" — requires a per-card turn counter. The three counted turns are the opponent's three turns after activation, and the card is destroyed in the End Phase of the third; the controller's own turns never count, because a Normal Spell is only ever activated on its controller's turn [S1 p.31]. |
+| R7 | `Soul Exchange` | **CLOSED** | **CLOSED — see R39.** "this turn, if you Tribute a monster, you must Tribute that target, as if you controlled it" — a turn-scoped lingering **material-choice constraint**, not a control change and not an extra Tribute: it binds *which* monster is chosen on both the Tribute Summon/Set route and the Tribute-**cost** route; it drops when the target leaves its Monster Zone, on a control change, on a face-up→face-down reset and at the exact end of the turn; and a still-affected target that becomes unsuitable **blocks** the Tribute rather than releasing the obligation. The Battle Phase sentence is an activation **condition**, confirmed when the Chain Link is processed — it survives EFFECT negation but not ACTIVATION negation. |
+| R8 | `Kaiser Sea Horse` | **CLOSED** | **CLOSED — see R38.** "can be treated as 2 Tributes for the Tribute Summon of a LIGHT monster" — a rules QUERY on the Attribute of the monster being SUMMONED, not on this card; permission rather than compulsion; the Tribute Summon path only, never a Tribute paid as a cost; and worth 1 while face-down or negated. |
+| R9 | `Rider of the Storm Winds` | **DECIDED** | Equips **itself** from hand or field; grants piercing; is a destruction **replacement** effect for the equipped monster. Also interacts with the rule that Equip Cards are destroyed when the equipped monster leaves the field. |
+| R10 | `Gagagashield` | **DECIDED** | "Twice per turn, it cannot be destroyed by battle or card effects" — a counted prevention effect, resetting each turn. |
+| R11 | `Fairy Tail - Luna` | **CLOSED** | **RESOLVED — see "R11 — `Fairy Tail - Luna`" below.** The original note (an opponent-side decision during resolution) was right but far from complete: cid 12952 also forbids activation **during the Damage Step**, makes the resolution-time re-check **both-or-nothing** over the MONSTER ZONE with no control re-check, offers the negation only while the target is **face-up** (a face-down target is still returned), returns each card to its **OWNER's** hand, and states that an **unaffected** target costs only itself. Q&A fid 20472 makes the send a **resolution process** whose legality is checked when reached, fid 11022 confirms ② is an ordinary Chain activation, and fid 262 permits a **Token** target. §8's claim that the negation branch is unreachable from the printed decks is **wrong** — both decks hold a duplicate. |
+| R12 | `The Monarchs Awaken` | **CLOSED** | **RESOLVED — see "R12 — `The Monarchs Awaken`" below.** The original note (an Extra Deck activation condition; a broad immunity belonging in the rules layer) was right but far from complete: cid 10963 also forbids activation **during the Damage Step**, states the whole effect **does nothing** if the target is face-down at resolution, fixes the duration at **"as long as it is face-up in the Monster Zone"**, and permits a **Normal Monster** target. The general 「効果を受けない」 Q&A narrow the immunity to **application only** — targeting, resolution, costs, Tributes and battle are all untouched — and Q&A fid 20548 / 20533 overturn the engine's guess that a **Tribute Set** monster is not "Tribute Summoned". |
+| R13 | `Witchcrafter Golem Aruru` | **CLOSED** | **RESOLVED — see "R13 — `Witchcrafter Golem Aruru`" below.** The original note (both trigger branches; the "Witchcrafter" Spell branch is never live) was right but far from complete: cid 14483 also forbids activation **during the Damage Step**, narrows the Spellcaster to **face-up in your Monster Zone**, restricts the targeting trigger to the **opponent's** activation, and states that a target that has left the field costs the bounce but **not** the Special Summon. |
+| R14 | `Hidden Springs of the Far East` | **CLOSED** | **RESOLVED — see "R14 — `Hidden Springs of the Far East`" below.** The original note was right and is confirmed verbatim: 「お互いのプレイヤーは、自身のメインフェイズ２にこの効果を発動できます」. Added: the effect **creates a Chain Block**, and the LP gain and all three ● effects are applied **simultaneously** in one resolution. **This card has NO Q&A entries**, so the supplement is the entire authority and there is no second source to cross-check against. §8's claim that it needs a new Field Spell Zone is **wrong** — the zone, Main Phase 2 and the LP gain all already exist. |
+| R15 | `A Hero Emerges` | **CLOSED** | **RESOLVED — see "R15 — `A Hero Emerges`" below.** The original note (a **random** choice from your hand, through the seeded RNG, leaking nothing) was right but far from complete: cid 5915 also forbids the activation entirely when your hand is empty **or holds no monster**, Q&A fid 12566 narrows that to "a monster this effect could actually Special Summon **right now**", and Q&A fid 8193 states that if the Special Summon has become impossible by resolution the effect is **not applied at all** — the random choice is not even made. |
+| R16 | `Five Brothers Explosion` | **DECIDED** | Second effect triggers only when the face-up card **you control** is sent to **your** GY **by your opponent's card effect** — a precise movement-reason + agent check. |
+| R17 | `Nefarious Archfiend Eater of Nefariousness` | **DECIDED** | GY effect during the **opponent's** End Phase; destroys your own face-up monster as part of the effect ("destroy it, and if you do, Special Summon this card"). |
+| R18 | `Inari Fire` | **DECIDED** | Revives itself "during your next Standby Phase after this face-up card on the field was destroyed by card effect and sent to the GY" — a delayed trigger with a specific destruction reason. |
+| R19 | `Castle of Dragon Souls` | **DECIDED** | ATK boost persists "even if this card leaves the field"; second effect triggers when the face-up card **is sent to the GY** (any reason). |
+| R20 | `Honest` | **CLOSED** | **RESOLVED — see "R20 — `Honest`" below.** The original note (a Quick Effect legal during the Damage Step, needing `UNTIL_DAMAGE_CALC`) was right but incomplete: cid 7574 also forbids activation against a **0 ATK** monster, and states the effect is activated **in the hand**. |
 
-Resolution status for R1–R20 is tracked in `Reports/CARD_IMPLEMENTATION_MATRIX.csv`
-(`Special Ruling Needed` / `Ruling Verified` columns). Any question that cannot be settled from
-an official source will be escalated rather than guessed (master prompt §86).
+**The Status column is authoritative, and `Tools/build_matrix.py` reads it** into the
+`Special Ruling Needed` / `Ruling Verified` columns of `Reports/CARD_IMPLEMENTATION_MATRIX.csv`
+(added in Phase 6 unit 4; the tool used to hard-code `PENDING` for every flagged card). The
+four values, and nothing else is accepted:
+
+| Status | Meaning |
+|---|---|
+| **CLOSED** | settled against an official Konami source (a card supplement, a Q&A entry, or the card's own verified official text) and recorded in the linked entry |
+| **DECIDED** | settled while implementing the card, reasoned from its official text and the rulebook; no card-specific Konami ruling was quoted. R16 and R19 carry a written decision in §4A; for R9, R10, R17 and R18 the flagged note is a mechanism requirement, and each point it names is asserted by name in the card's suite |
+| **OPEN** | still a recorded question. R1 and R2 — both cards implemented and tested; the branches they concern are unreachable in these two decks, so neither blocks anything |
+| `N/A` (matrix only) | no card-specific ruling was flagged for the card |
+
+Changing a ruling's status means editing this table; the matrix follows on the next
+`python Tools/build_matrix.py`. Any question that cannot be settled from an official source will
+be escalated rather than guessed (master prompt §86).
 
 ---
 
@@ -742,8 +754,11 @@ change ATK/DEF may be activated. An effect that negates an attack is neither, so
 activated there, and `BattleRules.negate_attack()` refuses rather than half-applying.
 
 **Part D — "cannot activate Trap Cards" locks activating a CARD, not activating an EFFECT of a
-Trap already face-up on the field. Confidence: MEDIUM-HIGH — and this is the one part of R34
-that a future session should re-check against an official source before relying on it further.**
+Trap already face-up on the field. Confidence: HIGH (raised from MEDIUM-HIGH in Phase 6 unit 4,
+2026-09-10).** `Mirage Dragon`'s own official supplement states it outright — 「既に表側表示で
+存在する永続罠カードや墓地にて発動する罠カードの効果などの、罠カードの効果の発動を行う事は
+できます」 — see **R35 Part C**. The paragraph below is the original batch-9 reasoning, kept for
+the record; the official source agrees with it.
 
 The reasoning: PSCT distinguishes "activate a Trap Card" from "activate the effect of a card",
 and the engine already carries the distinction structurally (`EffectType.CARD_ACTIVATION` versus
@@ -791,23 +806,39 @@ board on every `ContinuousEffects.recompute()` rather than reference-counted, so
 adds nothing and a departure removes nothing while the other copy is still face-up. This is a
 real board state: `Mirage Dragon` is one of only two quantity-2 cards in the V1 pool.
 
-**Part C — the research result on R34 part D, recorded honestly.** The distinction between
-activating a Trap **CARD** and activating an **EFFECT** of a Trap already face-up on the field
-was re-checked against official sources while writing this card:
+**Part C — the research result on R34 part D. CORRECTED in Phase 6 unit 4 (2026-09-10).**
 
-* the **official Konami card database has no Q&A entry for cid 6196** — there is no ruling on
-  this card to quote;
-* **[S1 p.30]** supports the distinction generally: "Continuous Trap Cards remain on the field
-  once they are activated … Some Continuous Trap Cards have abilities similar to the Ignition
-  Effects or Trigger Effects that can be found on Effect Monster Cards", and **[S1 p.53]**
-  defines "the effect of a card" as the ability written on it, separate from the card;
-* Yugipedia and the Fandom wiki were **unreachable** (HTTP 403 and 402 respectively), so no
-  secondary source was consulted either.
+*What batch 9 recorded, kept for the record:* "the official Konami card database has no Q&A
+entry for cid 6196 — there is no ruling on this card to quote", plus [S1 p.30] / [S1 p.53] as
+general support, and Yugipedia / Fandom unreachable (HTTP 403 / 402). That negative result was
+reached with `request_locale=en`, which R40's methodology note later showed returns the
+database's generic boilerplate for every card. **It was wrong.**
 
-**R34 part D therefore stays at MEDIUM-HIGH.** The rulebook now backs it more directly than
-"PSCT alone" did, but it is still reasoned from the general rule rather than from a quoted
-ruling on this card. It remains isolated behind one predicate
-(`ActivationRules.card_class_activation_ok()`) and asserted in both directions.
+*The re-check, done the R40 way.* All PRIMARY (official Konami), fetched **2026-09-10**:
+
+| Source | What it gives | Page date |
+|---|---|---|
+| `faq_search.action?ope=4&cid=6196&request_locale=ja` — card text + 補足情報 | **four** supplement bullets, quoted below | **2015-03-21** |
+| `faq_search.action?ope=5&fid=16684&request_locale=ja` — the page's **only** related Q&A ("全1件") | a ruling on 「サクリボー」: `Mirage Dragon` appears only as the monster in the scenario (taken with 「強制転移」, then destroyed by battle). It says nothing about this card's own effect | 2017-03-24 |
+| `card_search.action?ope=2&cid=6196&request_locale=ja` — live Japanese text | 「①：このカードがモンスターゾーンに存在する限り、相手はバトルフェイズに罠カードを発動できない。」 | fetched 2026-09-10 |
+| `faq_search.action?ope=4&cid=6196&request_locale=en` — the batch-9 route, repeated as a control | the TCG site's generic navigation text only: no card text, no supplement — exactly the bad-locale shape R40 describes | fetched 2026-09-10 |
+
+The four supplement bullets, verbatim, each compared against what the engine already does:
+
+| # | Official bullet | Current behaviour | Asserted by (`MirageDragonTests`) |
+|---|---|---|---|
+| 1 | 「「ミラージュ・ドラゴン」の効果は永続効果です。」 — a continuous effect | one `CONTINUOUS` clause; no `resolve`, starts no Chain | `the card declares one continuous clause`, `the clause has no resolve and starts no chain` |
+| 2 | 「コントローラーから見て相手となるプレイヤーは、罠カードのカードの発動を行えません。」 — the controller's opponent cannot make the **card activation** of a Trap Card | `ctx.opponent_id()`; the lock is keyed on the category of a **card** activation (Part A) | `its own controller may still activate traps`, `the lock turns around when control of the source changes`, `a counter trap is a trap card and is locked` |
+| 3 | 「既に表側表示で存在する永続罠カードや墓地にて発動する罠カードの効果などの、罠カードの効果の発動を行う事はできます。」 — the **effect** activation of a Trap (a Continuous Trap already face-up, a Trap effect activated in the GY) **can** be made | `ActivationRules.card_class_activation_ok()` returns `true` for every clause whose type is not `CARD_ACTIVATION` | `an effect of an already face-up trap is still legal`. The GY half goes through the same predicate branch and is not separately asserted by this suite |
+| 4 | 「自分のターン・相手のターンのどちらのバトルフェイズでも罠カードを発動できません。」 — in the Battle Phase of **either** player's turn | the lock key is the phase alone, never the turn player | `the opponent cannot activate a set trap in the battle phase` (the Dragon's controller's turn), `it locks the turn player when the defender controls it` (the opponent's own turn) |
+
+**No bullet contradicts the implementation or its tests, so nothing was changed** — no card
+code, no engine code, no assertion. Bullet 3 is R34 part D stated outright by Konami for this
+very card, so **R34 part D is raised from MEDIUM-HIGH to HIGH**. **R35 is CLOSED.**
+
+**The methodology lesson, now confirmed a second time.** R40's note says a boilerplate response is
+evidence of a bad locale, not of an absent ruling. This is the case it was written about: nine
+checkpoints carried a "no Q&A entry" claim that a single `ja` request disproves.
 
 *Implementation:* `Scripts/cards/registry/MirageDragon.gd` — one CONTINUOUS clause calling
 `EffectPrimitives.forbid_card_activation()`. No engine change was needed.

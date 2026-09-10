@@ -15,7 +15,7 @@ your question, then go and read that document.
 | Document | What it is | Read it when |
 |---|---|---|
 | [`../Research/RULES_SOURCES.md`](../Research/RULES_SOURCES.md) | **The source register.** For each source S1–S4: title, publisher, canonical URL, byte size, SHA-256, date accessed, and the exact list of rules it establishes, with page numbers. | You need to know *where a rule came from*, or you are adding a new source. |
-| [`../Research/RULES_SPEC.md`](../Research/RULES_SPEC.md) | **The implementable rules contract**, §1–§17. The rules as the engine implements them, each section citing the source it came from. | You are implementing or changing anything rules-bearing. This is the document engine code cites in comments. |
+| [`../Research/RULES_SPEC.md`](../Research/RULES_SPEC.md) | **The implementable rules contract**, §1–§19. The rules as the engine implements them, each section citing the source it came from. | You are implementing or changing anything rules-bearing. This is the document engine code cites in comments. |
 | [`../Research/CARD_RULINGS.md`](../Research/CARD_RULINGS.md) | **Per-card ruling decisions R1–R42**, plus data discrepancies resolved against the official source, each with an explicit confidence level. | A specific card's official text is ambiguous, or you want to know why a card behaves the way it does. |
 
 The chain runs one way and is meant to be followed backwards:
@@ -102,10 +102,13 @@ Every non-obvious decision gets:
 Real examples currently on the record — this is what honest bookkeeping looks like in practice:
 
 * **R34 part D** — that "cannot activate Trap Cards" locks activating a Trap *card* but not
-  activating an *effect* of an already-face-up Trap. **MEDIUM-HIGH**, reasoned from
-  Problem-Solving Card Text rather than from a quoted ruling. It is explicitly flagged as the
-  most worthwhile piece of research for the next session, and is isolated behind one predicate
-  (`ActivationRules.card_class_activation_ok()`).
+  activating an *effect* of an already-face-up Trap. Recorded for nine checkpoints as
+  **MEDIUM-HIGH**, reasoned from Problem-Solving Card Text, with a note that the Konami database
+  had no ruling on `Mirage Dragon`. That note came from the wrong (`en`) locale. The `ja` lookup
+  in Phase 6 unit 4 found `Mirage Dragon`'s official supplement stating the distinction outright,
+  so it is now **HIGH** (R35 Part C). The behaviour did not change: it had been isolated behind
+  one predicate (`ActivationRules.card_class_activation_ok()`) and asserted in both directions
+  all along — which is exactly what made confirming it cheap.
 * **R29** — "1 card your opponent controls" is re-checked for *control* at resolution.
   **MEDIUM overall**, and the entry says why it splits: HIGH for `Spiritual Wind Art - Miyabi`,
   whose own official resolution clause says "that **opponent's** card", and MEDIUM for
@@ -118,22 +121,27 @@ Real examples currently on the record — this is what honest bookkeeping looks 
   the entry states what *is* certain (control lasts through Main Phase 2 and is gone before the
   next turn) and records the chosen instant as a reasoned decision.
 
-### Open rulings
+### Ruling status
 
-**R5, R11, R12, R14 and R15 are still OPEN**, one for each of the five cards not yet
-implemented: `Fairy Tail - Sleeper`, `Fairy Tail - Luna`, `The Monarchs Awaken`,
-`Hidden Springs of the Far East` and `A Hero Emerges`. No two of them share a subsystem, and
-none of the generic machinery they need exists yet. Do not treat any as closed.
+`CARD_RULINGS.md` §4 lists the 21 ruling-flagged cards (R1–R20) with an explicit **Status**
+column, and `Tools/build_matrix.py` reads that column into the matrix's `Ruling Verified`
+column — so the matrix can no longer disagree with the rulings file:
 
-**R1 and R2 are also still OPEN**, but they belong to cards that are already implemented
-(`Runick Flashing Fire`, `Judge of the Ice Barrier`) and are carried as recorded questions
-about branches that are never live in the V1 pool.
+| Status | Rulings | Meaning |
+|---|---|---|
+| **CLOSED** | R3, R4, R5, R6, R7, R8, R11, R12, R13, R14, R15, R20 (13 cards) | settled against an official Konami source |
+| **DECIDED** | R9, R10, R16, R17, R18, R19 (6 cards) | settled while implementing the card, from its official text and the rulebook, without a card-specific Konami ruling |
+| **OPEN** | R1, R2 (2 cards) | recorded questions about branches never live in the V1 pool; both cards are implemented and tested, and neither blocks anything |
 
-R3, R6, R7 and R8 — listed as open in earlier versions of this file — were **closed** by
-R37, R36, R39 and R38 respectively. R4, R13, R20 and R42 are closed as well.
+**No ruling blocks a card.** All 77 cards are implemented and tested.
 
-`CARD_RULINGS.md` §4 lists all 21 ruling-flagged cards; §4A holds the decided rulings R4–R42,
-each marked CLOSED or OPEN.
+**R35 (`Mirage Dragon`) is CLOSED as of Phase 6 unit 4.** Its batch-9 note said the Konami
+database had "no Q&A entry for cid 6196"; that came from the `en` locale, which returns generic
+boilerplate for every card. Fetched with `request_locale=ja`, the card has a four-bullet official
+supplement (2015-03-21). Every bullet matches the shipped behaviour and its tests, so nothing was
+changed — and one bullet states R34 part D outright, which is why that part is now HIGH.
+
+The rulings decided during implementation, R4 and R16–R42, are in `CARD_RULINGS.md` §4A.
 
 ---
 

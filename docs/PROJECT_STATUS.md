@@ -3,7 +3,8 @@
 A public-facing summary of where Duel Arena stands, synchronised from the authoritative
 internal checkpoint.
 
-**Checkpoint date:** 2026-08-14 · **Phase 5, batch 9 — PARTIAL (unit A only)**
+**Checkpoint date:** 2026-09-10 · **Phase 6 COMPLETE — the backend is finished. Phase 7 (the
+playable UI) has NOT started.**
 
 > **Sources of truth.** The numbers below are copied from
 > [`../PROJECT_STATE.md`](../PROJECT_STATE.md),
@@ -19,26 +20,27 @@ internal checkpoint.
 
 | | |
 |---|---|
-| **Phase** | 5 of 11 — the card effect library |
-| **Batch** | 9 — **partial**: the generic gate is complete, no batch-9 card is started |
-| **Cards implemented** | **49 / 77** |
-| **Cards tested** | **49 / 77** |
-| **Cards remaining** | **28** |
+| **Phase** | 6 of 11 — integration, scripted full duels, backend acceptance — **COMPLETE** |
+| **Cards implemented** | **77 / 77** |
+| **Cards tested** | **77 / 77** |
 | **Official text verified** | **77 / 77** |
-| **Assertions** | **5,509 passed / 0 failed** |
-| **Suites** | **63** |
+| **Assertions** | **10,433 passed / 0 failed** |
+| **Suites** | **99** |
 | **SmokeCheck** | **PASS** |
+| **`SCRIPT ERROR` in the full run** | **0** |
+| **Scripted full duels** | **24** between the two real 40-card decks, every one to a legitimate game over (LP 0, deck-out, surrender) and rebuilt exactly from its replay payload |
+| **Cross-process determinism** | **PASS** — the same duels played in two separate processes are byte-identical (`Tools/check_determinism.*`, in CI) |
+| **ObjectDB at exit** | **no leak warning** — the reference cycle was found and fixed in Phase 6 (it was 347,433 at exit) |
 | **Engine** | Godot `4.7.1.stable.official.a13da4feb`, headless |
-| **ObjectDB at exit** | 164,444 leaked instances — known, tracked, not a rules defect |
-| **CI** | Green. The full suite runs on Ubuntu on every push and reproduces these numbers exactly, including the ObjectDB count. |
+| **CI** | the full suite, SmokeCheck, cross-process determinism and the matrix check run on Ubuntu on every push |
 
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
-| Core rules | 21 | 1,797 | 1,797 | 0 |
-| Per-card | 41 | 3,666 | 3,666 | 0 |
+| Core rules | 26 | 2,747 | 2,747 | 0 |
+| Per-card | 69 | 7,328 | 7,328 | 0 |
 | Interaction | 1 | 46 | 46 | 0 |
-| Scripted duel | 0 | 0 | 0 | 0 |
-| **Total** | **63** | **5,509** | **5,509** | **0** |
+| Integration — lifetime, scripted full duels, backend acceptance | 3 | 312 | 312 | 0 |
+| **Total** | **99** | **10,433** | **10,433** | **0** |
 
 ---
 
@@ -51,11 +53,11 @@ internal checkpoint.
 | 2 | Per-card official text and rulings research (77 cards) | **complete** |
 | 3 | Architecture and scaffolding | **complete** |
 | 4 | Core rules engine | **complete** |
-| **5** | **Card effect library** | **in progress — 49/77** |
-| 6 | Automated acceptance / scripted duel coverage | not started |
-| 7 | Basic playable UI (local human vs human) | not started |
+| 5 | Card effect library | **complete — 77 / 77** |
+| 6 | Integration, scripted full duels, backend acceptance | **complete — acceptance gate MET** |
+| **7** | **Local Human-v-Human playable UI** | **not started — planned in `PROJECT_STATE.md` §8** |
 | 8 | Arena and presentation | not started |
-| 9 | Local privacy UX (pass-and-play handoff) | not started |
+| 9 | Local privacy UX (pass-and-play handoff) polish | not started |
 | 10 | Asset polish and packaging | not started |
 | 11 | Full acceptance | not started |
 
@@ -63,8 +65,9 @@ internal checkpoint.
 |---|---|
 | A — research complete | **MET** |
 | B — core engine complete | **MET** |
-| C — card library complete | not met |
-| D — playable prototype | not met |
+| C — card library complete | **MET** |
+| Backend acceptance (Phase 6) | **MET** |
+| D — playable prototype | not met — Phase 7 |
 | E — presentation complete | not met |
 | F — final acceptance | not met |
 
@@ -72,62 +75,45 @@ internal checkpoint.
 
 ## What is complete
 
-**Engine subsystems** — all done and under test:
+**The rules engine** — turn flow · Normal / Tribute / Flip / Special Summon · Summon declaration
+and Summon negation · the Chain and Fast Effect Timing state machine (boxes A–E) · Spell Speed ·
+activation legality · costs kept separate from effects · targeting with resolution-time
+re-validation · effect / activation / continuous negation · the Damage Step and its activation
+restriction · battle and attack replay · attack prevention vs attack negation vs a card-class
+activation lock · continuous effects · Equip · counters · control changes · movement, Deck
+placement and excavation · banishment and return leases · LP costs · Trap Monsters · immunity ·
+Chain-Link substitution · hidden information · seeded RNG, action logging and deterministic
+replay.
 
-turn flow · Normal / Tribute / Flip / Special Summon · Summon declaration and **Summon
-negation** (including Flip Summons) · the Chain and Fast Effect Timing state machine (boxes
-A–E) · Spell Speed and the response rule · activation legality · costs kept separate from
-effects · targeting with **resolution-time re-validation** · effect / activation / continuous
-negation · the five-sub-step Damage Step and its activation restriction · battle, attack
-declaration and attack replay · attack **prevention** vs attack **negation** vs card-class
-**activation lock** · Battle-Phase skip as turn state · continuous effects and the two-pass
-recompute · the Equip subsystem · counters · owner-vs-controller and control leases · movement,
-Deck placement and excavation · permanent and temporary banishment with return leases · LP
-payment as a cost · Trap Monsters · hidden information · seeded RNG, action logging and
-deterministic replay.
+**The card library** — all 77 unique cards (80 deck slots) implemented, each with its own suite.
 
-**Card batches:**
+**Phase 6 — the game works end to end, headlessly:**
 
-| Batch | Group | Status |
-|---|---|---|
-| 1 | The 9 vanilla Normal Monsters | complete |
-| 2 | Resolution-time Special Summon family | complete |
-| 3 | Continuous-Trap revival, summoning procedures, first Equip group | complete |
-| 4 | Remaining Continuous Traps + the Continuous Spell — completes the Continuous group | complete |
-| 5 | Counter monster, second Equip group, negation — completes the Equip group | complete |
-| 6 | Flip Summon negation + control change — completes the control-change group | complete |
-| 7 | Movement and excavation (four units) — completes the movement group | complete |
-| 8 | Banishment, LP costs, Trap Monsters, Battle-Phase restriction | complete |
-| 9 | Attack restriction / negation | **unit A only** |
-
-**Batch 9 unit A** added the generic attack-restriction / attack-negation gate
-(`AttackRestrictionTests`, 229 assertions). It established that attack prevention, attack
-negation and a card-class activation lock are three separate things, consumed two pieces of
-previously unused engine vocabulary, added `RULES_SPEC.md §4.6, §6.4, §11.1, §11.2` and ruling
-**R34**, and caught three test-harness defects. **No engine defect was found and none was
-introduced.** All 5,280 assertions from the previous checkpoint pass unchanged, and
-5,509 − 5,280 = 229 is exactly the new suite.
+* **ObjectDB reference cycle fixed.** The cycle was one strong back-pointer
+  (`ChainManager.engine`); it is now a `WeakRef`. `LifetimeTests` proves a dropped duel frees
+  everything and that ObjectDB does not grow per duel.
+* **Scripted full duels.** `Tests/support/DuelDriver.gd` plays a whole duel through the public
+  API only — every action taken from `get_legal_actions()` / `get_legal_responses()` — and checks
+  zone integrity, LP accounting, both players' hidden-information views and every move event's
+  privacy after every step.
+* **Backend acceptance gate MET** — both decks instantiate, every card resolves through an
+  implemented path, no TODO paths, full regression, 24 scripted duels, deterministic replay
+  (including a JSON round trip), cross-process determinism, hidden information over a whole game,
+  0 `SCRIPT ERROR`, no ObjectDB leak, and games reaching LP 0, deck-out and surrender.
+* **Cleanup (unit 4).** `R35` / `Mirage Dragon` re-checked with the Konami database's `ja` locale
+  (an official supplement exists and agrees with the shipped card; R34 part D is now HIGH);
+  `Tools/build_matrix.py` now reads each ruling's status from `Research/CARD_RULINGS.md` instead of
+  printing `PENDING` for every flagged card; `Spiritual Wind Art - Miyabi` reads the field
+  Attribute like its two sibling cards; this file was regenerated.
 
 ---
 
 ## What remains
 
-**28 cards**, not yet implemented and honestly reported as `NOT_IMPLEMENTED` in the matrix:
-
-`A Hero Emerges` · `Back-Up Rider` · `Burst Stream of Destruction` · `Cards of Consonance` ·
-`Chiron the Mage` · `Damage Condenser` · `Divine Dragon Apocralyph` · `Dragon Shrine` ·
-`Fairy Tail - Luna` · `Fairy Tail - Sleeper` · `Herald of Creation` ·
-`Hidden Springs of the Far East` · `Honest` · `Kaiser Sea Horse` · `Maiden with Eyes of Blue` ·
-`Mirage Dragon` · `Soul Exchange` · `Spiritual Fire Art - Kurenai` ·
-`Spiritual Water Art - Aoi` · `Stamping Destruction` · `Straight Flush` ·
-`Swords of Revealing Light` · `The Monarchs Awaken` · `The White Stone of Legend` · `Trade-In` ·
-`Vampiric Koala` · `White Elephant's Gift` · `Witchcrafter Golem Aruru`
-
-**The next step is `Mirage Dragon`**, batch 9 unit B card 1. Its full plan is in
-`PROJECT_STATE.md` §8.
-
-Beyond Phase 5: scripted-duel acceptance coverage (Phase 6), then the playable UI (Phase 7),
-then presentation (Phase 8+). None of these is started.
+**Phase 7 — a functional local Human-v-Human interface, before any visual polish.** It will sit
+on the existing public API — UI → legal-action API → `DuelEngine` → semantic events →
+presentation — and **never** decide legality itself. The unit-by-unit plan, with acceptance
+criteria, is in `PROJECT_STATE.md` §8. **Nothing in Phase 7 is started.**
 
 ---
 
@@ -135,14 +121,12 @@ then presentation (Phase 8+). None of these is started.
 
 | Item | Status |
 |---|---|
-| **R3, R6, R7, R8** | **OPEN** rulings, for `Maiden with Eyes of Blue`, `Swords of Revealing Light`, `Soul Exchange` and `Kaiser Sea Horse`. Batch 9 unit A settled the generic mechanisms these cards will use, not the per-card questions. |
-| **R34 part D** | **MEDIUM-HIGH**, reasoned from Problem-Solving Card Text rather than a quoted ruling, and explicitly flagged for re-checking against an official source. Isolated behind one predicate, so a correction is a one-place change. |
-| **Simultaneous-LP-zero (a draw)** | **Unexercised** — the only remaining item on the core-rules coverage list. A *reachability* gap, not a missing implementation: no card in this 77-card pool can drive both players to 0 LP at once. Checked rather than assumed, with two suites proving it. |
-| **End-Phase banish edge case** | Deliberately open: a card banished by an effect activated *during* the End Phase does not return until the *next* turn's End Phase, because expiry runs as the phase is entered. |
-| **Two never-live clauses** | `Apprentice Magician`'s Spell Counter clause and `Fairy Tail - Rella`'s equip clause cannot be live with this card pool. Both fully implemented, tested against synthetic cards, and asserted against the real library so the fact cannot rot. |
-| **ObjectDB growth** | 164,444 leaked instances at exit, rising with the number of duels the suite builds. Causes no test failure, hang, memory pressure or unreliable result. **Scheduled to be characterised or fixed before Phase 7.** The trend is recorded at every checkpoint rather than explained away. |
-| **Interaction coverage** | Thin — one interaction suite. The most valuable area for new contribution. |
-| **Platform validation** | Windows 11 (development) and Ubuntu (CI) both run the full suite to identical results. **macOS is untested.** |
+| **R1, R2** | **OPEN**, recorded questions about branches never live in these decks (`Runick Flashing Fire`'s Extra Deck bullet; `Judge of the Ice Barrier`'s "Ice Barrier" clauses). Both cards are implemented and tested; neither blocks anything. |
+| **Simultaneous-LP-zero (a draw)** | **Unexercised** — a reachability gap, not a missing implementation: no card in this pool can take both players to 0 LP at once. |
+| **End-Phase banish edge case** | Deliberately open: a card banished by an effect activated *during* the End Phase returns at the *next* End Phase, because expiry runs as the phase is entered. |
+| **Never-live clauses** | `Apprentice Magician`'s Spell Counter clause, `Fairy Tail - Rella`'s equip clause and `Runick Flashing Fire`'s Extra Deck bullet cannot be live with this pool. All implemented, tested against synthetic cards, and asserted against the real library. |
+| **Unarranged coverage** | The scripted duels activated 45 distinct cards' effects in unarranged play; the rest are proven by their own suites. A deterministic policy will not find every card's window. |
+| **Platform validation** | Windows 11 (development) and Ubuntu (CI) run the full suite to identical results. **macOS is untested.** |
 
 ---
 

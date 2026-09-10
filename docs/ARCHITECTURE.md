@@ -36,7 +36,7 @@ See [`../README.md`](../README.md) for the project overview and current status, 
 Every architectural choice below follows from that. The engine is a set of plain
 `RefCounted` GDScript classes — **no `Node`, no scene tree, no signals into a UI, no `await`,
 no frame dependency**. It can be driven to completion inside a single function call, which is
-what makes a 5,509-assertion headless suite practical and what will keep a future UI from
+what makes a 10,433-assertion headless suite practical and what will keep a future UI from
 being able to corrupt a duel.
 
 ---
@@ -443,7 +443,7 @@ The suite drives the engine through the **same public API** a UI will, using
 ```mermaid
 flowchart LR
     RT["RunTests.gd<br/>explicit suite list"] --> TC["TestCase harness"]
-    TC --> SUITES["63 suites"]
+    TC --> SUITES["99 suites"]
     SUITES --> FIX["TestFixtures.gd<br/>new_duel, battle_duel, synthetic cards"]
     FIX --> API["DuelEngine public API"]
     SC["ScriptedController<br/>queued answers"] --> API
@@ -497,7 +497,7 @@ A CPU player is a `PlayerController` that:
 * answers `DecisionRequest`s.
 
 `ScriptedController` already proves the shape works: the test suite is, in effect, a very
-opinionated CPU player driving 5,509 assertions through this exact interface.
+opinionated CPU player driving 10,433 assertions through this exact interface.
 
 ---
 

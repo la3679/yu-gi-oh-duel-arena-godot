@@ -4,22 +4,28 @@ The test suite is as much the deliverable as the engine is. This document explai
 organised, how to run it, how to add to it correctly, and the harness pitfalls that have cost
 real time.
 
-Measured at the current checkpoint (Phase 5, batch 9 partial):
+Measured at the current checkpoint (Phase 6 COMPLETE — the backend is finished; Phase 7 has not
+started):
 
 | | |
 |---|---|
-| **Assertions** | **5,509 passed / 0 failed** |
-| **Suites** | **63** — 21 core-rules, 41 per-card, 1 interaction |
+| **Assertions** | **10,433 passed / 0 failed** |
+| **Suites** | **99** — 26 core-rules, 69 per-card, 1 interaction, 3 integration |
 | **SmokeCheck** | **PASS** |
+| **`SCRIPT ERROR`** | **0** in the full run |
+| **Scripted full duels** | **24** between the two real decks, each replayed exactly from its payload |
+| **Cross-process determinism** | **PASS** (`Tools/check_determinism.*`) |
 | **Engine** | Godot `4.7.1.stable.official.a13da4feb`, headless |
-| **ObjectDB at exit** | 164,444 leaked instances (known, tracked — see [below](#known-harness-pitfalls)) |
+| **ObjectDB at exit** | **no leak warning** — the cycle was fixed in Phase 6 (see [below](#objectdb-growth--fixed)) |
+| **Matrix tool tests** | 16, `python -m unittest discover -s Tools -p "test_*.py"` |
 
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
-| Core rules | 21 | 1,797 | 1,797 | 0 |
-| Per-card | 41 | 3,666 | 3,666 | 0 |
+| Core rules | 26 | 2,747 | 2,747 | 0 |
+| Per-card | 69 | 7,328 | 7,328 | 0 |
 | Interaction | 1 | 46 | 46 | 0 |
-| **Total** | **63** | **5,509** | **5,509** | **0** |
+| Integration — lifetime, scripted full duels, backend acceptance | 3 | 312 | 312 | 0 |
+| **Total** | **99** | **10,433** | **10,433** | **0** |
 
 The per-suite breakdown, and **every defect the tests have caught**, milestone by milestone,
 is in [`../Reports/TEST_RESULTS.md`](../Reports/TEST_RESULTS.md). That file is the detailed
@@ -80,7 +86,7 @@ powershell -ExecutionPolicy Bypass -File Tools\run_tests.ps1 -Import
 
 ### Reporting tools
 
-Per-test assertion counts for the Phase 5 suites, which is where the numbers quoted in
+Per-test assertion counts for every suite, which is where the numbers quoted in
 `TEST_RESULTS.md` come from:
 
 ```bash
@@ -93,15 +99,27 @@ The card implementation matrix, which computes the card counts from the code:
 python Tools/build_matrix.py
 ```
 
+The matrix tool's own tests — the `Research/CARD_RULINGS.md` §4 status parser must fail loudly on
+a malformed table, and the real data must still give 77 / 77 with no `PENDING`. CI runs them:
+
+```bash
+python -m unittest discover -s Tools -p "test_*.py"
+```
+
 ### What a passing run looks like
 
 ```
 =======================================
-TOTAL: 5509 passed, 0 failed (5509 assertions across 63 suite(s))
+TOTAL: 10433 passed, 0 failed (10433 assertions across 99 suite(s))
 =======================================
 RESULT: PASS
 RUNNER: PASS
 ```
+
+stderr carries a handful of `ERROR:` lines with GDScript backtraces. They are expected: each is a
+`push_error` from a test that deliberately proves the engine fails *loudly* (a missing
+`resolve()`, an impossible Chain-Link substitution, an unknown restriction flag). There is **no**
+`SCRIPT ERROR` and **no** ObjectDB leak warning in a healthy run.
 
 ### Why the wrapper scripts exist
 
@@ -127,8 +145,8 @@ into its own exit code.
 
 ```
 Tests/
-├── rules/          21 suites — generic rules tests and mechanic gates
-├── cards/          41 per-card suites + 1 interaction suite
+├── rules/          26 suites — generic rules tests and mechanic gates
+├── cards/          69 per-card suites + 1 interaction suite
 ├── support/
 │   ├── TestFixtures.gd   duel builders, synthetic cards, the two REAL decks
 │   └── DuelDriver.gd     plays a WHOLE duel through the public API (the reference client)
@@ -327,8 +345,9 @@ understate it badly.
 
 The project convention when reporting a checkpoint is to state the total, and to confirm that
 **every pre-existing suite reports exactly its previous count**. That is what proves new work
-added assertions rather than quietly changing old ones. For example, at the batch 9 unit A
-checkpoint: 5,509 − 5,280 = 229, precisely the size of the new suite, and no other suite moved.
+added assertions rather than quietly changing old ones. For example, at the Phase 6 unit 4
+checkpoint: 10,433 − 10,422 = 11, precisely the one new `SpiritualWindArtMiyabiTests` test, and no
+other suite moved.
 
 ---
 

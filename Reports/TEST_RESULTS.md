@@ -1,9 +1,10 @@
 # TEST_RESULTS
 
-**Last run:** 2026-09-10 (**Phase 6 — the post-card phase — units 1, 2 and 3 COMPLETE.** The
-ObjectDB reference cycle is FIXED; whole duels between the two real decks are played, checked and
-replayed; the backend acceptance gate is MET. `RULES_SPEC.md` gains **§12.5**. **77 / 77
-implemented, 77 / 77 tested.** The card phase record — batch 18 — follows below.)
+**Last run:** 2026-09-10 (**Phase 6 COMPLETE — unit 4, the backend cleanup, closes it.** R35 /
+`Mirage Dragon` re-checked under `request_locale=ja` and CLOSED; `Tools/build_matrix.py` reads each
+ruling's status instead of printing `PENDING`; `Spiritual Wind Art - Miyabi` reads the field
+Attribute. **77 / 77 implemented, 77 / 77 tested.** Units 1–3 and the card phase record follow
+below. **Phase 7 (UI) has NOT started.**)
 **Engine:** Godot 4.7.1.stable.official.a13da4feb (headless)
 
 Command:
@@ -40,12 +41,19 @@ authority for every number below.
 | Category | Suites | Assertions | Passed | Failed |
 |---|---:|---:|---:|---:|
 | Core rules tests | 26 | 2747 | **2747** | 0 |
-| Per-card tests | 69 | 7317 | **7317** | 0 |
+| Per-card tests | 69 | 7328 | **7328** | 0 |
 | Interaction tests | 1 | 46 | **46** | 0 |
 | Integration — lifetime, scripted full duels, backend acceptance | 3 | 312 | **312** | 0 |
-| **TOTAL** | **99** | **10422** | **10422** | **0** |
+| **TOTAL** | **99** | **10433** | **10433** | **0** |
 
-**Phase 6 checkpoint (2026-09-10):** commit **`7fe817f`**; previous clean commit **`58d4d1a`**.
+**Phase 6 unit 4 checkpoint (2026-09-10):** previous clean commit **`5d483bc`** (the unit-4 commit
+hash is recorded in the follow-up docs commit). **10433 / 10433 across 99 suites**, SmokeCheck
+**PASS**, `SCRIPT ERROR` **0**, **no** ObjectDB leak warning and **no** "resources still in use",
+cross-process determinism **PASS**, matrix **77 / 77 implemented, 77 / 77 tested** (recomputed),
+matrix-tool tests **16 / 16**. Every one of units 1–3's **10422** assertions passes unchanged;
+10433 − 10422 = **11** = the one new `SpiritualWindArtMiyabiTests` test (150 → 161).
+
+**Phase 6 units 1–3 checkpoint (2026-09-10):** commit **`7fe817f`**; previous clean commit **`58d4d1a`**.
 SmokeCheck **PASS**.
 `SCRIPT ERROR` in the full run: **0**. Matrix: **77 / 77 implemented, 77 / 77 tested** (recomputed;
 the committed CSV is unchanged). **No "ObjectDB instances were leaked at exit" warning** (was
@@ -56,6 +64,39 @@ the committed CSV is unchanged). **No "ObjectDB instances were leaked at exit" w
 Every one of batch 18's **10087** assertions passes unchanged — none changed, retargeted or
 deleted. 10422 − 10087 = **335** = 23 (`HiddenInfoTests` 224 → 247) + 16 (`LifetimeTests`) + 231
 (`ScriptedDuelTests`) + 65 (`BackendAcceptanceTests`).
+
+## Phase 6 unit 4 — the backend cleanup COMPLETE
+
+The full record is **`PROJECT_STATE.md` §0**, "Unit 4". The measured core of it:
+
+| Item | Result |
+|---|---|
+| R35 / `Mirage Dragon` | re-checked with `request_locale=ja`: an official **four-bullet supplement exists** (2015-03-21) — batch 9's "no Q&A entry" came from the `en` boilerplate and was wrong. Every bullet matches the shipped card and its tests; **nothing changed**. R34 part D → **HIGH**; R35 **CLOSED** |
+| `build_matrix.py` "Ruling Verified" | read from the new Status column of `CARD_RULINGS.md` §4 (the hard-coded dict is gone too): 21 × `PENDING` → **13 CLOSED / 6 DECIDED / 2 OPEN**; diffed against HEAD, **only that column changed**; 77 / 77 unchanged |
+| `Tools/test_build_matrix.py` | **16 / 16** — 10 parser tests (each malformed table must fail loudly), 6 on the real data; in CI |
+| `Spiritual Wind Art - Miyabi` | reads the field Attribute (`field_monster_of_attribute`) |
+| `docs/PROJECT_STATUS.md` | regenerated; README, TESTING, RULES_AND_RULINGS, ARCHITECTURE, CONTRIBUTING synced |
+
+### Per-suite changes
+
+| Suite | Before | After | Why |
+|---|---:|---:|---|
+| `SpiritualWindArtMiyabiTests` | 150 | **161** | `_test_a_wind_trap_monster_is_a_legal_tribute` (+11) |
+| every other suite | — | unchanged | — |
+
+### The test that was written to fail first
+
+`_test_a_wind_trap_monster_is_a_legal_tribute` against the OLD reader (`monster_filter(WIND)`):
+**10429 passed, 4 failed**. The failures were exactly the four assertions after "the Trap is
+offered"; both controls passed (nothing to Tribute while the WIND Trap is in the Graveyard; the
+runtime Attribute is WIND over a blank printed one). After the one-line fix: **161 / 161**.
+
+### Defects found
+
+* **Tooling (mine, caught by the tool):** the new §4 parser's first real run failed loudly on the
+  Status-meaning table added under §4 (`bad ruling id 'Status'`). Fixed: only the first table in §4
+  is read, and `test_a_later_table_in_the_same_section_is_not_read` pins it.
+* **Engine / card:** none.
 
 ## Phase 6 — units 1, 2 and 3 COMPLETE: ObjectDB fix, scripted full duels, backend acceptance
 
